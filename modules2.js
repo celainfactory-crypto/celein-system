@@ -1,0 +1,2981 @@
+/* ============================================================
+   سيلين - وحدات إضافية
+   التسعير، المخزون، المبيعات، المختبر، الموارد البشرية، إلخ
+   ============================================================ */
+
+/* ============ التسعير ============ */
+window.Modules.pricing = function(container) {
+  const db = APP.getDB();
+  Exports.register("pricing", {
+    label: "الأسعار والوكلاء",
+    pdf: () => {
+      const headers = ['الصنف', 'تجزئة', 'جملة', 'عمولة %', 'سعر المصنع', 'أجور النقل', 'سعر الوكيل', 'هامش الربح'];
+      const rows = db.products.map(p => {
+        const pr = db.pricing.find(x => x.code === p.code);
+        const cost = DB.costPerCarton(p.code, db).total;
+        const avgPrice = (pr.retailPrice + pr.wholesalePrice) / 2;
+        const margin = avgPrice - cost;
+        return [p.name, pr.retailPrice, pr.wholesalePrice, pr.commissionPct, pr.factoryPrice, pr.transport, pr.agentPrice,
+          { v: margin.toFixed(0) + ' ر.ي', cls: margin >= 0 ? 'text-success' : 'text-danger' }];
+      });
+      const html = Exports.rowsToHTMLTable(headers, rows, { title: 'جدول الأسعار والعمولات' });
+      Exports.exportPDF("الأسعار والعمولات والوكلاء", html, "pricing");
+    },
+    excel: () => {
+      const headers = ['الصنف', 'تجزئة', 'جملة', 'عمولة %', 'سعر المصنع', 'أجور النقل', 'سعر الوكيل', 'التكلفة', 'هامش الربح'];
+      const rows = db.products.map(p => {
+        const pr = db.pricing.find(x => x.code === p.code);
+        const cost = DB.costPerCarton(p.code, db).total;
+        const avgPrice = (pr.retailPrice + pr.wholesalePrice) / 2;
+        const margin = avgPrice - cost;
+        return [p.name, pr.retailPrice, pr.wholesalePrice, pr.commissionPct, pr.factoryPrice, pr.transport, pr.agentPrice, cost.toFixed(2), margin.toFixed(2)];
+      });
+      Exports.exportExcel(Exports.rowsToHTMLTable(headers, rows, { title: 'الأسعار والعمولات والوكلاء' }), "pricing");
+    },
+    csv: () => {
+      const headers = ['الصنف', 'تجزئة', 'جملة', 'عمولة', 'سعر المصنع', 'أجور النقل', 'سعر الوكيل'];
+      const rows = db.products.map(p => {
+        const pr = db.pricing.find(x => x.code === p.code);
+        return [p.name, pr.retailPrice, pr.wholesalePrice, pr.commissionPct, pr.factoryPrice, pr.transport, pr.agentPrice];
+      });
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), "pricing");
+    },
+    json: () => Exports.exportJSON({ pricing: db.pricing }, "pricing_data"),
+    print: () => window.print()
+  });
+
+  function render() {
+    container.innerHTML = `
+      <div class="alert alert-info">
+        <span>${Icons.render("priceTag")}</span>
+        <span><b>تنبيه:</b> تم رفع سعر 750 مل كرتون وشرنج بـ 100 ر.ي (التجزئة 1300 ر.ي، الجملة 1270 ر.ي). العمولة لا تتجاوز 2%. يدعم النظام الأسعار التراكمية وتعديلها في أي وقت.</span>
+      </div>
+
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("money")} تحديث أسعار الأصناف</h3>
+          <button class="btn btn-primary btn-sm" onclick="Modules._savePricing()">${Icons.render("save")} حفظ الأسعار</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>الصنف</th>
+              <th>سعر التجزئة</th>
+              <th>سعر الجملة</th>
+              <th>العمولة %</th>
+              <th>سعر المصنع</th>
+              <th>أجور النقل</th>
+              <th>سعر الوكيل</th>
+              <th>هامش الربح*</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${db.products.map(p => {
+              const pr = db.pricing.find(x => x.code === p.code);
+              const cost = DB.costPerCarton(p.code, db).total;
+              const avgPrice = (pr.retailPrice + pr.wholesalePrice) / 2;
+              const margin = avgPrice - cost;
+              const marginPct = avgPrice > 0 ? (margin / avgPrice * 100) : 0;
+              return `
+                <tr>
+                  <td><b>${p.name}</b></td>
+                  <td><input type="number" id="pr_retail_${p.code}" value="${pr.retailPrice}" style="width:90px" /></td>
+                  <td><input type="number" id="pr_wholesale_${p.code}" value="${pr.wholesalePrice}" style="width:90px" /></td>
+                  <td><input type="number" id="pr_comm_${p.code}" value="${pr.commissionPct}" min="0" max="2" step="0.1" style="width:60px" /></td>
+                  <td><input type="number" id="pr_factory_${p.code}" value="${pr.factoryPrice}" style="width:90px" /></td>
+                  <td><input type="number" id="pr_transport_${p.code}" value="${pr.transport}" style="width:80px" /></td>
+                  <td><input type="number" id="pr_agent_${p.code}" value="${pr.agentPrice}" style="width:90px" /></td>
+                  <td class="${margin >= 0 ? 'text-success' : 'text-danger'}">
+                    ${margin.toFixed(0)} (${marginPct.toFixed(1)}%)
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+        <p class="text-muted" style="margin-top:10px;font-size:12px">* هامش الربح = متوسط سعر البيع - التكلفة الفعلية للكرتون</p>
+      </div>
+
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("profit")} تحليل الربحية حسب الصنف</h3>
+        </div>
+        <canvas id="chartMargin" height="100"></canvas>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("document")} سجل تحديثات الأسعار</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>التاريخ</th>
+              <th>الصنف</th>
+              <th>السعر القديم</th>
+              <th>السعر الجديد</th>
+              <th>سبب التعديل</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="5" class="text-muted" style="text-align:center;padding:20px">سيتم تسجيل كل تحديث تلقائياً هنا</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    setTimeout(() => {
+      const labels = db.products.map(p => p.name);
+      const costs = db.products.map(p => DB.costPerCarton(p.code, db).total);
+      const avgPrices = db.products.map(p => {
+        const pr = db.pricing.find(x => x.code === p.code);
+        return (pr.retailPrice + pr.wholesalePrice) / 2;
+      });
+      new Chart(document.getElementById('chartMargin'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'التكلفة', data: costs, backgroundColor: '#c62828' },
+            { label: 'متوسط السعر', data: avgPrices, backgroundColor: '#2e7d32' }
+          ]
+        },
+        options: { responsive: true }
+      });
+    }, 100);
+  }
+
+  Modules._savePricing = function() {
+    const db = APP.getDB();
+    db.products.forEach(p => {
+      const pr = db.pricing.find(x => x.code === p.code);
+      pr.retailPrice = +document.getElementById(`pr_retail_${p.code}`).value;
+      pr.wholesalePrice = +document.getElementById(`pr_wholesale_${p.code}`).value;
+      pr.commissionPct = Math.min(+document.getElementById(`pr_comm_${p.code}`).value, 2);
+      pr.factoryPrice = +document.getElementById(`pr_factory_${p.code}`).value;
+      pr.transport = +document.getElementById(`pr_transport_${p.code}`).value;
+      pr.agentPrice = +document.getElementById(`pr_agent_${p.code}`).value;
+    });
+    APP.saveDB(db);
+    alert('{Icons.render("check")} تم حفظ الأسعار الجديدة');
+    render();
+  };
+
+  render();
+};
+
+/* ============ المخزون ============ */
+window.Modules.inventory = function(container) {
+  const db = APP.getDB();
+  Exports.register("inventory", {
+    label: "إدارة المخزون",
+    pdf: () => {
+      const inv = DB.inventory(db);
+      const headers = ['الصنف', 'افتتاحي', 'منتج', 'مصروف', 'الرصيد', 'الحالة'];
+      const rows = inv.map(i => {
+        const status = i.balance < 500 ? 'منخفض جداً' : i.balance < 1500 ? 'منخفض' : 'جيد';
+        return [i.name, i.opening, i.produced, i.dispatched, { v: i.balance.toLocaleString('ar-EG'), cls: 'text-primary' }, status];
+      });
+      const footer = ['الإجمالي',
+        inv.reduce((s,i)=>s+i.opening,0),
+        inv.reduce((s,i)=>s+i.produced,0),
+        inv.reduce((s,i)=>s+i.dispatched,0),
+        inv.reduce((s,i)=>s+i.balance,0).toLocaleString('ar-EG'),
+        ''];
+      const html = Exports.rowsToHTMLTable(headers, rows, { title: 'جرد المخزون الحالي', footerRow: [footer] });
+      Exports.exportPDF("جرد المخزون", html, "inventory");
+    },
+    excel: () => {
+      const inv = DB.inventory(db);
+      const headers = ['الصنف', 'الافتتاحي', 'المنتج', 'المصروف', 'الرصيد المتبقي', 'الحالة'];
+      const rows = inv.map(i => {
+        const status = i.balance < 500 ? 'منخفض جداً' : i.balance < 1500 ? 'منخفض' : 'جيد';
+        return [i.name, i.opening, i.produced, i.dispatched, i.balance, status];
+      });
+      Exports.exportExcel(Exports.rowsToHTMLTable(headers, rows, { title: 'جرد المخزون' }), "inventory");
+    },
+    csv: () => {
+      const inv = DB.inventory(db);
+      const headers = ['الصنف', 'افتتاحي', 'منتج', 'مصروف', 'الرصيد'];
+      const rows = inv.map(i => [i.name, i.opening, i.produced, i.dispatched, i.balance]);
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), "inventory");
+    },
+    json: () => Exports.exportJSON({ inventory: DB.inventory(db), inventoryOpening: db.inventoryOpening }, "inventory_data"),
+    print: () => window.print()
+  });
+
+  function render() {
+    const inv = DB.inventory(db);
+
+    container.innerHTML = `
+      <div class="alert alert-info">
+        <span>${Icons.render("box")}</span>
+        <span>رصيد المخزون = الرصيد الافتتاحي + الإنتاج - المصروفات. كل حركة إنتاج أو سند صرف ينعكس فوراً.</span>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card success">
+          <span class="icon">${Icons.render("box")}</span>
+          <div class="label">إجمالي الرصيد الحالي</div>
+          <div class="value">${inv.reduce((s,i) => s + i.balance, 0).toLocaleString('ar-EG')}</div>
+          <div class="delta">كرتون في المخازن</div>
+        </div>
+        <div class="kpi-card info">
+          <span class="icon">${Icons.render("factory")}</span>
+          <div class="label">إجمالي الإنتاج (تراكمي)</div>
+          <div class="value">${inv.reduce((s,i) => s + i.produced, 0).toLocaleString('ar-EG')}</div>
+          <div class="delta">كرتون</div>
+        </div>
+        <div class="kpi-card warning">
+          <span class="icon">${Icons.render("download")}</span>
+          <div class="label">إجمالي المصروف</div>
+          <div class="value">${inv.reduce((s,i) => s + i.dispatched, 0).toLocaleString('ar-EG')}</div>
+          <div class="delta">كرتون</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("clipboard")} جرد المخزون الحالي</h3>
+          <button class="btn btn-secondary btn-sm" onclick="Modules.exportTable('inventory', 'جرد_المخزون')">${Icons.render("download")} تصدير</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>الصنف</th>
+              <th>الرصيد الافتتاحي</th>
+              <th>المنتج</th>
+              <th>المصروف</th>
+              <th class="text-primary">الرصيد المتبقي</th>
+              <th>حالة المخزون</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${inv.map(i => {
+              const status = i.balance < 500 ? 'danger' : i.balance < 1500 ? 'warning' : 'success';
+              const statusText = i.balance < 500 ? 'منخفض جداً' : i.balance < 1500 ? 'منخفض' : 'جيد';
+              return `<tr>
+                <td><b>${i.name}</b></td>
+                <td>${i.opening.toLocaleString('ar-EG')}</td>
+                <td class="text-success">+${i.produced.toLocaleString('ar-EG')}</td>
+                <td class="text-warning">-${i.dispatched.toLocaleString('ar-EG')}</td>
+                <td class="text-primary" style="font-size:15px"><b>${i.balance.toLocaleString('ar-EG')}</b></td>
+                <td><span class="badge badge-${status}">${statusText}</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td>الإجمالي</td>
+              <td>${inv.reduce((s,i) => s + i.opening, 0).toLocaleString('ar-EG')}</td>
+              <td>${inv.reduce((s,i) => s + i.produced, 0).toLocaleString('ar-EG')}</td>
+              <td>${inv.reduce((s,i) => s + i.dispatched, 0).toLocaleString('ar-EG')}</td>
+              <td class="text-primary">${inv.reduce((s,i) => s + i.balance, 0).toLocaleString('ar-EG')}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `;
+  }
+
+  render();
+};
+
+/* ============ سندات الصرف ============ */
+window.Modules.vouchers = function(container) {
+  const db = APP.getDB();
+  Exports.register("vouchers", {
+    label: "سندات الصرف",
+    pdf: () => {
+      const headers = ['التاريخ', 'النوع', 'المرجع', 'الصنف', 'الكمية', 'ملاحظات'];
+      const rows = db.vouchers.map(v => {
+        const prod = db.products.find(p => p.code === v.product);
+        return [v.date, v.type, v.refCode, prod ? prod.name : v.product, v.qty, v.notes || '-'];
+      });
+      const html = Exports.rowsToHTMLTable(headers, rows, { title: 'سجل سندات الصرف' });
+      Exports.exportPDF("سندات صرف المناديب والوكلاء", html, "vouchers");
+    },
+    excel: () => {
+      const headers = ['التاريخ', 'النوع', 'المرجع', 'الصنف', 'الكمية', 'ملاحظات'];
+      const rows = db.vouchers.map(v => {
+        const prod = db.products.find(p => p.code === v.product);
+        return [v.date, v.type, v.refCode, prod ? prod.name : v.product, v.qty, v.notes || ''];
+      });
+      Exports.exportExcel(Exports.rowsToHTMLTable(headers, rows, { title: 'سندات الصرف' }), "vouchers");
+    },
+    csv: () => {
+      const headers = ['التاريخ', 'النوع', 'المرجع', 'الصنف', 'الكمية'];
+      const rows = db.vouchers.map(v => [v.date, v.type, v.refCode, v.product, v.qty]);
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), "vouchers");
+    },
+    json: () => Exports.exportJSON({ vouchers: db.vouchers }, "vouchers_data"),
+    print: () => window.print()
+  });
+
+  function render() {
+    container.innerHTML = `
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("plus")} سند صرف جديد</h3>
+        </div>
+        <form class="form-grid" id="voucherForm">
+          <div class="form-group">
+            <label>التاريخ</label>
+            <input type="date" id="v_date" value="${new Date().toISOString().split('T')[0]}" required />
+          </div>
+          <div class="form-group">
+            <label>النوع</label>
+            <select id="v_type">
+              <option value="صرف لمندوب">صرف لمندوب</option>
+              <option value="صرف لوكيل">صرف لوكيل</option>
+              <option value="تحويل بين مخازن">تحويل بين مخازن</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>المرجع (المندوب/الوكيل)</label>
+            <select id="v_ref"></select>
+          </div>
+          <div class="form-group">
+            <label>الصنف</label>
+            <select id="v_product">
+              ${db.products.map(p => `<option value="${p.code}">${p.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>الكمية (كرتون)</label>
+            <input type="number" id="v_qty" min="1" required />
+          </div>
+          <div class="form-group" style="grid-column: span 2">
+            <label>ملاحظات</label>
+            <input type="text" id="v_notes" />
+          </div>
+        </form>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="Modules._addVoucher()">${Icons.render("save")} حفظ السند</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("clipboard")} سجل السندات (${db.vouchers.length} سند)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>التاريخ</th>
+              <th>النوع</th>
+              <th>المرجع</th>
+              <th>الصنف</th>
+              <th>الكمية</th>
+              <th>ملاحظات</th>
+              <th>إجراء</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${db.vouchers.slice().reverse().map((v, idx) => {
+              const prod = db.products.find(p => p.code === v.product);
+              const realIdx = db.vouchers.length - 1 - idx;
+              return `<tr>
+                <td>${v.date}</td>
+                <td><span class="badge badge-info">${v.type}</span></td>
+                <td>${v.refCode}</td>
+                <td>${prod ? prod.name : v.product}</td>
+                <td class="text-primary">${v.qty}</td>
+                <td class="text-muted">${v.notes || '-'}</td>
+                <td><button class="btn btn-danger btn-sm" onclick="Modules._deleteVoucher(${realIdx})">${Icons.render("trash")}</button></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    function updateRefOptions() {
+      const type = document.getElementById('v_type').value;
+      const refSel = document.getElementById('v_ref');
+      if (type === 'صرف لمندوب') {
+        refSel.innerHTML = db.salesReps.map(r => `<option value="${r.code}">${r.name}</option>`).join('');
+      } else if (type === 'صرف لوكيل') {
+        refSel.innerHTML = db.agents.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
+      } else {
+        refSel.innerHTML = `<option value="مخزن رئيسي">مخزن رئيسي</option><option value="مخزن فرعي">مخزن فرعي</option>`;
+      }
+    }
+    document.getElementById('v_type').addEventListener('change', updateRefOptions);
+    updateRefOptions();
+  }
+
+  Modules._addVoucher = function() {
+    const v = {
+      id: Date.now(),
+      date: document.getElementById('v_date').value,
+      type: document.getElementById('v_type').value,
+      refCode: document.getElementById('v_ref').value,
+      product: document.getElementById('v_product').value,
+      qty: +document.getElementById('v_qty').value,
+      notes: document.getElementById('v_notes').value
+    };
+    if (!v.date || !v.qty || v.qty < 1) return alert('يرجى ملء الحقول');
+    const db = APP.getDB();
+    db.vouchers.push(v);
+    APP.saveDB(db);
+    alert('{Icons.render("check")} تم حفظ السند وتحديث المخزون');
+    render();
+  };
+
+  Modules._deleteVoucher = function(idx) {
+    if (!confirm('حذف السند؟')) return;
+    const db = APP.getDB();
+    db.vouchers.splice(idx, 1);
+    APP.saveDB(db);
+    render();
+  };
+
+  render();
+};
+
+/* ============ المبيعات والمناديب ============ */
+window.Modules.sales = function(container) {
+  const db = APP.getDB();
+  Exports.register("sales", {
+    label: "المناديب والمبيعات",
+    pdf: () => {
+      // ملخص المناديب
+      const reps = db.salesReps.map(r => DB.salesRepSummary(r.code, db));
+      const repHeaders = ['المندوب', 'المركبة', 'رصيد أول الشهر', 'مبيعات', 'تحصيل', 'المديونية', 'الكمية'];
+      const repRows = reps.map(r => [r.name, r.vehicle, r.openingBalance.toLocaleString('ar-EG'),
+        (r.credit+r.cash).toLocaleString('ar-EG'), r.collection.toLocaleString('ar-EG'),
+        { v: r.balance.toLocaleString('ar-EG'), cls: 'text-danger' }, r.qty.toLocaleString('ar-EG')]);
+      const repFooter = ['الإجمالي', '',
+        reps.reduce((s,r)=>s+r.openingBalance,0).toLocaleString('ar-EG'),
+        reps.reduce((s,r)=>s+r.credit+r.cash,0).toLocaleString('ar-EG'),
+        reps.reduce((s,r)=>s+r.collection,0).toLocaleString('ar-EG'),
+        { v: reps.reduce((s,r)=>s+r.balance,0).toLocaleString('ar-EG'), cls: 'text-danger' },
+        reps.reduce((s,r)=>s+r.qty,0).toLocaleString('ar-EG')];
+      // السجل التفصيلي
+      const detailHeaders = ['التاريخ', 'المندوب', 'الكمية', 'آجلة', 'نقدية', 'تحصيل'];
+      const detailRows = db.salesLog.map(s => {
+        const rep = db.salesReps.find(r => r.code === s.repCode);
+        return [s.date, rep ? rep.name : s.repCode, s.qty, s.credit.toLocaleString('ar-EG'), s.cash.toLocaleString('ar-EG'), s.collection.toLocaleString('ar-EG')];
+      });
+      const html = Exports.rowsToHTMLTable(repHeaders, repRows, { title: 'ملخص أداء المناديب', footerRow: [repFooter] }) +
+                   Exports.rowsToHTMLTable(detailHeaders, detailRows, { title: 'السجل التفصيلي' });
+      Exports.exportPDF("أداء المناديب والمبيعات", html, "sales");
+    },
+    excel: () => {
+      const reps = db.salesReps.map(r => DB.salesRepSummary(r.code, db));
+      const repHeaders = ['المندوب', 'المركبة', 'رصيد أول الشهر', 'مبيعات', 'تحصيل', 'المديونية', 'الكمية المباعة'];
+      const repRows = reps.map(r => [r.name, r.vehicle, r.openingBalance, r.credit+r.cash, r.collection, r.balance, r.qty]);
+      const detailHeaders = ['التاريخ', 'المندوب', 'الكمية', 'آجلة', 'نقدية', 'تحصيل'];
+      const detailRows = db.salesLog.map(s => {
+        const rep = db.salesReps.find(r => r.code === s.repCode);
+        return [s.date, rep ? rep.name : s.repCode, s.qty, s.credit, s.cash, s.collection];
+      });
+      const html = Exports.rowsToHTMLTable(repHeaders, repRows, { title: 'ملخص المناديب' }) +
+                   Exports.rowsToHTMLTable(detailHeaders, detailRows, { title: 'سجل المبيعات التفصيلي' });
+      Exports.exportExcel(html, "sales");
+    },
+    csv: () => {
+      const headers = ['التاريخ', 'المندوب', 'الكمية', 'آجلة', 'نقدية', 'تحصيل'];
+      const rows = db.salesLog.map(s => {
+        const rep = db.salesReps.find(r => r.code === s.repCode);
+        return [s.date, rep ? rep.name : s.repCode, s.qty, s.credit, s.cash, s.collection];
+      });
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), "sales");
+    },
+    json: () => Exports.exportJSON({ salesReps: db.salesReps, salesLog: db.salesLog }, "sales_data"),
+    print: () => window.print()
+  });
+
+  function render() {
+    const reps = db.salesReps.map(r => DB.salesRepSummary(r.code, db));
+
+    container.innerHTML = `
+      <div class="alert alert-success">
+        <span>${Icons.render("truck")}</span>
+        <span>أداء المناديب (دباب / دينة) — متابعة المبيعات والتحصيل والمديونيات لحظياً.</span>
+      </div>
+
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("clipboard")} ملخص أداء المناديب للشهر</h3>
+          <button class="btn btn-secondary btn-sm" onclick="Modules.exportTable('salesReps', 'أداء_المناديب')">${Icons.render("download")} تصدير</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>المندوب</th>
+              <th>المركبة</th>
+              <th>رصيد أول الشهر</th>
+              <th>مبيعات الشهر</th>
+              <th>تحصيل</th>
+              <th class="text-primary">المديونية الحالية</th>
+              <th>الكمية المباعة</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${reps.map(r => `
+              <tr>
+                <td><b>${r.name}</b></td>
+                <td><span class="badge badge-info">${r.vehicle}</span></td>
+                <td>${r.openingBalance.toLocaleString('ar-EG')}</td>
+                <td class="text-success">${(r.credit + r.cash).toLocaleString('ar-EG')}</td>
+                <td class="text-primary">${r.collection.toLocaleString('ar-EG')}</td>
+                <td class="text-danger"><b>${r.balance.toLocaleString('ar-EG')}</b></td>
+                <td>${r.qty.toLocaleString('ar-EG')} كرتون</td>
+              </tr>
+            `).join('')}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2">الإجمالي</td>
+              <td>${reps.reduce((s,r) => s + r.openingBalance, 0).toLocaleString('ar-EG')}</td>
+              <td>${reps.reduce((s,r) => s + r.credit + r.cash, 0).toLocaleString('ar-EG')}</td>
+              <td>${reps.reduce((s,r) => s + r.collection, 0).toLocaleString('ar-EG')}</td>
+              <td class="text-danger">${reps.reduce((s,r) => s + r.balance, 0).toLocaleString('ar-EG')}</td>
+              <td>${reps.reduce((s,r) => s + r.qty, 0).toLocaleString('ar-EG')}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("profit")} مخطط مقارنة المناديب</h3>
+        <canvas id="chartReps" height="100"></canvas>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("document")} سجل مبيعات تفصيلي</h3>
+        <div class="search-bar">
+          <span class="icon">${Icons.render("search")}</span>
+          <input type="text" id="salesSearch" placeholder="ابحث باسم المندوب أو التاريخ..." oninput="Modules._filterSales()" />
+        </div>
+        <div style="max-height:500px;overflow-y:auto">
+          <table id="salesTable">
+            <thead>
+              <tr>
+                <th>التاريخ</th>
+                <th>المندوب</th>
+                <th>الكمية</th>
+                <th>آجلة</th>
+                <th>نقدية</th>
+                <th>تحصيل</th>
+              </tr>
+            </thead>
+            <tbody id="salesTbody">
+              ${db.salesLog.slice().reverse().map(s => {
+                const rep = db.salesReps.find(r => r.code === s.repCode);
+                return `<tr data-search="${s.date} ${rep ? rep.name : ''} ${s.repCode}">
+                  <td>${s.date}</td>
+                  <td>${rep ? rep.name : s.repCode}</td>
+                  <td class="text-primary">${s.qty}</td>
+                  <td class="text-warning">${s.credit.toLocaleString('ar-EG')}</td>
+                  <td class="text-success">${s.cash.toLocaleString('ar-EG')}</td>
+                  <td>${s.collection.toLocaleString('ar-EG')}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    setTimeout(() => {
+      new Chart(document.getElementById('chartReps'), {
+        type: 'bar',
+        data: {
+          labels: reps.map(r => r.name),
+          datasets: [
+            { label: 'مبيعات', data: reps.map(r => r.credit + r.cash), backgroundColor: '#1565c0' },
+            { label: 'تحصيل', data: reps.map(r => r.collection), backgroundColor: '#2e7d32' },
+            { label: 'مديونية', data: reps.map(r => r.balance), backgroundColor: '#c62828' }
+          ]
+        },
+        options: { responsive: true }
+      });
+    }, 100);
+  }
+
+  Modules._filterSales = function() {
+    const q = document.getElementById('salesSearch').value.toLowerCase();
+    document.querySelectorAll('#salesTbody tr').forEach(tr => {
+      const txt = tr.dataset.search.toLowerCase();
+      tr.style.display = txt.includes(q) ? '' : 'none';
+    });
+  };
+
+  render();
+};
+
+/* ============ الوكلاء ============ */
+window.Modules.agents = function(container) {
+  const db = APP.getDB();
+  Exports.register("agents", {
+    label: "الوكلاء",
+    pdf: () => {
+      const headers = ['الوكيل', 'دعم النقل', 'ملاحظات'];
+      const rows = db.agents.map(a => [a.name, a.transportSubsidy, a.notes || '-']);
+      const priceHeaders = ['الصنف', 'سعر المصنع', 'أجور النقل', 'إجمالي للوكيل'];
+      const priceRows = db.pricing.map(p => {
+        const prod = db.products.find(x => x.code === p.code);
+        return [prod ? prod.name : p.code, p.factoryPrice, p.transport, p.factoryPrice + p.transport];
+      });
+      const html = Exports.rowsToHTMLTable(headers, rows, { title: 'قائمة الوكلاء' }) +
+                   Exports.rowsToHTMLTable(priceHeaders, priceRows, { title: 'أسعار المصنع للوكلاء' });
+      Exports.exportPDF("الوكلاء وأسعار المصنع", html, "agents");
+    },
+    excel: () => {
+      const headers = ['الوكيل', 'دعم النقل', 'ملاحظات'];
+      const rows = db.agents.map(a => [a.name, a.transportSubsidy, a.notes || '']);
+      Exports.exportExcel(Exports.rowsToHTMLTable(headers, rows, { title: 'الوكلاء' }), "agents");
+    },
+    csv: () => {
+      const headers = ['الوكيل', 'دعم النقل', 'ملاحظات'];
+      const rows = db.agents.map(a => [a.name, a.transportSubsidy, a.notes || '']);
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), "agents");
+    },
+    json: () => Exports.exportJSON({ agents: db.agents, pricing: db.pricing }, "agents_data"),
+    print: () => window.print()
+  });
+
+  function render() {
+    container.innerHTML = `
+      <div class="alert alert-info">
+        <span>${Icons.render("handshake")}</span>
+        <span>الوكلاء — حقل خاص بسعر المصنع + أجور النقل. يتم حساب سعر الوكيل تلقائياً.</span>
+      </div>
+
+      <div class="card">
+        <h3>قائمة الوكلاء</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>الوكيل</th>
+              <th>دعم نقل إضافي</th>
+              <th>ملاحظات</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${db.agents.map((a, idx) => `
+              <tr>
+                <td><b>${a.name}</b></td>
+                <td>${a.transportSubsidy} ر.ي</td>
+                <td class="text-muted">${a.notes || '-'}</td>
+                <td><button class="btn btn-danger btn-sm" onclick="Modules._deleteAgent(${idx})">${Icons.render("trash")}</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("plus")} إضافة وكيل جديد</h3>
+        <form class="form-grid" id="agentForm">
+          <div class="form-group">
+            <label>اسم الوكيل</label>
+            <input type="text" id="a_name" required />
+          </div>
+          <div class="form-group">
+            <label>دعم نقل إضافي (ر.ي)</label>
+            <input type="number" id="a_transport" value="0" />
+          </div>
+          <div class="form-group" style="grid-column: span 2">
+            <label>ملاحظات</label>
+            <input type="text" id="a_notes" />
+          </div>
+        </form>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="Modules._addAgent()">${Icons.render("plus")} إضافة</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("money")} أسعار المصنع للوكلاء (لكل صنف)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>الصنف</th>
+              <th>سعر المصنع</th>
+              <th>أجور النقل</th>
+              <th class="text-primary">إجمالي للوكيل</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${db.pricing.map(p => {
+              const prod = db.products.find(x => x.code === p.code);
+              return `<tr>
+                <td><b>${prod ? prod.name : p.code}</b></td>
+                <td>${p.factoryPrice.toLocaleString('ar-EG')} ر.ي</td>
+                <td>${p.transport.toLocaleString('ar-EG')} ر.ي</td>
+                <td class="text-primary"><b>${(p.factoryPrice + p.transport).toLocaleString('ar-EG')} ر.ي</b></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  Modules._addAgent = function() {
+    const db = APP.getDB();
+    db.agents.push({
+      id: Date.now(),
+      name: document.getElementById('a_name').value,
+      transportSubsidy: +document.getElementById('a_transport').value,
+      notes: document.getElementById('a_notes').value
+    });
+    APP.saveDB(db);
+    alert('{Icons.render("check")} تم إضافة الوكيل');
+    render();
+  };
+
+  Modules._deleteAgent = function(idx) {
+    if (!confirm('حذف الوكيل؟')) return;
+    const db = APP.getDB();
+    db.agents.splice(idx, 1);
+    APP.saveDB(db);
+    render();
+  };
+
+  render();
+};
+
+/* ============ المختبر ============ */
+window.Modules.lab = function(container) {
+  const db = APP.getDB();
+  Exports.register("lab", {
+    label: "سجل المختبر",
+    pdf: () => {
+      const headers = ['التاريخ', 'من البئر', 'مشتراة', 'تالف (لتر)', 'pH', 'TDS', 'كلور', 'النتيجة', 'ملاحظات'];
+      const rows = db.labLog.map(l => {
+        const ok = l.ph >= 6.5 && l.ph <= 8.5 && l.tds < 500 && l.chlorine >= 0.2 && l.chlorine <= 0.8;
+        return [l.date, l.fromWell, l.purchased, l.wasteLiters, l.ph, l.tds, l.chlorine,
+          { v: ok ? 'مطابق' : 'غير مطابق', cls: ok ? 'text-success' : 'text-danger' }, l.notes || '-'];
+      });
+      const html = Exports.rowsToHTMLTable(headers, rows, { title: 'سجل المختبر والمحطة' });
+      Exports.exportPDF("سجل المختبر", html, "lab");
+    },
+    excel: () => {
+      const headers = ['التاريخ', 'من البئر', 'مشتراة', 'تالف (لتر)', 'pH', 'TDS', 'كلور', 'النتيجة', 'ملاحظات'];
+      const rows = db.labLog.map(l => {
+        const ok = l.ph >= 6.5 && l.ph <= 8.5 && l.tds < 500 && l.chlorine >= 0.2 && l.chlorine <= 0.8;
+        return [l.date, l.fromWell, l.purchased, l.wasteLiters, l.ph, l.tds, l.chlorine, ok ? 'مطابق' : 'غير مطابق', l.notes || ''];
+      });
+      Exports.exportExcel(Exports.rowsToHTMLTable(headers, rows, { title: 'سجل المختبر' }), "lab");
+    },
+    csv: () => {
+      const headers = ['التاريخ', 'من البئر', 'مشتراة', 'تالف', 'pH', 'TDS', 'كلور', 'نتيجة'];
+      const rows = db.labLog.map(l => [l.date, l.fromWell, l.purchased, l.wasteLiters, l.ph, l.tds, l.chlorine, l.notes || '']);
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), "lab");
+    },
+    json: () => Exports.exportJSON({ labLog: db.labLog }, "lab_data"),
+    print: () => window.print()
+  });
+
+  function render() {
+    container.innerHTML = `
+      <div class="alert alert-info">
+        <span>${Icons.render("flask")}</span>
+        <span>سجل المختبر والمحطة — توثيق الاستهلاك اليومي للبئر والوايتات وتالف المياه ونتائج الفحوصات.</span>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("plus")} تسجيل يومية المختبر</h3>
+        <form class="form-grid" id="labForm">
+          <div class="form-group">
+            <label>التاريخ</label>
+            <input type="date" id="l_date" value="${new Date().toISOString().split('T')[0]}" required />
+          </div>
+          <div class="form-group">
+            <label>بوز من البئر (10,000 لتر)</label>
+            <input type="number" id="l_well" min="0" step="0.5" value="0" />
+          </div>
+          <div class="form-group">
+            <label>بوز مشتراة</label>
+            <input type="number" id="l_purch" min="0" step="0.5" value="0" />
+          </div>
+          <div class="form-group">
+            <label>تالف مياه (لتر)</label>
+            <input type="number" id="l_waste" min="0" value="0" />
+          </div>
+          <div class="form-group">
+            <label>درجة الحموضة pH</label>
+            <input type="number" id="l_ph" step="0.1" min="0" max="14" value="7" />
+          </div>
+          <div class="form-group">
+            <label>TDS (PPM)</label>
+            <input type="number" id="l_tds" min="0" value="100" />
+          </div>
+          <div class="form-group">
+            <label>الكلور (PPM)</label>
+            <input type="number" id="l_chlorine" step="0.1" min="0" value="0.5" />
+          </div>
+          <div class="form-group" style="grid-column: span 2">
+            <label>ملاحظات</label>
+            <input type="text" id="l_notes" />
+          </div>
+        </form>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="Modules._addLab()">${Icons.render("save")} حفظ</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("clipboard")} سجل المختبر (${db.labLog.length} يوم)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>التاريخ</th>
+              <th>من البئر</th>
+              <th>مشتراة</th>
+              <th>تالف (لتر)</th>
+              <th>pH</th>
+              <th>TDS</th>
+              <th>كلور</th>
+              <th>نتيجة</th>
+              <th>ملاحظات</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${db.labLog.slice().reverse().map((l, idx) => {
+              const realIdx = db.labLog.length - 1 - idx;
+              const ok = l.ph >= 6.5 && l.ph <= 8.5 && l.tds < 500 && l.chlorine >= 0.2 && l.chlorine <= 0.8;
+              return `<tr>
+                <td>${l.date}</td>
+                <td>${l.fromWell} بوزه</td>
+                <td>${l.purchased} بوزه</td>
+                <td class="text-warning">${l.wasteLiters}</td>
+                <td>${l.ph}</td>
+                <td>${l.tds}</td>
+                <td>${l.chlorine}</td>
+                <td><span class="badge badge-${ok ? 'success' : 'danger'}">${ok ? 'مطابق' : 'غير مطابق'}</span></td>
+                <td class="text-muted">${l.notes || '-'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  Modules._addLab = function() {
+    const db = APP.getDB();
+    db.labLog.push({
+      date: document.getElementById('l_date').value,
+      fromWell: +document.getElementById('l_well').value,
+      purchased: +document.getElementById('l_purch').value,
+      wasteLiters: +document.getElementById('l_waste').value,
+      ph: +document.getElementById('l_ph').value,
+      tds: +document.getElementById('l_tds').value,
+      chlorine: +document.getElementById('l_chlorine').value,
+      notes: document.getElementById('l_notes').value
+    });
+    APP.saveDB(db);
+    alert('{Icons.render("check")} تم الحفظ');
+    render();
+  };
+
+  render();
+};
+
+/* ============ المشتريات ============ */
+window.Modules.procurement = function(container) {
+  const db = APP.getDB();
+  Exports.register("procurement", {
+    label: "المشتريات",
+    pdf: () => {
+      const supHeaders = ['المورد', 'المادة', 'الوحدة', 'السعر', 'العملة', 'ملاحظات'];
+      const supRows = db.suppliers.map(s => [s.name, s.material, s.unit, s.price.toLocaleString('ar-EG'), s.currency, s.notes]);
+      const purHeaders = ['التاريخ', 'المورد', 'المادة', 'الكمية', 'السعر', 'العملة', 'الإجمالي (ر.ي)'];
+      const purRows = db.purchasesLog.map(p => [p.date, p.supplier, p.material, p.qty + ' ' + p.unit, p.price.toLocaleString('ar-EG'), p.currency,
+        { v: p.totalYER.toLocaleString('ar-EG'), cls: 'text-primary' }]);
+      const purFooter = ['الإجمالي', '', '', '', '', '',
+        { v: db.purchasesLog.reduce((s,p)=>s+p.totalYER,0).toLocaleString('ar-EG'), cls: 'text-primary' }];
+      const expHeaders = ['التاريخ', 'التصنيف', 'الوصف', 'المبلغ (ر.ي)'];
+      const expRows = db.expensesLog.map(e => [e.date, e.category, e.description,
+        { v: e.amount.toLocaleString('ar-EG'), cls: 'text-warning' }]);
+      const expFooter = ['الإجمالي', '', '',
+        { v: db.expensesLog.reduce((s,e)=>s+e.amount,0).toLocaleString('ar-EG'), cls: 'text-danger' }];
+      const html = Exports.rowsToHTMLTable(supHeaders, supRows, { title: 'قائمة الموردين' }) +
+                   Exports.rowsToHTMLTable(purHeaders, purRows, { title: 'سجل المشتريات', footerRow: [purFooter] }) +
+                   Exports.rowsToHTMLTable(expHeaders, expRows, { title: 'سجل المصروفات النثرية', footerRow: [expFooter] });
+      Exports.exportPDF("المشتريات والمصروفات", html, "procurement");
+    },
+    excel: () => {
+      const purHeaders = ['التاريخ', 'المورد', 'المادة', 'الكمية', 'الوحدة', 'السعر', 'العملة', 'الإجمالي (ر.ي)'];
+      const purRows = db.purchasesLog.map(p => [p.date, p.supplier, p.material, p.qty, p.unit, p.price, p.currency, p.totalYER]);
+      const expHeaders = ['التاريخ', 'التصنيف', 'الوصف', 'المبلغ (ر.ي)'];
+      const expRows = db.expensesLog.map(e => [e.date, e.category, e.description, e.amount]);
+      const html = Exports.rowsToHTMLTable(purHeaders, purRows, { title: 'المشتريات' }) +
+                   Exports.rowsToHTMLTable(expHeaders, expRows, { title: 'المصروفات' });
+      Exports.exportExcel(html, "procurement");
+    },
+    csv: () => {
+      const headers = ['التاريخ', 'المورد', 'المادة', 'الكمية', 'الإجمالي'];
+      const rows = db.purchasesLog.map(p => [p.date, p.supplier, p.material, p.qty, p.totalYER]);
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), "procurement");
+    },
+    json: () => Exports.exportJSON({ suppliers: db.suppliers, purchasesLog: db.purchasesLog, expensesLog: db.expensesLog }, "procurement_data"),
+    print: () => window.print()
+  });
+
+  function statusBadge(status) {
+    const m = {
+      'pending': ['في الانتظار', 'warning'],
+      'seen': ['تم الاطلاع', 'info'],
+      'approved': ['موافق عليه', 'success'],
+      'rejected': ['مرفوض', 'danger'],
+      'ordered': ['تم الطلب', 'success'],
+      'received': ['تم الاستلام', 'success'],
+      'cancelled': ['ملغي', 'danger']
+    };
+    const [label, cls] = m[status] || ['غير معروف', 'info'];
+    return `<span class="badge badge-${cls}">${label}</span>`;
+  }
+
+  function renderIncomingRequestRow(r) {
+    const isRaw = r.type === 'raw';
+    const summary = isRaw
+      ? r.items.map(it => `${it.material} (${it.qty} ${it.unit})`).slice(0, 3).join(' • ')
+      : r.items.map(it => `${it.partName} للآلة: ${it.machine}`).slice(0, 3).join(' • ');
+    const more = r.items.length > 3 ? ` + ${r.items.length - 3} آخر` : '';
+
+    return `
+      <div style="background:var(--bg);padding:14px;border-radius:var(--radius);box-shadow:var(--shadow-in-sm);margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <div>
+            <div style="font-weight:800;color:var(--primary)">${r.code}</div>
+            <div class="text-muted" style="font-size:12px;margin-top:2px">${r.date} • من: ${r.fromUserName} (${r.fromUser})</div>
+            <div style="font-size:13px;margin-top:6px"><b>${isRaw ? 'مواد خام' : 'قطعة غيار'}:</b> ${summary}${more}</div>
+            ${r.reminders > 0 ? `<div class="text-warning" style="font-size:11px;margin-top:4px">${Icons.render("bell")} ${r.reminders} تذكير${r.reminders > 1 ? 'ات' : ''}</div>` : ''}
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" onclick="Modules._prViewIncoming(${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("eye")} عرض</button>
+            <button class="btn btn-success btn-sm" onclick="Modules._prApprove(${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("check")} موافقة</button>
+            <button class="btn btn-danger btn-sm" onclick="Modules._prReject(${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("close")} رفض</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function render() {
+    // طلبات الشراء الواردة من الإنتاج
+    const incomingRequests = db.purchaseRequests.filter(r => r.status === 'pending' || r.status === 'seen');
+    const allRequests = db.purchaseRequests.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    container.innerHTML = `
+      ${incomingRequests.length > 0 ? `
+      <div class="alert alert-warning" style="margin-bottom:14px">
+        ${Icons.render("bell")}
+        <span><b>${incomingRequests.length} طلب شراء وارد</b> من إدارة الإنتاج ينتظر المعالجة.</span>
+      </div>
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("cart")} طلبات الشراء الواردة من الإنتاج (${allRequests.length})</h3>
+          <button class="btn btn-secondary btn-sm" onclick="Modules._prToggleRequests()">${Icons.render("eye")} عرض الكل</button>
+        </div>
+        ${incomingRequests.slice(0, 5).map(r => renderIncomingRequestRow(r)).join('')}
+        ${incomingRequests.length > 5 ? `<div class="text-muted" style="margin-top:8px;font-size:12px">و ${incomingRequests.length - 5} طلبات أخرى...</div>` : ''}
+      </div>
+      ` : ''}
+      <div class="card">
+        <h3>${Icons.render("plus")} فاتورة مشتريات جديدة</h3>
+        <div class="alert alert-info">
+          ${Icons.render("info")}
+          <span>اختر المورد والمادة أولاً، ثم أدخل الكمية وسعر الوحدة — سيتم احتساب الإجمالي تلقائياً بحسب العملة المختارة.</span>
+        </div>
+        <form class="form-grid" id="purchForm">
+          <div class="form-group">
+            <label>التاريخ</label>
+            <input type="date" id="p_date" value="${new Date().toISOString().split('T')[0]}" required />
+          </div>
+          <div class="form-group">
+            <label>المورد</label>
+            <select id="p_supplier" onchange="Modules._pSupplierChanged()">
+              <option value="">-- اختر المورد --</option>
+              ${[...new Set(db.suppliers.map(s => s.name))].map(name => `<option value="${name}">${name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>المادة</label>
+            <select id="p_material" onchange="Modules._pMaterialChanged()">
+              <option value="">-- اختر المادة --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>الكمية</label>
+            <input type="number" id="p_qty" step="0.01" oninput="Modules._pRecalculate()" required />
+          </div>
+          <div class="form-group">
+            <label>الوحدة</label>
+            <input type="text" id="p_unit" value="حبه" readonly />
+          </div>
+          <div class="form-group">
+            <label>سعر الوحدة</label>
+            <input type="number" id="p_price" step="0.01" oninput="Modules._pRecalculate()" required />
+          </div>
+          <div class="form-group">
+            <label>العملة</label>
+            <select id="p_currency" onchange="Modules._pRecalculate()">
+              <option value="سعودي">سعودي</option>
+              <option value="يمني">يمني</option>
+            </select>
+          </div>
+          <div class="form-group" style="grid-column: span 2">
+            <label>الإجمالي المحسوب (آلياً)</label>
+            <input type="text" id="p_total" readonly style="font-weight:800;color:var(--primary);font-size:18px;text-align:center" value="0.00" />
+            <div id="p_total_breakdown" class="text-muted" style="font-size:12px;margin-top:4px"></div>
+          </div>
+        </form>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="Modules._addPurchase()">${Icons.render("save")} حفظ الفاتورة</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("box")} سجل المشتريات (${db.purchasesLog.length} فاتورة)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>التاريخ</th>
+              <th>المورد</th>
+              <th>المادة</th>
+              <th>الكمية</th>
+              <th>السعر</th>
+              <th>العملة</th>
+              <th>الإجمالي (ر.ي)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${db.purchasesLog.slice().reverse().map(p => `
+              <tr>
+                <td>${p.date}</td>
+                <td>${p.supplier}</td>
+                <td>${p.material}</td>
+                <td>${p.qty} ${p.unit}</td>
+                <td>${p.price.toLocaleString('ar-EG')}</td>
+                <td>${p.currency}</td>
+                <td class="text-primary"><b>${p.totalYER.toLocaleString('ar-EG')}</b></td>
+              </tr>
+            `).join('')}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="6">إجمالي المشتريات</td>
+              <td class="text-primary">${db.purchasesLog.reduce((s,p) => s + p.totalYER, 0).toLocaleString('ar-EG')} ر.ي</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("clipboard")} قائمة الموردين (${db.suppliers.length} مورد)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>المورد</th>
+              <th>المادة</th>
+              <th>الوحدة</th>
+              <th>السعر</th>
+              <th>العملة</th>
+              <th>ملاحظات</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${db.suppliers.map(s => `
+              <tr>
+                <td><b>${s.name}</b></td>
+                <td>${s.material}</td>
+                <td>${s.unit}</td>
+                <td>${s.price.toLocaleString('ar-EG')}</td>
+                <td>${s.currency}</td>
+                <td class="text-muted">${s.notes}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("expense")} سجل المصروفات النثرية</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>التاريخ</th>
+              <th>التصنيف</th>
+              <th>الوصف</th>
+              <th>المبلغ (ر.ي)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${db.expensesLog.slice().reverse().map(e => `
+              <tr>
+                <td>${e.date}</td>
+                <td><span class="badge badge-info">${e.category}</span></td>
+                <td>${e.description}</td>
+                <td class="text-warning">${e.amount.toLocaleString('ar-EG')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3">إجمالي المصروفات</td>
+              <td class="text-danger">${db.expensesLog.reduce((s,e) => s + e.amount, 0).toLocaleString('ar-EG')} ر.ي</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `;
+  }
+
+  // === الربط الآلي بين المورد والمادة ===
+  Modules._pSupplierChanged = function() {
+    const supplier = document.getElementById('p_supplier').value;
+    const materialSel = document.getElementById('p_material');
+    materialSel.innerHTML = '<option value="">-- اختر المادة --</option>';
+    if (!supplier) return;
+    // قائمة المواد التي يوفرها هذا المورد
+    const items = db.suppliers.filter(s => s.name === supplier);
+    const seen = new Set();
+    items.forEach(s => {
+      if (!seen.has(s.material)) {
+        seen.add(s.material);
+        materialSel.innerHTML += `<option value="${s.material}|${s.unit}|${s.price}|${s.currency}" data-price="${s.price}" data-currency="${s.currency}" data-unit="${s.unit}">${s.material} (${s.price} ${s.currency}/${s.unit})</option>`;
+      }
+    });
+    document.getElementById('p_unit').value = '';
+    document.getElementById('p_price').value = '';
+    document.getElementById('p_qty').value = '';
+    Modules._pRecalculate();
+  };
+
+  Modules._pMaterialChanged = function() {
+    const matSel = document.getElementById('p_material');
+    const opt = matSel.options[matSel.selectedIndex];
+    if (!opt || !opt.dataset.price) {
+      document.getElementById('p_unit').value = '';
+      document.getElementById('p_price').value = '';
+      Modules._pRecalculate();
+      return;
+    }
+    document.getElementById('p_unit').value = opt.dataset.unit || 'حبه';
+    document.getElementById('p_price').value = parseFloat(opt.dataset.price) || 0;
+    document.getElementById('p_currency').value = opt.dataset.currency || 'سعودي';
+    Modules._pRecalculate();
+  };
+
+  Modules._pRecalculate = function() {
+    const qty = parseFloat(document.getElementById('p_qty').value) || 0;
+    const price = parseFloat(document.getElementById('p_price').value) || 0;
+    const currency = document.getElementById('p_currency').value || 'سعودي';
+    const total = qty * price;
+    // تنسيق بفاصلة عشرية وفواصل آلاف
+    const parts = total.toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const formatted = parts.join('.');
+    document.getElementById('p_total').value = formatted + ' ' + currency;
+    document.getElementById('p_total').dataset.numericValue = total.toFixed(2);
+
+    const breakdown = document.getElementById('p_total_breakdown');
+    if (qty > 0 && price > 0) {
+      breakdown.innerHTML = `${qty.toLocaleString('ar-EG')} ${document.getElementById('p_unit').value || 'وحدة'} × ${DB.fmt(price)} ${currency} = <b style="color:var(--primary)">${formatted} ${currency}</b>`;
+    } else {
+      breakdown.innerHTML = '<span class="text-muted">أدخل الكمية والسعر لاحتساب الإجمالي</span>';
+    }
+  };
+
+  Modules._addPurchase = function() {
+    const db = APP.getDB();
+    const matSel = document.getElementById('p_material');
+    const opt = matSel.options[matSel.selectedIndex];
+    const qty = +document.getElementById('p_qty').value;
+    const price = +document.getElementById('p_price').value;
+    const total = +(document.getElementById('p_total').dataset.numericValue || (qty * price).toFixed(2));
+
+    if (!qty || !price) {
+      alert('⚠ يرجى إدخال الكمية وسعر الوحدة');
+      return;
+    }
+
+    db.purchasesLog.push({
+      date: document.getElementById('p_date').value,
+      supplier: document.getElementById('p_supplier').value,
+      material: opt ? opt.value.split('|')[0] : document.getElementById('p_material').value,
+      qty,
+      unit: document.getElementById('p_unit').value,
+      price,
+      currency: document.getElementById('p_currency').value,
+      totalYER: total
+    });
+    APP.saveDB(db);
+    alert('✅ تم حفظ الفاتورة (الإجمالي: ' + DB.fmt(total) + ' ' + document.getElementById('p_currency').value + ')');
+    render();
+  };
+
+  // === معالجة طلبات الشراء الواردة من الإنتاج ===
+  Modules._prViewIncoming = function(idx) {
+    const req = db.purchaseRequests[idx];
+    if (!req) return;
+    if (req.status === 'pending') {
+      req.status = 'seen';
+      APP.saveDB(db);
+    }
+    Modules._showRequestModal(req, true);
+  };
+
+  Modules._prApprove = function(idx) {
+    const req = db.purchaseRequests[idx];
+    if (!req) return;
+    if (!confirm(`موافقة على الطلب ${req.code}؟ سيتمكن الإنتاج من متابعة العمل.`)) return;
+    req.status = 'approved';
+    req.processedBy = APP.getUser().name;
+    req.processedDate = new Date().toISOString().split('T')[0];
+    APP.saveDB(db);
+    alert('✅ تمت الموافقة على الطلب ' + req.code);
+    render();
+  };
+
+  Modules._prReject = function(idx) {
+    const req = db.purchaseRequests[idx];
+    if (!req) return;
+    const reason = prompt(`سبب رفض الطلب ${req.code}؟`);
+    if (reason === null) return;
+    req.status = 'rejected';
+    req.rejectionReason = reason;
+    req.processedBy = APP.getUser().name;
+    req.processedDate = new Date().toISOString().split('T')[0];
+    APP.saveDB(db);
+    alert('✅ تم رفض الطلب');
+    render();
+  };
+
+  Modules._prToggleRequests = function() {
+    const allRequests = db.purchaseRequests.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    const html = `
+      <h2 style="margin-bottom:14px">جميع طلبات الشراء (${allRequests.length})</h2>
+      ${allRequests.length === 0 ? '<p class="text-muted">لا توجد طلبات</p>' : ''}
+      ${allRequests.map(r => renderIncomingRequestRow(r)).join('')}
+    `;
+    Modules._showRequestModalHtml('كل طلبات الشراء', html);
+  };
+
+  function Modules_shared() {} // placeholder
+
+  render();
+};
+
+/* ============ شؤون الموظفين ============ */
+window.Modules.hr = function(container) {
+  const db = APP.getDB();
+  Exports.register("hr", {
+    label: "شؤون الموظفين",
+    pdf: () => {
+      const headers = ['الرقم الوظيفي', 'الاسم', 'المسمى', 'القسم', 'الراتب', 'تاريخ التعيين'];
+      const rows = db.employeesLog.map(e => [e.empId, e.name, e.role, e.dept, e.baseSalary.toLocaleString('ar-EG') + ' ر.ي', e.joinDate]);
+      const byDept = {};
+      db.employeesLog.forEach(e => {
+        if (!byDept[e.dept]) byDept[e.dept] = { count: 0, total: 0 };
+        byDept[e.dept].count++;
+        byDept[e.dept].total += e.baseSalary;
+      });
+      const sumHeaders = ['القسم', 'عدد الموظفين', 'إجمالي الرواتب'];
+      const sumRows = Object.keys(byDept).map(d => [d, byDept[d].count, byDept[d].total.toLocaleString('ar-EG') + ' ر.ي']);
+      const sumFooter = ['الإجمالي', db.employeesLog.length, db.employeesLog.reduce((s,e)=>s+e.baseSalary,0).toLocaleString('ar-EG') + ' ر.ي'];
+      const html = Exports.rowsToHTMLTable(headers, rows, { title: 'سجل الموظفين' }) +
+                   Exports.rowsToHTMLTable(sumHeaders, sumRows, { title: 'ملخص الرواتب حسب القسم', footerRow: [sumFooter] });
+      Exports.exportPDF("شؤون الموظفين", html, "hr");
+    },
+    excel: () => {
+      const headers = ['الرقم الوظيفي', 'الاسم', 'المسمى', 'القسم', 'الراتب', 'تاريخ التعيين'];
+      const rows = db.employeesLog.map(e => [e.empId, e.name, e.role, e.dept, e.baseSalary, e.joinDate]);
+      Exports.exportExcel(Exports.rowsToHTMLTable(headers, rows, { title: 'سجل الموظفين' }), "hr");
+    },
+    csv: () => {
+      const headers = ['الرقم الوظيفي', 'الاسم', 'المسمى', 'القسم', 'الراتب', 'تاريخ التعيين'];
+      const rows = db.employeesLog.map(e => [e.empId, e.name, e.role, e.dept, e.baseSalary, e.joinDate]);
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), "hr");
+    },
+    json: () => Exports.exportJSON({ employeesLog: db.employeesLog }, "hr_data"),
+    print: () => window.print()
+  });
+
+  function render() {
+    container.innerHTML = `
+      <div class="alert alert-info">
+        <span>${Icons.render("users")}</span>
+        <span>الدخول بالرقم الوظيفي. ${db.employeesLog.length} موظف مسجل.</span>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("plus")} إضافة موظف</h3>
+        <form class="form-grid" id="empForm">
+          <div class="form-group">
+            <label>الرقم الوظيفي</label>
+            <input type="text" id="e_empId" placeholder="EMP-007" required />
+          </div>
+          <div class="form-group">
+            <label>الاسم الكامل</label>
+            <input type="text" id="e_name" required />
+          </div>
+          <div class="form-group">
+            <label>المسمى الوظيفي</label>
+            <input type="text" id="e_role" required />
+          </div>
+          <div class="form-group">
+            <label>القسم</label>
+            <select id="e_dept">
+              <option>الإدارة</option><option>الإنتاج</option><option>المحاسبة</option>
+              <option>المبيعات</option><option>المختبر</option><option>المشتريات</option>
+              <option>الموارد البشرية</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>الراتب الأساسي</label>
+            <input type="number" id="e_salary" required />
+          </div>
+          <div class="form-group">
+            <label>تاريخ التعيين</label>
+            <input type="date" id="e_joinDate" required />
+          </div>
+        </form>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="Modules._addEmployee()">${Icons.render("plus")} إضافة</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("users")} سجل الموظفين</h3>
+          <div class="search-bar" style="margin:0">
+            <input type="text" id="empSearch" placeholder="بحث بالاسم أو الرقم الوظيفي..." oninput="Modules._filterEmployees()" />
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>الرقم الوظيفي</th>
+              <th>الاسم</th>
+              <th>المسمى</th>
+              <th>القسم</th>
+              <th>الراتب</th>
+              <th>تاريخ التعيين</th>
+              <th>إجراء</th>
+            </tr>
+          </thead>
+          <tbody id="empTbody">
+            ${db.employeesLog.map((e, idx) => `
+              <tr data-search="${e.empId} ${e.name} ${e.dept} ${e.role}">
+                <td><b>${e.empId}</b></td>
+                <td>${e.name}</td>
+                <td>${e.role}</td>
+                <td><span class="badge badge-info">${e.dept}</span></td>
+                <td class="text-primary">${e.baseSalary.toLocaleString('ar-EG')} ر.ي</td>
+                <td class="text-muted">${e.joinDate}</td>
+                <td><button class="btn btn-danger btn-sm" onclick="Modules._deleteEmployee(${idx})">${Icons.render("trash")}</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("chart")} ملخص الرواتب حسب القسم</h3>
+        ${(() => {
+          const byDept = {};
+          db.employeesLog.forEach(e => {
+            if (!byDept[e.dept]) byDept[e.dept] = { count: 0, total: 0 };
+            byDept[e.dept].count++;
+            byDept[e.dept].total += e.baseSalary;
+          });
+          return `<table>
+            <thead><tr><th>القسم</th><th>عدد الموظفين</th><th>إجمالي الرواتب</th></tr></thead>
+            <tbody>
+              ${Object.keys(byDept).map(d => `<tr>
+                <td><b>${d}</b></td>
+                <td>${byDept[d].count}</td>
+                <td class="text-primary">${byDept[d].total.toLocaleString('ar-EG')} ر.ي</td>
+              </tr>`).join('')}
+            </tbody>
+            <tfoot><tr><td>الإجمالي</td><td>${db.employeesLog.length}</td>
+              <td class="text-primary">${db.employeesLog.reduce((s,e) => s + e.baseSalary, 0).toLocaleString('ar-EG')} ر.ي</td>
+            </tr></tfoot>
+          </table>`;
+        })()}
+      </div>
+    `;
+  }
+
+  Modules._addEmployee = function() {
+    const db = APP.getDB();
+    db.employeesLog.push({
+      empId: document.getElementById('e_empId').value,
+      name: document.getElementById('e_name').value,
+      role: document.getElementById('e_role').value,
+      dept: document.getElementById('e_dept').value,
+      baseSalary: +document.getElementById('e_salary').value,
+      joinDate: document.getElementById('e_joinDate').value
+    });
+    APP.saveDB(db);
+    alert('{Icons.render("check")} تم إضافة الموظف');
+    render();
+  };
+
+  Modules._deleteEmployee = function(idx) {
+    if (!confirm('حذف الموظف؟')) return;
+    const db = APP.getDB();
+    db.employeesLog.splice(idx, 1);
+    APP.saveDB(db);
+    render();
+  };
+
+  Modules._filterEmployees = function() {
+    const q = document.getElementById('empSearch').value.toLowerCase();
+    document.querySelectorAll('#empTbody tr').forEach(tr => {
+      tr.style.display = tr.dataset.search.toLowerCase().includes(q) ? '' : 'none';
+    });
+  };
+
+  render();
+};
+
+/* ============ إدارة المستخدمين ============ */
+window.Modules.users = function(container) {
+  const db = APP.getDB();
+  // حالة التعديل
+  let _editingUserId = null;
+
+  Exports.register("users", {
+    label: "إدارة المستخدمين",
+    pdf: () => {
+      const headers = ['الرقم الوظيفي', 'الاسم', 'اسم المستخدم', 'الصلاحية', 'الحالة'];
+      const rows = db.users.map(u => [u.empId, u.name, u.username, APP._roleLabel(u.role), u.active ? 'نشط' : 'موقوف']);
+      const html = Exports.rowsToHTMLTable(headers, rows, { title: 'قائمة المستخدمين والصلاحيات' });
+      Exports.exportPDF("إدارة المستخدمين", html, "users");
+    },
+    excel: () => {
+      const headers = ['الرقم الوظيفي', 'الاسم', 'اسم المستخدم', 'الصلاحية', 'الحالة'];
+      const rows = db.users.map(u => [u.empId, u.name, u.username, APP._roleLabel(u.role), u.active ? 'نشط' : 'موقوف']);
+      Exports.exportExcel(Exports.rowsToHTMLTable(headers, rows, { title: 'المستخدمون' }), "users");
+    },
+    csv: () => {
+      const headers = ['الرقم الوظيفي', 'الاسم', 'اسم المستخدم', 'الصلاحية', 'الحالة'];
+      const rows = db.users.map(u => [u.empId, u.name, u.username, APP._roleLabel(u.role), u.active ? 'نشط' : 'موقوف']);
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), "users");
+    },
+    json: () => Exports.exportJSON({ users: db.users }, "users_data"),
+    print: () => window.print()
+  });
+
+  function render() {
+    const editingUser = _editingUserId ? db.users.find(u => u.id === _editingUserId) : null;
+    container.innerHTML = `
+      <div class="alert alert-warning">
+        <span>${Icons.render("shield")}</span>
+        <span>هذه الوحدة متاحة لمدير النظام فقط. يمكنك إضافة مستخدمين جدد، تعديل بياناتهم (الاسم، اسم المستخدم، كلمة المرور، الصلاحية)، أو إيقافهم مؤقتاً.</span>
+      </div>
+
+      <div class="card">
+        <h3>${editingUser ? Icons.render("edit") + " تعديل المستخدم: " + editingUser.name : Icons.render("plus") + " إضافة مستخدم جديد"}</h3>
+        ${editingUser ? `<div class="alert alert-info" style="background:#e3f2fd;color:#1565c0"><span>${Icons.render("info")}</span><span>أنت في وضع التعديل. غيّر البيانات ثم اضغط "تحديث"، أو اضغط "إلغاء" للعودة.</span></div>` : ''}
+        <form class="form-grid" id="userForm">
+          <div class="form-group">
+            <label>الرقم الوظيفي</label>
+            <input type="text" id="u_empId" value="${editingUser ? editingUser.empId : ''}" required />
+          </div>
+          <div class="form-group">
+            <label>الاسم الكامل</label>
+            <input type="text" id="u_name" value="${editingUser ? editingUser.name : ''}" required />
+          </div>
+          <div class="form-group">
+            <label>اسم المستخدم</label>
+            <input type="text" id="u_username" value="${editingUser ? editingUser.username : ''}" required />
+          </div>
+          <div class="form-group">
+            <label>${editingUser ? 'كلمة المرور (اتركها فارغة لعدم التغيير)' : 'كلمة المرور'}</label>
+            <input type="text" id="u_password" value="" placeholder="${editingUser ? '••••••' : ''}" />
+          </div>
+          <div class="form-group">
+            <label>الصلاحية</label>
+            <select id="u_role">
+              <option value="admin" ${editingUser && editingUser.role === 'admin' ? 'selected' : ''}>مدير النظام</option>
+              <option value="production" ${editingUser && editingUser.role === 'production' ? 'selected' : ''}>مدير الإنتاج</option>
+              <option value="accountant" ${editingUser && editingUser.role === 'accountant' ? 'selected' : ''}>المحاسب</option>
+              <option value="sales" ${editingUser && editingUser.role === 'sales' ? 'selected' : ''}>المبيعات والمخازن</option>
+              <option value="lab" ${editingUser && editingUser.role === 'lab' ? 'selected' : ''}>المختبر والمحطة</option>
+              <option value="procurement" ${editingUser && editingUser.role === 'procurement' ? 'selected' : ''}>المشتريات والموارد البشرية</option>
+            </select>
+          </div>
+        </form>
+        <div class="btn-row">
+          ${editingUser ? `
+            <button class="btn btn-success" onclick="Modules._saveUser()">${Icons.render("save")} تحديث المستخدم</button>
+            <button class="btn btn-secondary" onclick="Modules._cancelUserEdit()">إلغاء</button>
+          ` : `
+            <button class="btn btn-primary" onclick="Modules._addUser()">${Icons.render("plus")} إضافة المستخدم</button>
+            <button class="btn btn-secondary" type="reset" onclick="document.getElementById('userForm').reset()">مسح</button>
+          `}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("users")} قائمة المستخدمين (${db.users.length})</h3>
+          <div class="search-bar" style="margin:0">
+            <span class="icon">${Icons.render("search")}</span>
+            <input type="text" id="userSearch" placeholder="بحث بالاسم أو الرقم الوظيفي..." oninput="Modules._filterUsers()" />
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>الرقم الوظيفي</th>
+              <th>الاسم</th>
+              <th>اسم المستخدم</th>
+              <th>الصلاحية</th>
+              <th>الحالة</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="usersTbody">
+            ${db.users.map((u, idx) => `
+              <tr data-search="${u.empId} ${u.name} ${u.username} ${u.role}" class="${editingUser && editingUser.id === u.id ? 'editing-row' : ''}">
+                <td><b>${u.empId}</b>${editingUser && editingUser.id === u.id ? ' ✏️' : ''}</td>
+                <td>${u.name}</td>
+                <td>${u.username}</td>
+                <td><span class="badge badge-info">${APP._roleLabel(u.role)}</span></td>
+                <td><span class="badge badge-${u.active ? 'success' : 'danger'}">${u.active ? 'نشط' : 'موقوف'}</span></td>
+                <td>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <button class="btn btn-primary btn-sm" onclick="Modules._editUser(${idx})" title="تعديل بيانات المستخدم">${Icons.render("edit")} تعديل</button>
+                    <button class="btn btn-warning btn-sm" onclick="Modules._toggleUser(${idx})" title="${u.active ? 'إيقاف الحساب مؤقتاً' : 'إعادة تفعيل الحساب'}">${u.active ? '⏸ إيقاف' : '▶ تفعيل'}</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <style>
+        .editing-row {
+          background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%) !important;
+          box-shadow: inset 4px 4px 8px rgba(0,0,0,0.05);
+        }
+        .editing-row td { font-weight: 700; }
+      </style>
+    `;
+  }
+
+  Modules._addUser = function() {
+    const empId = document.getElementById('u_empId').value.trim();
+    const name = document.getElementById('u_name').value.trim();
+    const username = document.getElementById('u_username').value.trim();
+    const password = document.getElementById('u_password').value;
+    const role = document.getElementById('u_role').value;
+
+    if (!empId || !name || !username || !password) {
+      alert('⚠ يرجى ملء كل الحقول المطلوبة');
+      return;
+    }
+
+    // التحقق من عدم تكرار اسم المستخدم أو الرقم الوظيفي
+    const db = APP.getDB();
+    if (db.users.some(u => u.username === username)) {
+      alert('⚠ اسم المستخدم موجود بالفعل، يرجى اختيار اسم آخر');
+      return;
+    }
+    if (db.users.some(u => u.empId === empId)) {
+      alert('⚠ الرقم الوظيفي موجود بالفعل');
+      return;
+    }
+
+    db.users.push({
+      id: Date.now(),
+      empId, name, username, password, role,
+      active: true
+    });
+    APP.saveDB(db);
+    alert('✅ تم إضافة المستخدم "' + name + '" بنجاح');
+    render();
+  };
+
+  Modules._editUser = function(idx) {
+    const db = APP.getDB();
+    const user = db.users[idx];
+    if (!user) return;
+    _editingUserId = user.id;
+    render();
+    // تعبئة النموذج بعد إعادة الرسم
+    setTimeout(() => {
+      document.getElementById('u_empId').value = user.empId;
+      document.getElementById('u_name').value = user.name;
+      document.getElementById('u_username').value = user.username;
+      document.getElementById('u_password').value = '';
+      document.getElementById('u_role').value = user.role;
+      // تمرير للأعلى لإظهار النموذج
+      document.getElementById('userForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('u_name').focus();
+    }, 50);
+  };
+
+  Modules._saveUser = function() {
+    if (_editingUserId === null) return;
+    const db = APP.getDB();
+    const idx = db.users.findIndex(u => u.id === _editingUserId);
+    if (idx === -1) {
+      alert('⚠ المستخدم غير موجود');
+      _editingUserId = null;
+      render();
+      return;
+    }
+
+    const empId = document.getElementById('u_empId').value.trim();
+    const name = document.getElementById('u_name').value.trim();
+    const username = document.getElementById('u_username').value.trim();
+    const password = document.getElementById('u_password').value;
+    const role = document.getElementById('u_role').value;
+
+    if (!empId || !name || !username) {
+      alert('⚠ يرجى ملء كل الحقول المطلوبة');
+      return;
+    }
+
+    // التحقق من عدم تكرار اسم المستخدم أو الرقم الوظيفي (مع استثناء المستخدم الحالي)
+    if (db.users.some(u => u.username === username && u.id !== _editingUserId)) {
+      alert('⚠ اسم المستخدم موجود بالفعل لمستخدم آخر');
+      return;
+    }
+    if (db.users.some(u => u.empId === empId && u.id !== _editingUserId)) {
+      alert('⚠ الرقم الوظيفي موجود بالفعل لمستخدم آخر');
+      return;
+    }
+
+    // تحديث البيانات (الاحتفاظ بكلمة المرور القديمة إذا لم تُغيّر)
+    const updated = { ...db.users[idx] };
+    updated.empId = empId;
+    updated.name = name;
+    updated.username = username;
+    updated.role = role;
+    if (password && password.trim() !== '') {
+      updated.password = password;
+    }
+    db.users[idx] = updated;
+
+    APP.saveDB(db);
+    _editingUserId = null;
+    alert('✅ تم تحديث بيانات "' + name + '" بنجاح');
+    render();
+  };
+
+  Modules._cancelUserEdit = function() {
+    _editingUserId = null;
+    render();
+  };
+
+  Modules._toggleUser = function(idx) {
+    const db = APP.getDB();
+    const user = db.users[idx];
+    const action = user.active ? 'إيقاف' : 'تفعيل';
+    if (!confirm(`هل تريد ${action} المستخدم "${user.name}"؟`)) return;
+    db.users[idx].active = !db.users[idx].active;
+    APP.saveDB(db);
+    render();
+  };
+
+  Modules._filterUsers = function() {
+    const q = document.getElementById('userSearch').value.toLowerCase();
+    document.querySelectorAll('#usersTbody tr').forEach(tr => {
+      tr.style.display = tr.dataset.search.toLowerCase().includes(q) ? '' : 'none';
+    });
+  };
+
+  render();
+};
+
+/* ============ الإعدادات ============ */
+window.Modules.settings = function(container) {
+  const db = APP.getDB();
+  Exports.register("settings", {
+    label: "إعدادات النظام",
+    pdf: () => {
+      const html = `
+        <h2>معلومات المصنع</h2>
+        <table>
+          <tbody>
+            <tr><td>اسم المصنع</td><td>${db.meta.factory}</td></tr>
+            <tr><td>الموقع</td><td>${db.meta.location}</td></tr>
+            <tr><td>السنة</td><td>${db.meta.year}</td></tr>
+            <tr><td>حقوق الملكية</td><td>${db.meta.copyright}</td></tr>
+            <tr><td>المنصب</td><td>${db.meta.role}</td></tr>
+            <tr><td>العملة</td><td>${db.meta.currency}</td></tr>
+          </tbody>
+        </table>
+        <h2>مستخدمو النظام</h2>
+        <table>
+          <thead><tr><th>الرقم</th><th>الاسم</th><th>اسم المستخدم</th><th>الصلاحية</th></tr></thead>
+          <tbody>
+            ${db.users.map(u => `<tr><td>${u.empId}</td><td>${u.name}</td><td>${u.username}</td><td>${APP._roleLabel(u.role)}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      `;
+      Exports.exportPDF("إعدادات النظام", html, "settings");
+    },
+    excel: () => {
+      const html = `
+        <h2>معلومات المصنع</h2>
+        <table>
+          <tr><th>البيان</th><th>القيمة</th></tr>
+          <tr><td>اسم المصنع</td><td>${db.meta.factory}</td></tr>
+          <tr><td>الموقع</td><td>${db.meta.location}</td></tr>
+          <tr><td>السنة</td><td>${db.meta.year}</td></tr>
+          <tr><td>حقوق الملكية</td><td>${db.meta.copyright}</td></tr>
+          <tr><td>المنصب</td><td>${db.meta.role}</td></tr>
+        </table>
+        <h2>المستخدمون</h2>
+        <table>
+          <tr><th>الرقم الوظيفي</th><th>الاسم</th><th>الصلاحية</th></tr>
+          ${db.users.map(u => `<tr><td>${u.empId}</td><td>${u.name}</td><td>${APP._roleLabel(u.role)}</td></tr>`).join('')}
+        </table>
+      `;
+      Exports.exportExcel(html, "settings");
+    },
+    json: () => Exports.exportJSON(db, "full_database_backup"),
+    csv: () => {
+      const headers = ['البيان', 'القيمة'];
+      const rows = [
+        ['اسم المصنع', db.meta.factory],
+        ['الموقع', db.meta.location],
+        ['السنة', db.meta.year],
+        ['حقوق الملكية', db.meta.copyright]
+      ];
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), "settings");
+    },
+    print: () => window.print()
+  });
+
+  function render() {
+    container.innerHTML = `
+      <div class="alert alert-danger">
+        <span>${Icons.render("alert")}</span>
+        <span>إجراءات حساسة — متاحة لمدير النظام فقط.</span>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("factory")} معلومات المصنع</h3>
+        <form class="form-grid" id="metaForm">
+          <div class="form-group">
+            <label>اسم المصنع</label>
+            <input type="text" id="m_factory" value="${db.meta.factory}" />
+          </div>
+          <div class="form-group">
+            <label>الموقع</label>
+            <input type="text" id="m_location" value="${db.meta.location}" />
+          </div>
+          <div class="form-group">
+            <label>السنة</label>
+            <input type="number" id="m_year" value="${db.meta.year}" />
+          </div>
+          <div class="form-group">
+            <label>حقوق الملكية</label>
+            <input type="text" id="m_copyright" value="${db.meta.copyright}" />
+          </div>
+          <div class="form-group" style="grid-column: span 2">
+            <label>المنصب</label>
+            <input type="text" id="m_role" value="${db.meta.role}" />
+          </div>
+        </form>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="Modules._saveMeta()">${Icons.render("save")} حفظ</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("refresh")} النسخ الاحتياطي والاستعادة</h3>
+        <div class="btn-row">
+          <button class="btn btn-success" onclick="Modules.exportBackup()">${Icons.render("download")} تصدير نسخة احتياطية (JSON)</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('restoreFile').click()">${Icons.render("download")} استعادة من ملف</button>
+          <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="Modules.importBackup(this)" />
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("alert")} منطقة الخطر</h3>
+        <p class="text-muted" style="margin-bottom:10px">إعادة تعيين كل البيانات إلى القيم الافتراضية المستخرجة من ملفات العمل المرفقة.</p>
+        <div class="btn-row">
+          <button class="btn btn-warning" onclick="Modules._resetUsers()">${Icons.render("shield")} إعادة ضبط أسماء وكلمات مرور المستخدمين</button>
+          <button class="btn btn-danger" onclick="Modules._resetDB()">${Icons.render("trash")} إعادة تعيين البيانات كاملة</button>
+        </div>
+      </div>
+    `;
+  }
+
+  Modules._resetUsers = function() {
+    if (!confirm('⚠ سيتم إعادة جميع أسماء المستخدمين وكلمات المرور إلى القيم الافتراضية:\n\n• admin / admin123 (المهندس مختار عبدالله الحييد)\n• production / prod123\n• accountant / acc123\n• sales / sal123\n• lab / lab123\n• procurement / prc123\n\nأي مستخدم جديد تم إضافته سيتم حذفه. متابعة؟')) return;
+    if (!confirm('⚠⚠ تأكيد نهائي: لن تستطيع التراجع. متابعة؟')) return;
+    const db = APP.getDB();
+    db.users = [
+      { id: 1, empId: "ADM-001", username: "admin",      password: "admin123", name: "مختار عبدالله الحييد",          role: "admin",       active: true },
+      { id: 2, empId: "PRD-001", username: "production", password: "prod123",  name: "مدير الإنتاج",                  role: "production",  active: true },
+      { id: 3, empId: "ACC-001", username: "accountant", password: "acc123",   name: "المحاسب",                        role: "accountant",  active: true },
+      { id: 4, empId: "SAL-001", username: "sales",      password: "sal123",   name: "مدير المبيعات والمخازن",        role: "sales",       active: true },
+      { id: 5, empId: "LAB-001", username: "lab",        password: "lab123",   name: "المختبر / المحطة",               role: "lab",         active: true },
+      { id: 6, empId: "PRH-001", username: "procurement",password: "prc123",   name: "المشتريات وشؤون الموظفين",       role: "procurement", active: true }
+    ];
+    // تحديث الجلسة إذا كان المستخدم الحالي تم حذفه
+    const session = DB.getSession();
+    if (session && !db.users.find(u => u.username === session.username && u.password === session.password)) {
+      DB.clearSession();
+    }
+    APP.saveDB(db);
+    alert('✅ تم إعادة ضبط أسماء وكلمات مرور المستخدمين إلى القيم الافتراضية');
+    if (!DB.getSession()) APP.logout();
+  }
+
+  Modules._saveMeta = function() {
+    const db = APP.getDB();
+    db.meta.factory = document.getElementById('m_factory').value;
+    db.meta.location = document.getElementById('m_location').value;
+    db.meta.year = +document.getElementById('m_year').value;
+    db.meta.copyright = document.getElementById('m_copyright').value;
+    db.meta.role = document.getElementById('m_role').value;
+    APP.saveDB(db);
+    alert('{Icons.render("check")} تم حفظ معلومات المصنع');
+  };
+
+  Modules._resetDB = function() {
+    if (!confirm('تنبيه: سيتم حذف كل البيانات. متأكد؟')) return;
+    if (!confirm('تنبيه: هذا الإجراء لا يمكن التراجع عنه. هل أنت متأكد تماماً؟')) return;
+    DB.reset();
+    location.reload();
+  };
+
+  render();
+};
+
+/* ============ التصدير والاستيراد ============ */
+Modules.exportBackup = function() {
+  const db = APP.getDB();
+  const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `celein_backup_${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+};
+
+Modules.importBackup = function(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!confirm('سيتم استبدال كل البيانات. متابعة؟')) return;
+      APP.saveDB(data);
+      alert('{Icons.render("check")} تمت الاستعادة بنجاح');
+      location.reload();
+    } catch (err) {
+      alert('{Icons.render("close")} ملف غير صالح: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+};
+
+Modules.exportTable = function(type, filename) {
+  const db = APP.getDB();
+  let csv = '\ufeff'; // BOM for Excel
+  let rows = [];
+
+  if (type === 'productionLog') {
+    csv += 'التاريخ,الصنف,الكمية,التالف,ملاحظة\n';
+    db.productionLog.forEach(p => {
+      const prod = db.products.find(x => x.code === p.productCode);
+      csv += `${p.date},"${prod ? prod.name : p.productCode}",${p.qty},${p.waste},"${p.note || ''}"\n`;
+    });
+  } else if (type === 'inventory') {
+    csv += 'الصنف,الافتتاحي,المنتج,المصروف,الرصيد\n';
+    DB.inventory(db).forEach(i => {
+      csv += `"${i.name}",${i.opening},${i.produced},${i.dispatched},${i.balance}\n`;
+    });
+  } else if (type === 'salesReps') {
+    csv += 'المندوب,المركبة,الرصيد,المبيعات,التحصيل,المديونية\n';
+    db.salesReps.forEach(r => {
+      const s = DB.salesRepSummary(r.code, db);
+      csv += `"${r.name}",${r.vehicle},${r.openingBalance},${s.credit + s.cash},${s.collection},${s.balance}\n`;
+    });
+  } else {
+    return alert('نوع التصدير غير مدعوم');
+  }
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+};
+
+APP._roleLabel = function(role) {
+  const m = {
+    admin: "مدير النظام",
+    production: "مدير الإنتاج",
+    accountant: "المحاسب",
+    sales: "إدارة المبيعات والمخازن",
+    lab: "المختبر والمحطة",
+    procurement: "المشتريات وشؤون الموظفين"
+  };
+  return m[role] || role;
+};
+
+/* ============================================================
+   طلب شراء - من الإنتاج إلى المشتريات
+   ============================================================ */
+window.Modules.purchaseRequest = function(container) {
+  const db = APP.getDB();
+  let _activeTab = 'new'; // 'new' | 'sent' | 'machines'
+
+  // 12 نوع آلة كما حددها المستخدم
+  const MACHINES = [
+    'آلة النفخ',
+    'منظومة الضغط والتبريد',
+    'خط السير',
+    'آلة التعبئة 3×1',
+    'آلة الأغطية',
+    'آلة التاريخ',
+    'آلة التجفيف',
+    'آلة اللاصق ليبل',
+    'آلة التغليف كرتون',
+    'آلة التغليف شرنج',
+    'المحطة',
+    'المختبر'
+  ];
+
+  function genCode() {
+    const year = new Date().getFullYear();
+    const n = (db.purchaseRequests.length + 1).toString().padStart(3, '0');
+    return `PR-${year}-${n}`;
+  }
+
+  function statusBadge(status) {
+    const m = {
+      'pending': ['في الانتظار', 'warning'],
+      'seen': ['تم الاطلاع', 'info'],
+      'approved': ['موافق عليه', 'success'],
+      'rejected': ['مرفوض', 'danger'],
+      'ordered': ['تم الطلب', 'success'],
+      'received': ['تم الاستلام', 'success']
+    };
+    const [label, cls] = m[status] || ['غير معروف', 'info'];
+    return `<span class="badge badge-${cls}">${label}</span>`;
+  }
+
+  function render() {
+    const userRequests = db.purchaseRequests.filter(r => r.fromUser === APP.getUser().empId);
+
+    container.innerHTML = `
+      <div class="alert alert-info">
+        ${Icons.render("info")}
+        <span>صفحة <b>طلب شراء</b> ترفع الطلبات مباشرة إلى إدارة المشتريات. اختر "مواد خام" لطلب من قائمة الموردين، أو "قطعة غيار" لطلب قطعة لإحدى الآلات.</span>
+      </div>
+
+      <div class="tabs">
+        <div class="tab ${_activeTab === 'new' ? 'active' : ''}" onclick="Modules._prSwitchTab('new')">${Icons.render("plus")} طلب جديد</div>
+        <div class="tab ${_activeTab === 'machines' ? 'active' : ''}" onclick="Modules._prSwitchTab('machines')">${Icons.render("settings")} الآلات المعتمدة</div>
+        <div class="tab ${_activeTab === 'sent' ? 'active' : ''}" onclick="Modules._prSwitchTab('sent')">${Icons.render("clipboard")} طلباتي المرسلة (${userRequests.length})</div>
+      </div>
+
+      <div id="prContent"></div>
+    `;
+
+    if (_activeTab === 'new') renderNewRequest();
+    else if (_activeTab === 'machines') renderMachines();
+    else renderSentRequests();
+  }
+
+  function renderNewRequest() {
+    const content = document.getElementById('prContent');
+    content.innerHTML = `
+      <div class="card">
+        <h3>${Icons.render("cart")} نوع الطلب</h3>
+        <p class="text-muted" style="margin-bottom:18px">اختر نوع الطلب:</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+          <div onclick="Modules._prStartRaw()" style="cursor:pointer;background:var(--bg);padding:32px 24px;border-radius:var(--radius);box-shadow:var(--shadow-out);transition:all 0.2s" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">
+            <div style="text-align:center">
+              <div style="width:80px;height:80px;background:var(--bg);box-shadow:var(--shadow-in-sm);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px">${Icons.render("cart", {size:36})}</div>
+              <h3 style="border:none;padding:0;color:var(--primary);font-size:18px;justify-content:center">مواد خام</h3>
+              <p class="text-muted" style="margin-top:8px;font-size:13px">طلب أنبولات، أغطية، ليبل، شرنك، كرتون... من قائمة الموردين</p>
+            </div>
+          </div>
+
+          <div onclick="Modules._prStartSpare()" style="cursor:pointer;background:var(--bg);padding:32px 24px;border-radius:var(--radius);box-shadow:var(--shadow-out);transition:all 0.2s" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">
+            <div style="text-align:center">
+              <div style="width:80px;height:80px;background:var(--bg);box-shadow:var(--shadow-in-sm);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px">${Icons.render("settings", {size:36})}</div>
+              <h3 style="border:none;padding:0;color:var(--primary);font-size:18px;justify-content:center">قطعة غيار</h3>
+              <p class="text-muted" style="margin-top:8px;font-size:13px">طلب قطعة غيار لإحدى آلات المصنع مع صور القطعة والآلة</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderMachines() {
+    const content = document.getElementById('prContent');
+    content.innerHTML = `
+      <div class="card">
+        <h3>${Icons.render("settings")} الآلات المعتمدة في المصنع</h3>
+        <p class="text-muted" style="margin-bottom:14px">قائمة بالآلات المعتمدة في المصنع لطلب قطع غيار لها:</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+          ${MACHINES.map((m, i) => `
+            <div style="background:var(--bg);padding:20px 16px;border-radius:var(--radius);box-shadow:var(--shadow-in-sm);display:flex;align-items:center;gap:12px">
+              <div style="width:42px;height:42px;background:var(--primary);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0;font-size:14px">${i+1}</div>
+              <div style="font-weight:700;color:var(--text);font-size:14px">${m}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="btn-row" style="margin-top:20px">
+          <button class="btn btn-primary" onclick="Modules._prStartSpare()">${Icons.render("plus")} طلب قطعة غيار</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderSentRequests() {
+    const content = document.getElementById('prContent');
+    const userRequests = db.purchaseRequests
+      .filter(r => r.fromUser === APP.getUser().empId)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (userRequests.length === 0) {
+      content.innerHTML = `
+        <div class="card">
+          <div class="empty-state">
+            <div class="icon">${Icons.render("clipboard")}</div>
+            <h3>لا توجد طلبات بعد</h3>
+            <p>قم بإنشاء طلب شراء جديد من تبويب "طلب جديد"</p>
+            <button class="btn btn-primary" style="margin-top:14px" onclick="Modules._prSwitchTab('new')">${Icons.render("plus")} إنشاء طلب</button>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    content.innerHTML = `
+      <div class="card">
+        <h3>${Icons.render("clipboard")} طلباتي المرسلة (${userRequests.length})</h3>
+        ${userRequests.map(r => renderRequestCard(r)).join('')}
+      </div>
+    `;
+  }
+
+  function renderRequestCard(r) {
+    const isRaw = r.type === 'raw';
+    return `
+      <div style="background:var(--bg);padding:18px;border-radius:var(--radius);box-shadow:var(--shadow-in-sm);margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+          <div>
+            <div style="font-weight:800;color:var(--primary);font-size:15px">${r.code} - ${isRaw ? 'مواد خام' : 'قطعة غيار'}</div>
+            <div class="text-muted" style="font-size:12px;margin-top:2px">${r.date} • ${r.itemCount} بند</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            ${statusBadge(r.status)}
+            <span class="badge badge-info">${r.reminders || 0} تذكير</span>
+          </div>
+        </div>
+
+        <details style="margin-bottom:12px">
+          <summary style="cursor:pointer;font-weight:600;color:var(--primary);padding:6px 0">عرض تفاصيل الطلب (${r.items.length} بند)</summary>
+          <div style="margin-top:10px;background:var(--bg);padding:12px;border-radius:var(--radius-sm);box-shadow:var(--shadow-in-sm)">
+            ${r.items.map((item, i) => {
+              if (isRaw) {
+                return `<div style="padding:6px 0;border-bottom:1px dashed rgba(0,0,0,0.06);font-size:13px">
+                  <b>${i+1}.</b> ${item.supplier} - ${item.material} - <b>${item.qty}</b> ${item.unit} ${item.notes ? `(${item.notes})` : ''}
+                </div>`;
+              } else {
+                return `<div style="padding:10px;border-bottom:1px dashed rgba(0,0,0,0.06);font-size:13px">
+                  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+                    <div>
+                      <b>${i+1}.</b> <span style="color:var(--primary);font-weight:800">${item.partName}</span>
+                      <span class="text-muted"> - آلة: ${item.machine}</span>
+                      ${item.model ? `<span class="text-muted"> - موديل: ${item.model}</span>` : ''}
+                      <br><span class="text-primary">الكمية: ${item.qty} ${item.unit}</span>
+                    </div>
+                    <div style="display:flex;gap:6px">
+                      ${item.machinePhoto ? `<img src="${item.machinePhoto}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;box-shadow:var(--shadow-in-sm)" title="صورة الآلة">` : ''}
+                      ${item.partPhoto ? `<img src="${item.partPhoto}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;box-shadow:var(--shadow-in-sm)" title="صورة القطعة">` : ''}
+                      ${item.nameplatePhoto ? `<img src="${item.nameplatePhoto}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;box-shadow:var(--shadow-in-sm)" title="لوحة البيانات">` : ''}
+                    </div>
+                  </div>
+                  ${item.notes ? `<div class="text-muted" style="margin-top:6px;font-size:12px">ملاحظات: ${item.notes}</div>` : ''}
+                </div>`;
+              }
+            }).join('')}
+            ${r.notes ? `<div style="margin-top:10px;padding:8px;background:rgba(0,0,0,0.03);border-radius:6px"><b>ملاحظات عامة:</b> ${r.notes}</div>` : ''}
+          </div>
+        </details>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${r.status === 'pending' ? `
+            <button class="btn btn-primary btn-sm" onclick="Modules._prEditRequest(${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("edit")} تعديل</button>
+            <button class="btn btn-danger btn-sm" onclick="Modules._prCancelRequest(${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("close")} إلغاء الطلب</button>
+          ` : ''}
+          ${r.status === 'pending' || r.status === 'seen' ? `
+            <button class="btn btn-warning btn-sm" onclick="Modules._prRemind(${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("bell")} تذكير (${r.reminders || 0})</button>
+          ` : ''}
+          <button class="btn btn-secondary btn-sm" onclick="Modules._prViewRequest(${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("eye")} عرض</button>
+        </div>
+
+        ${r.processedBy ? `<div class="text-muted" style="margin-top:10px;font-size:12px">تم المعالجة بواسطة: ${r.processedBy} في ${r.processedDate}</div>` : ''}
+      </div>
+    `;
+  }
+
+  // === دوال التحكم ===
+  Modules._prSwitchTab = function(tab) {
+    _activeTab = tab;
+    render();
+  };
+
+  Modules._prStartRaw = function() {
+    const content = document.getElementById('prContent');
+    // تجميع المواد الخام الفريدة من الموردين
+    const materials = [];
+    const seen = new Set();
+    db.suppliers.forEach(s => {
+      const key = s.material + '|' + s.unit;
+      if (!seen.has(key)) {
+        seen.add(key);
+        materials.push({ material: s.material, unit: s.unit, sample: s });
+      }
+    });
+
+    // حساب متوسط التالف من سجل الإنتاج
+    let avgWastePercent = 2; // افتراضي 2%
+    if (db.productionLog && db.productionLog.length > 0) {
+      const totalQty = db.productionLog.reduce((s, p) => s + (p.qty || 0), 0);
+      const totalWaste = db.productionLog.reduce((s, p) => s + (p.waste || 0), 0);
+      if (totalQty > 0) {
+        avgWastePercent = (totalWaste / totalQty) * 100;
+      }
+    }
+
+    content.innerHTML = `
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("cart")} طلب مواد خام</h3>
+          <button class="btn btn-secondary btn-sm" onclick="Modules._prSwitchTab('new')">${Icons.render("arrowRight")} رجوع</button>
+        </div>
+        <div class="alert alert-info">
+          ${Icons.render("info")}
+          <span>حدد الكميات المطلوبة من كل مادة بوحدة المورد (كرتون/لفة/كيلو). سيتم احتساب إجمالي الكراتين المتوقعة تلقائياً بعد خصم التالف التقديري (<b>${avgWastePercent.toFixed(2)}%</b>).</span>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>تاريخ الطلب</label>
+            <input type="date" id="pr_raw_date" value="${new Date().toISOString().split('T')[0]}" />
+          </div>
+          <div class="form-group">
+            <label>الرقم الوظيفي</label>
+            <input type="text" id="pr_raw_emp" value="${APP.getUser().empId}" readonly />
+          </div>
+          <div class="form-group">
+            <label>متوسط التالف التقديري</label>
+            <input type="text" id="pr_raw_waste" value="${avgWastePercent.toFixed(2)}%" readonly />
+          </div>
+        </div>
+
+        <h3 style="margin-top:20px">${Icons.render("box")} المواد المتاحة (${materials.length})</h3>
+        <div style="max-height:500px;overflow-y:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>المادة</th>
+              <th>الوحدة (المورد)</th>
+              <th>المورد</th>
+              <th style="width:100px">كمية العبوة</th>
+              <th style="width:130px">الكمية المطلوبة (وحدة مورد)</th>
+              <th>ملاحظات</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${materials.map((m, i) => `
+              <tr>
+                <td><b>${m.material}</b></td>
+                <td><span class="text-muted">${m.unit} (${m.sample.packUnit})</span></td>
+                <td class="text-muted">${m.sample.name}</td>
+                <td><span class="text-primary"><b>${m.sample.pack.toLocaleString('ar-EG')}</b></span></td>
+                <td><input type="number" min="0" id="pr_raw_qty_${i}" value="0" oninput="Modules._prRecalculate()" style="width:120px;text-align:center;font-weight:700" /></td>
+                <td><input type="text" id="pr_raw_notes_${i}" placeholder="اختياري" style="width:100%" /></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        </div>
+
+        <div class="form-group" style="margin-top:16px">
+          <label>ملاحظات عامة على الطلب</label>
+          <textarea id="pr_raw_generalNotes" rows="2" placeholder="أي ملاحظات إضافية تخص الطلب ككل..."></textarea>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-success" onclick="Modules._prSubmitRaw()">${Icons.render("upload")} إرسال الطلب إلى المشتريات</button>
+          <button class="btn btn-secondary" onclick="Modules._prSwitchTab('new')">إلغاء</button>
+        </div>
+      </div>
+
+      <!-- ملخص الحساب -->
+      <div class="card" id="pr_calc_summary" style="background:linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)">
+        <h3 style="color:var(--primary);border:none;padding-bottom:0">${Icons.render("chart")} إحتساب آلي للكراتين المتوقعة</h3>
+        <p class="text-muted" style="margin-bottom:14px">يتم احتساب إجمالي الكراتين المتوقع إنتاجها بناءً على الكميات المدخلة، مع خصم التالف التقديري.</p>
+        <div id="pr_calc_result">
+          <div class="alert alert-warning">${Icons.render("info")} أدخل الكميات في الجدول أعلاه وسيتم الاحتساب تلقائياً.</div>
+        </div>
+      </div>
+    `;
+
+    // تهيئة الحساب الفارغ
+    setTimeout(() => Modules._prRecalculate(), 100);
+  };
+
+  // دالة إعادة الاحتساب الفوري عند تغيير الكميات
+  Modules._prRecalculate = function() {
+    const resultDiv = document.getElementById('pr_calc_result');
+    if (!resultDiv) return;
+
+    // جمع المواد المدخلة
+    const materials = [];
+    const seen = new Set();
+    db.suppliers.forEach(s => {
+      const key = s.material + '|' + s.unit;
+      if (!seen.has(key)) {
+        seen.add(key);
+        materials.push({ material: s.material, unit: s.unit, sample: s });
+      }
+    });
+
+    // قراءة الكميات
+    const entered = {};
+    materials.forEach((m, i) => {
+      const qtyEl = document.getElementById(`pr_raw_qty_${i}`);
+      if (qtyEl) {
+        const qty = parseFloat(qtyEl.value) || 0;
+        if (qty > 0) {
+          entered[m.material] = { qty, pack: m.sample.pack, relatedProduct: m.sample.relatedProduct || [] };
+        }
+      }
+    });
+
+    // متوسط التالف
+    const wasteEl = document.getElementById('pr_raw_waste');
+    const wastePercent = wasteEl ? parseFloat(wasteEl.value) || 2 : 2;
+    const wasteFactor = 1 - (wastePercent / 100);
+
+    // === حساب الكراتين لكل SKU ===
+    // لكل SKU: maxCartons = min(bottles, caps, labels, boxes(للكرتون), shrink)
+    const productSpecs = db.productSpecs || [
+      { code: "750-K",  size: "750 مل",  packaging: "كرتون", bottles: 20, caps: 20, labels: 20, carton: 1, shrink: 1 },
+      { code: "750-S",  size: "750 مل",  packaging: "شرنج",  bottles: 20, caps: 20, labels: 20, carton: 0, shrink: 1 },
+      { code: "1.5L-K", size: "1.5 لتر", packaging: "كرتون", bottles: 12, caps: 12, labels: 12, carton: 1, shrink: 1 },
+      { code: "1.5L-S", size: "1.5 لتر", packaging: "شرنج",  bottles: 12, caps: 12, labels: 12, carton: 0, shrink: 1 },
+      { code: "330-K",  size: "330 مل",  packaging: "كرتون", bottles: 20, caps: 20, labels: 20, carton: 1, shrink: 1 },
+      { code: "330-S",  size: "330 مل",  packaging: "شرنج",  bottles: 20, caps: 20, labels: 20, carton: 0, shrink: 1 }
+    ];
+
+    // تجميع الكميات المدخلة حسب النوع
+    const totalBottles750 = (entered['امبولات 20.5']?.qty || 0) * (entered['امبولات 20.5']?.pack || 0);
+    const totalBottles15L = totalBottles750; // نفس المادة
+    const totalBottles330 = (entered['امبولات 11.7']?.qty || 0) * (entered['امبولات 11.7']?.pack || 0);
+    const totalCaps = (entered['اغطيه']?.qty || 0) * (entered['اغطيه']?.pack || 0);
+    const totalLabels750 = (entered['ليبل 750مل']?.qty || 0) * (entered['ليبل 750مل']?.pack || 0);
+    const totalLabels15L = (entered['ليبل 1.5لتر']?.qty || 0) * (entered['ليبل 1.5لتر']?.pack || 0);
+    const totalLabels330 = (entered['ليبل 330مل']?.qty || 0) * (entered['ليبل 330مل']?.pack || 0);
+    const totalCartons750 = (entered['كرتون 750مل']?.qty || 0);
+    const totalCartons15L = (entered['كرتون 1.5لتر']?.qty || 0);
+    const totalCartons330 = (entered['كرتون 330مل']?.qty || 0);
+    const totalShrink = (entered['شرنك 57سم']?.qty || 0) * (entered['شرنك 57سم']?.pack || 0);
+    const totalGlue = (entered['غراء ليبل مائي']?.qty || 0) * (entered['غراء ليبل مائي']?.pack || 0);
+
+    // حساب الكراتين لكل SKU
+    function calcSKU(bottlesAvail, capsAvail, labelsAvail, cartonAvail, shrinkAvail, spec) {
+      const bottlesCartons = spec.bottles > 0 ? bottlesAvail / spec.bottles : 0;
+      const capsCartons = spec.caps > 0 ? capsAvail / spec.caps : 0;
+      const labelsCartons = spec.labels > 0 ? labelsAvail / spec.labels : 0;
+      const cartonCartons = spec.carton > 0 ? cartonAvail / spec.carton : Infinity;
+      const shrinkCartons = spec.shrink > 0 ? shrinkAvail / spec.shrink : Infinity;
+      return Math.floor(Math.max(0, Math.min(bottlesCartons, capsCartons, labelsCartons, cartonCartons, shrinkCartons)));
+    }
+
+    // للكرتون: يحتاج كرتون قاعدة + شرنك
+    // للشرنج: يحتاج شرنك فقط (بدون كرتون قاعدة)
+    const sku750K = calcSKU(totalBottles750, totalCaps, totalLabels750, totalCartons750, totalShrink, productSpecs[0]);
+    const sku750S = calcSKU(totalBottles750, totalCaps, totalLabels750, Infinity, totalShrink, productSpecs[1]);
+    const sku15LK = calcSKU(totalBottles15L, totalCaps, totalLabels15L, totalCartons15L, totalShrink, productSpecs[2]);
+    const sku15LS = calcSKU(totalBottles15L, totalCaps, totalLabels15L, Infinity, totalShrink, productSpecs[3]);
+    const sku330K = calcSKU(totalBottles330, totalCaps, totalLabels330, totalCartons330, totalShrink, productSpecs[4]);
+    const sku330S = calcSKU(totalBottles330, totalCaps, totalLabels330, Infinity, totalShrink, productSpecs[5]);
+
+    // بعد خصم التالف
+    const net750K = Math.floor(sku750K * wasteFactor);
+    const net750S = Math.floor(sku750S * wasteFactor);
+    const net15LK = Math.floor(sku15LK * wasteFactor);
+    const net15LS = Math.floor(sku15LS * wasteFactor);
+    const net330K = Math.floor(sku330K * wasteFactor);
+    const net330S = Math.floor(sku330S * wasteFactor);
+
+    const total750 = net750K + net750S;
+    const total15L = net15LK + net15LS;
+    const total330 = net330K + net330S;
+    const totalAll = total750 + total15L + total330;
+
+    // التحقق من أن المستخدم أدخل شيئاً
+    const hasInput = Object.keys(entered).length > 0;
+
+    if (!hasInput) {
+      resultDiv.innerHTML = `
+        <div class="alert alert-info">
+          ${Icons.render("info")}
+          <span>أدخل الكميات في الجدول أعلاه وسيتم الاحتساب تلقائياً.</span>
+        </div>
+      `;
+      return;
+    }
+
+    resultDiv.innerHTML = `
+      <div class="kpi-grid" style="margin-bottom:14px">
+        <div class="kpi-card info" style="padding:14px">
+          <div class="label" style="font-size:11px">كراتين 750 مل</div>
+          <div class="value" style="font-size:24px">${total750.toLocaleString('ar-EG')}</div>
+          <div class="delta" style="font-size:10px">كرتون: ${net750K} + شرنج: ${net750S}</div>
+        </div>
+        <div class="kpi-card info" style="padding:14px">
+          <div class="label" style="font-size:11px">كراتين 1.5 لتر</div>
+          <div class="value" style="font-size:24px">${total15L.toLocaleString('ar-EG')}</div>
+          <div class="delta" style="font-size:10px">كرتون: ${net15LK} + شرنج: ${net15LS}</div>
+        </div>
+        <div class="kpi-card info" style="padding:14px">
+          <div class="label" style="font-size:11px">كراتين 330 مل</div>
+          <div class="value" style="font-size:24px">${total330.toLocaleString('ar-EG')}</div>
+          <div class="delta" style="font-size:10px">كرتون: ${net330K} + شرنج: ${net330S}</div>
+        </div>
+        <div class="kpi-card success" style="padding:14px">
+          <div class="label" style="font-size:11px">الإجمالي المتوقع</div>
+          <div class="value" style="font-size:28px">${totalAll.toLocaleString('ar-EG')}</div>
+          <div class="delta" style="font-size:10px">كرتون كرتونة</div>
+        </div>
+      </div>
+
+      <div style="background:var(--bg);border-radius:var(--radius);padding:12px;box-shadow:var(--shadow-in-sm)">
+        <table>
+          <thead>
+            <tr>
+              <th>الصنف</th>
+              <th>إجمالي المتاح</th>
+              <th>قبل التالف</th>
+              <th>بعد خصم التالف (${wastePercent}%)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>750 مل - كرتون</td><td>${totalBottles750} عبوة + ${totalCaps} غطاء + ${totalLabels750} ليبل + ${totalCartons750} كرتون + ${totalShrink} شرنك</td><td>${sku750K}</td><td class="text-primary"><b>${net750K}</b></td></tr>
+            <tr><td>750 مل - شرنج</td><td>${totalBottles750} عبوة + ${totalCaps} غطاء + ${totalLabels750} ليبل + ${totalShrink} شرنك</td><td>${sku750S}</td><td class="text-primary"><b>${net750S}</b></td></tr>
+            <tr><td>1.5 لتر - كرتون</td><td>${totalBottles15L} عبوة + ${totalCaps} غطاء + ${totalLabels15L} ليبل + ${totalCartons15L} كرتون + ${totalShrink} شرنك</td><td>${sku15LK}</td><td class="text-primary"><b>${net15LK}</b></td></tr>
+            <tr><td>1.5 لتر - شرنج</td><td>${totalBottles15L} عبوة + ${totalCaps} غطاء + ${totalLabels15L} ليبل + ${totalShrink} شرنك</td><td>${sku15LS}</td><td class="text-primary"><b>${net15LS}</b></td></tr>
+            <tr><td>330 مل - كرتون</td><td>${totalBottles330} عبوة + ${totalCaps} غطاء + ${totalLabels330} ليبل + ${totalCartons330} كرتون + ${totalShrink} شرنك</td><td>${sku330K}</td><td class="text-primary"><b>${net330K}</b></td></tr>
+            <tr><td>330 مل - شرنج</td><td>${totalBottles330} عبوة + ${totalCaps} غطاء + ${totalLabels330} ليبل + ${totalShrink} شرنك</td><td>${sku330S}</td><td class="text-primary"><b>${net330S}</b></td></tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3"><b>الإجمالي الكلي المتوقع إنتاجه</b></td>
+              <td class="text-success" style="font-size:18px"><b>${totalAll.toLocaleString('ar-EG')} كرتون</b></td>
+            </tr>
+          </tfoot>
+        </table>
+        ${totalGlue > 0 ? `<div class="text-muted" style="margin-top:8px;font-size:12px">${Icons.render("info")} غراء ليبل متاح: <b>${totalGlue.toLocaleString('ar-EG')} كيلو</b> (يكفي لـ ${Math.floor(totalGlue / 0.4 * 20).toLocaleString('ar-EG')} كرتون تقريباً)</div>` : ''}
+      </div>
+    `;
+  };
+
+  Modules._prSubmitRaw = function() {
+    const materials = [];
+    const seen = new Set();
+    db.suppliers.forEach(s => {
+      const key = s.material + '|' + s.unit;
+      if (!seen.has(key)) {
+        seen.add(key);
+        materials.push({ material: s.material, unit: s.unit, pack: s.pack });
+      }
+    });
+
+    const items = [];
+    materials.forEach((m, i) => {
+      const qty = parseInt(document.getElementById(`pr_raw_qty_${i}`).value) || 0;
+      const notes = document.getElementById(`pr_raw_notes_${i}`).value;
+      if (qty > 0) {
+        items.push({ material: m.material, unit: m.unit, qty, pack: m.pack, totalPieces: qty * m.pack, notes });
+      }
+    });
+
+    if (items.length === 0) {
+      alert('⚠ يرجى تحديد كمية واحدة على الأقل قبل الإرسال');
+      return;
+    }
+
+    const generalNotes = document.getElementById('pr_raw_generalNotes').value;
+    const wastePct = parseFloat(document.getElementById('pr_raw_waste').value) || 2;
+
+    const newReq = {
+      id: Date.now(),
+      code: genCode(),
+      date: document.getElementById('pr_raw_date').value,
+      fromUser: APP.getUser().empId,
+      fromUserName: APP.getUser().name,
+      type: 'raw',
+      status: 'pending',
+      items,
+      itemCount: items.length,
+      notes: generalNotes,
+      wastePercent: wastePct,
+      reminders: 0,
+      lastReminderDate: null,
+      processedBy: null,
+      processedDate: null,
+      createdAt: new Date().toISOString()
+    };
+
+    db.purchaseRequests.push(newReq);
+    APP.saveDB(db);
+    alert(`✅ تم إرسال الطلب رقم ${newReq.code} (${items.length} بند) إلى إدارة المشتريات`);
+    _activeTab = 'sent';
+    render();
+  };
+
+  Modules._prStartSpare = function(editReq) {
+    const content = document.getElementById('prContent');
+    const isEdit = !!editReq;
+    const initialItems = isEdit ? editReq.items : [];
+
+    content.innerHTML = `
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("settings")} ${isEdit ? 'تعديل طلب قطعة غيار' : 'طلب قطعة غيار'}</h3>
+          <button class="btn btn-secondary btn-sm" onclick="Modules._prSwitchTab('${isEdit ? 'sent' : 'new'}')">${Icons.render("arrowRight")} رجوع</button>
+        </div>
+
+        <div class="alert alert-info">
+          ${Icons.render("info")}
+          <span>اختر الآلة، ثم أضف القطع المطلوبة مع رفع الصور (صورة الآلة، صورة القطعة، صورة لوحة البيانات).</span>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>تاريخ الطلب</label>
+            <input type="date" id="pr_spare_date" value="${isEdit ? editReq.date : new Date().toISOString().split('T')[0]}" />
+          </div>
+          <div class="form-group">
+            <label>الرقم الوظيفي</label>
+            <input type="text" id="pr_spare_emp" value="${APP.getUser().empId}" readonly />
+          </div>
+        </div>
+
+        <h3 style="margin-top:20px">${Icons.render("settings")} اختر الآلة وأضف القطع</h3>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>الآلة</label>
+            <select id="pr_spare_machine" onchange="Modules._prMachineChanged()">
+              <option value="">-- اختر الآلة --</option>
+              ${MACHINES.map(m => `<option value="${m}">${m}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>موديل الآلة (اختياري)</label>
+            <input type="text" id="pr_spare_model" placeholder="مثال: ABC-2024" />
+          </div>
+        </div>
+
+        <div id="pr_spare_items_container"></div>
+
+        <div class="btn-row" style="margin-top:14px">
+          <button class="btn btn-primary" onclick="Modules._prAddSpareItem()">${Icons.render("plus")} إضافة قطعة</button>
+        </div>
+
+        <div class="form-group" style="margin-top:16px">
+          <label>ملاحظات عامة على الطلب</label>
+          <textarea id="pr_spare_generalNotes" rows="2" placeholder="أي ملاحظات إضافية...">${isEdit ? (editReq.notes || '') : ''}</textarea>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-success" onclick="Modules._prSubmitSpare(${isEdit ? editReq.id : 'null'})">${Icons.render("upload")} ${isEdit ? 'تحديث وإرسال' : 'إرسال الطلب إلى المشتريات'}</button>
+          <button class="btn btn-secondary" onclick="Modules._prSwitchTab('${isEdit ? 'sent' : 'new'}')">إلغاء</button>
+        </div>
+      </div>
+
+      <input type="hidden" id="pr_spare_items_data" value='${JSON.stringify(initialItems).replace(/'/g, "&#39;")}' />
+    `;
+
+    // إعادة بناء القطع الأولية
+    if (initialItems.length > 0) {
+      // تعبئة بيانات القطع الموجودة
+      setTimeout(() => {
+        initialItems.forEach((item, idx) => {
+          Modules._prAddSpareItem(item);
+        });
+        if (initialItems.length > 0 && initialItems[0].machine) {
+          document.getElementById('pr_spare_machine').value = initialItems[0].machine;
+        }
+        if (initialItems.length > 0 && initialItems[0].model) {
+          document.getElementById('pr_spare_model').value = initialItems[0].model;
+        }
+      }, 50);
+    }
+  };
+
+  Modules._prAddSpareItem = function(existingItem) {
+    const container = document.getElementById('pr_spare_items_container');
+    const idx = container.children.length;
+    const item = existingItem || { partName: '', unit: 'حبه', qty: 1, model: '', notes: '', machinePhoto: '', partPhoto: '', nameplatePhoto: '' };
+
+    const div = document.createElement('div');
+    div.className = 'spare-item-form';
+    div.style.cssText = 'background:var(--bg);padding:18px;border-radius:var(--radius);box-shadow:var(--shadow-in-sm);margin-bottom:14px;margin-top:14px';
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <b style="color:var(--primary)">${Icons.render("settings")} القطعة #${idx+1}</b>
+        <button class="btn btn-danger btn-sm" onclick="this.closest('.spare-item-form').remove(); Modules._prRenumberItems();">${Icons.render("trash")} حذف</button>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>اسم القطعة *</label>
+          <input type="text" class="spare-part-name" value="${item.partName || ''}" placeholder="مثال: فلتر هواء" required />
+        </div>
+        <div class="form-group">
+          <label>الوحدة *</label>
+          <select class="spare-part-unit">
+            <option value="حبه" ${item.unit === 'حبه' ? 'selected' : ''}>حبه</option>
+            <option value="كجم" ${item.unit === 'كجم' ? 'selected' : ''}>كجم</option>
+            <option value="متر" ${item.unit === 'متر' ? 'selected' : ''}>متر</option>
+            <option value="لتر" ${item.unit === 'لتر' ? 'selected' : ''}>لتر</option>
+            <option value="لفة" ${item.unit === 'لفة' ? 'selected' : ''}>لفة</option>
+            <option value="متر مربع" ${item.unit === 'متر مربع' ? 'selected' : ''}>متر مربع</option>
+            <option value="طقم" ${item.unit === 'طقم' ? 'selected' : ''}>طقم</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>الكمية *</label>
+          <input type="number" min="1" class="spare-part-qty" value="${item.qty || 1}" required />
+        </div>
+        <div class="form-group">
+          <label>موديل الآلة</label>
+          <input type="text" class="spare-part-model" value="${item.model || ''}" placeholder="اختياري" />
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:10px">
+        <label>ملاحظات على القطعة</label>
+        <input type="text" class="spare-part-notes" value="${item.notes || ''}" placeholder="اختياري" />
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:12px">
+        <div>
+          <label style="font-size:12px;font-weight:700;color:var(--text);display:block;margin-bottom:6px">${Icons.render("factory")} صورة الآلة</label>
+          <input type="file" accept="image/*" class="spare-photo-machine" onchange="Modules._prHandlePhoto(this, 'machinePhoto', ${idx})" />
+          ${item.machinePhoto ? `<img src="${item.machinePhoto}" style="margin-top:6px;width:80px;height:80px;object-fit:cover;border-radius:6px;box-shadow:var(--shadow-in-sm)" />` : ''}
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:var(--text);display:block;margin-bottom:6px">${Icons.render("settings")} صورة القطعة</label>
+          <input type="file" accept="image/*" class="spare-photo-part" onchange="Modules._prHandlePhoto(this, 'partPhoto', ${idx})" />
+          ${item.partPhoto ? `<img src="${item.partPhoto}" style="margin-top:6px;width:80px;height:80px;object-fit:cover;border-radius:6px;box-shadow:var(--shadow-in-sm)" />` : ''}
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:var(--text);display:block;margin-bottom:6px">${Icons.render("document")} لوحة بيانات الآلة</label>
+          <input type="file" accept="image/*" class="spare-photo-nameplate" onchange="Modules._prHandlePhoto(this, 'nameplatePhoto', ${idx})" />
+          ${item.nameplatePhoto ? `<img src="${item.nameplatePhoto}" style="margin-top:6px;width:80px;height:80px;object-fit:cover;border-radius:6px;box-shadow:var(--shadow-in-sm)" />` : ''}
+        </div>
+      </div>
+    `;
+    container.appendChild(div);
+  };
+
+  Modules._prRenumberItems = function() {
+    const items = document.querySelectorAll('#pr_spare_items_container .spare-item-form');
+    items.forEach((el, i) => {
+      el.querySelector('b').textContent = `${Icons.render("settings")} القطعة #${i+1}`;
+    });
+  };
+
+  Modules._prHandlePhoto = function(input, field, idx) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert('⚠ حجم الصورة كبير (الحد الأقصى 2 ميجا). يرجى اختيار صورة أصغر.');
+      input.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const div = input.closest('div');
+      let img = div.querySelector('img');
+      if (!img) {
+        img = document.createElement('img');
+        img.style.cssText = 'margin-top:6px;width:80px;height:80px;object-fit:cover;border-radius:6px;box-shadow:var(--shadow-in-sm)';
+        div.appendChild(img);
+      }
+      img.src = e.target.result;
+      // حفظ مؤقت على العنصر
+      input.dataset.uploadedData = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  Modules._prSubmitSpare = function(editId) {
+    const machine = document.getElementById('pr_spare_machine').value;
+    if (!machine) {
+      alert('⚠ يرجى اختيار الآلة');
+      return;
+    }
+
+    const itemDivs = document.querySelectorAll('#pr_spare_items_container .spare-item-form');
+    if (itemDivs.length === 0) {
+      alert('⚠ يرجى إضافة قطعة واحدة على الأقل');
+      return;
+    }
+
+    const items = [];
+    let valid = true;
+    itemDivs.forEach((div, i) => {
+      const partName = div.querySelector('.spare-part-name').value.trim();
+      const unit = div.querySelector('.spare-part-unit').value;
+      const qty = parseInt(div.querySelector('.spare-part-qty').value);
+      const model = div.querySelector('.spare-part-model').value;
+      const notes = div.querySelector('.spare-part-notes').value;
+      const machinePhoto = div.querySelector('.spare-photo-machine').dataset.uploadedData || div.querySelector('.spare-photo-machine').previousElementSibling?.tagName === 'IMG' ? div.querySelector('img[title="صورة الآلة"]')?.src : '';
+      const partPhoto = div.querySelector('.spare-photo-part').dataset.uploadedData || div.querySelector('img[title="صورة القطعة"]')?.src || '';
+      const nameplatePhoto = div.querySelector('.spare-photo-nameplate').dataset.uploadedData || div.querySelector('img[title="لوحة البيانات"]')?.src || '';
+
+      if (!partName || !qty || qty < 1) {
+        alert(`⚠ القطعة #${i+1}: يرجى إدخال اسم القطعة والكمية`);
+        valid = false;
+        return;
+      }
+
+      items.push({ partName, unit, qty, model, notes, machinePhoto, partPhoto, nameplatePhoto });
+    });
+
+    if (!valid) return;
+
+    const generalNotes = document.getElementById('pr_spare_generalNotes').value;
+    const globalModel = document.getElementById('pr_spare_model').value;
+
+    const newReq = {
+      id: editId || Date.now(),
+      code: editId ? (db.purchaseRequests.find(r => r.id === editId)?.code || genCode()) : genCode(),
+      date: document.getElementById('pr_spare_date').value,
+      fromUser: APP.getUser().empId,
+      fromUserName: APP.getUser().name,
+      type: 'spare',
+      status: 'pending',
+      items: items.map(it => ({ ...it, machine, model: it.model || globalModel })),
+      itemCount: items.length,
+      notes: generalNotes,
+      reminders: 0,
+      lastReminderDate: null,
+      processedBy: null,
+      processedDate: null,
+      createdAt: editId ? (db.purchaseRequests.find(r => r.id === editId)?.createdAt || new Date().toISOString()) : new Date().toISOString()
+    };
+
+    if (editId) {
+      const idx = db.purchaseRequests.findIndex(r => r.id === editId);
+      if (idx !== -1) db.purchaseRequests[idx] = newReq;
+    } else {
+      db.purchaseRequests.push(newReq);
+    }
+    APP.saveDB(db);
+    alert(`✅ تم ${editId ? 'تحديث' : 'إرسال'} الطلب ${newReq.code} (${items.length} قطعة) إلى إدارة المشتريات`);
+    _activeTab = 'sent';
+    render();
+  };
+
+  Modules._prEditRequest = function(idx) {
+    const req = db.purchaseRequests[idx];
+    if (!req) return;
+    if (req.type === 'raw') {
+      // للمواد الخام، تعديل بسيط
+      alert('لتعديل طلب مواد خام، يرجى إلغاؤه وإنشاء طلب جديد');
+    } else {
+      Modules._prStartSpare(req);
+    }
+  };
+
+  Modules._prCancelRequest = function(idx) {
+    const req = db.purchaseRequests[idx];
+    if (!req) return;
+    if (!confirm(`هل تريد إلغاء الطلب ${req.code}؟ لا يمكن التراجع.`)) return;
+    db.purchaseRequests[idx].status = 'cancelled';
+    APP.saveDB(db);
+    alert('✅ تم إلغاء الطلب');
+    render();
+  };
+
+  Modules._prRemind = function(idx) {
+    const req = db.purchaseRequests[idx];
+    if (!req) return;
+    db.purchaseRequests[idx].reminders = (db.purchaseRequests[idx].reminders || 0) + 1;
+    db.purchaseRequests[idx].lastReminderDate = new Date().toISOString();
+    APP.saveDB(db);
+    alert(`🔔 تم إرسال تذكير لإدارة المشتريات بخصوص الطلب ${req.code}\nعدد التذكيرات: ${db.purchaseRequests[idx].reminders}`);
+    render();
+  };
+
+  Modules._prViewRequest = function(idx) {
+    const req = db.purchaseRequests[idx];
+    if (!req) return;
+    const isRaw = req.type === 'raw';
+    const html = `
+      <div class="card">
+        <h3>${req.code} - ${isRaw ? 'مواد خام' : 'قطعة غيار'}</h3>
+        <div class="kpi-grid" style="margin-bottom:14px">
+          <div class="kpi-card"><div class="label">التاريخ</div><div class="value">${req.date}</div></div>
+          <div class="kpi-card info"><div class="label">الحالة</div><div class="value">${statusBadge(req.status)}</div></div>
+          <div class="kpi-card success"><div class="label">عدد البنود</div><div class="value">${req.itemCount}</div></div>
+          <div class="kpi-card warning"><div class="label">التذكيرات</div><div class="value">${req.reminders || 0}</div></div>
+        </div>
+        <table>
+          <thead><tr><th>التفاصيل</th><th>القيمة</th></tr></thead>
+          <tbody>
+            <tr><td>المرسل</td><td>${req.fromUserName} (${req.fromUser})</td></tr>
+            <tr><td>تاريخ الإنشاء</td><td>${req.createdAt || req.date}</td></tr>
+            ${req.notes ? `<tr><td>ملاحظات</td><td>${req.notes}</td></tr>` : ''}
+          </tbody>
+        </table>
+        <h3 style="margin-top:14px">البنود (${req.items.length})</h3>
+        ${req.items.map((item, i) => {
+          if (isRaw) {
+            return `<div style="padding:8px;border-bottom:1px solid rgba(0,0,0,0.05)">${i+1}. ${item.supplier || ''} - ${item.material} - <b>${item.qty}</b> ${item.unit}</div>`;
+          } else {
+            return `<div style="padding:8px;border-bottom:1px solid rgba(0,0,0,0.05);display:flex;gap:10px;align-items:center">
+              <div style="flex:1">
+                ${i+1}. <b>${item.partName}</b> - آلة: ${item.machine} ${item.model ? `(موديل: ${item.model})` : ''} - كمية: ${item.qty} ${item.unit}
+              </div>
+              <div style="display:flex;gap:4px">
+                ${item.machinePhoto ? `<a href="${item.machinePhoto}" target="_blank"><img src="${item.machinePhoto}" style="width:40px;height:40px;object-fit:cover;border-radius:4px" title="صورة الآلة"></a>` : ''}
+                ${item.partPhoto ? `<a href="${item.partPhoto}" target="_blank"><img src="${item.partPhoto}" style="width:40px;height:40px;object-fit:cover;border-radius:4px" title="صورة القطعة"></a>` : ''}
+                ${item.nameplatePhoto ? `<a href="${item.nameplatePhoto}" target="_blank"><img src="${item.nameplatePhoto}" style="width:40px;height:40px;object-fit:cover;border-radius:4px" title="لوحة البيانات"></a>` : ''}
+              </div>
+            </div>`;
+          }
+        }).join('')}
+      </div>
+    `;
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay active';
+    modal.innerHTML = `
+      <div class="modal" style="max-width:800px">
+        <div class="modal-header">
+          <h3>${Icons.render("eye")} تفاصيل الطلب</h3>
+          <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+        </div>
+        <div class="modal-body">${html}</div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">إغلاق</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  };
+
+  // تسجيل التصدير
+  Exports.register("purchaseRequest", {
+    label: "طلب شراء",
+    pdf: () => {
+      const userRequests = db.purchaseRequests.filter(r => r.fromUser === APP.getUser().empId);
+      const headers = ['الرقم', 'التاريخ', 'النوع', 'الحالة', 'البنود', 'التذكيرات'];
+      const rows = userRequests.map(r => [r.code, r.date, r.type === 'raw' ? 'مواد خام' : 'قطعة غيار', statusBadge(r.status).replace(/<[^>]+>/g, ''), r.itemCount, r.reminders || 0]);
+      const html = Exports.rowsToHTMLTable(headers, rows, { title: 'طلبات الشراء' });
+      Exports.exportPDF("طلبات الشراء", html, "purchase_requests");
+    },
+    excel: () => {
+      const userRequests = db.purchaseRequests.filter(r => r.fromUser === APP.getUser().empId);
+      const headers = ['الرقم', 'التاريخ', 'النوع', 'الحالة', 'البنود', 'التذكيرات'];
+      const rows = userRequests.map(r => [r.code, r.date, r.type === 'raw' ? 'مواد خام' : 'قطعة غيار', r.status, r.itemCount, r.reminders || 0]);
+      Exports.exportExcel(Exports.rowsToHTMLTable(headers, rows, { title: 'طلبات الشراء' }), "purchase_requests");
+    },
+    csv: () => {
+      const userRequests = db.purchaseRequests.filter(r => r.fromUser === APP.getUser().empId);
+      const headers = ['الرقم', 'التاريخ', 'النوع', 'الحالة', 'البنود'];
+      const rows = userRequests.map(r => [r.code, r.date, r.type === 'raw' ? 'مواد خام' : 'قطعة غيار', r.status, r.itemCount]);
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), "purchase_requests");
+    },
+    json: () => Exports.exportJSON({ purchaseRequests: db.purchaseRequests }, "purchase_requests"),
+    print: () => window.print()
+  });
+
+  render();
+};
+
+/* ============================================================
+   دوال مشتركة لطلبات الشراء (modal display)
+   ============================================================ */
+window.Modules._showRequestModal = function(req) {
+  const isRaw = req.type === 'raw';
+
+  // إعادة احتساب الكراتين المتوقعة لطلبات المواد الخام (لعرضها للمشتريات)
+  let calcHtml = '';
+  if (isRaw) {
+    const db = APP.getDB();
+    const entered = {};
+    req.items.forEach(item => {
+      entered[item.material] = {
+        qty: item.qty,
+        pack: item.pack || (db.suppliers.find(s => s.material === item.material)?.pack) || 1
+      };
+    });
+    const wastePercent = req.wastePercent || 2;
+    const wasteFactor = 1 - (wastePercent / 100);
+
+    // تجميع الكميات
+    const totalBottles750 = (entered['امبولات 20.5']?.qty || 0) * (entered['امبولات 20.5']?.pack || 0);
+    const totalBottles15L = totalBottles750;
+    const totalBottles330 = (entered['امبولات 11.7']?.qty || 0) * (entered['امبولات 11.7']?.pack || 0);
+    const totalCaps = (entered['اغطيه']?.qty || 0) * (entered['اغطيه']?.pack || 0);
+    const totalLabels750 = (entered['ليبل 750مل']?.qty || 0) * (entered['ليبل 750مل']?.pack || 0);
+    const totalLabels15L = (entered['ليبل 1.5لتر']?.qty || 0) * (entered['ليبل 1.5لتر']?.pack || 0);
+    const totalLabels330 = (entered['ليبل 330مل']?.qty || 0) * (entered['ليبل 330مل']?.pack || 0);
+    const totalCartons750 = (entered['كرتون 750مل']?.qty || 0) * (entered['كرتون 750مل']?.pack || 1);
+    const totalCartons15L = (entered['كرتون 1.5لتر']?.qty || 0) * (entered['كرتون 1.5لتر']?.pack || 1);
+    const totalCartons330 = (entered['كرتون 330مل']?.qty || 0) * (entered['كرتون 330مل']?.pack || 1);
+    const totalShrink = (entered['شرنك 57سم']?.qty || 0) * (entered['شرنك 57سم']?.pack || 0);
+
+    function calcSKU(bottles, caps, labels, carton, shrink, spec) {
+      const bC = spec.bottles > 0 ? bottles / spec.bottles : 0;
+      const cC = spec.caps > 0 ? caps / spec.caps : 0;
+      const lC = spec.labels > 0 ? labels / spec.labels : 0;
+      const ctC = spec.carton > 0 ? carton / spec.carton : Infinity;
+      const sC = spec.shrink > 0 ? shrink / spec.shrink : Infinity;
+      return Math.floor(Math.max(0, Math.min(bC, cC, lC, ctC, sC)));
+    }
+
+    const productSpecs = db.productSpecs || [
+      { code: "750-K",  size: "750 مل",  packaging: "كرتون", bottles: 20, caps: 20, labels: 20, carton: 1, shrink: 1 },
+      { code: "750-S",  size: "750 مل",  packaging: "شرنج",  bottles: 20, caps: 20, labels: 20, carton: 0, shrink: 1 },
+      { code: "1.5L-K", size: "1.5 لتر", packaging: "كرتون", bottles: 12, caps: 12, labels: 12, carton: 1, shrink: 1 },
+      { code: "1.5L-S", size: "1.5 لتر", packaging: "شرنج",  bottles: 12, caps: 12, labels: 12, carton: 0, shrink: 1 },
+      { code: "330-K",  size: "330 مل",  packaging: "كرتون", bottles: 20, caps: 20, labels: 20, carton: 1, shrink: 1 },
+      { code: "330-S",  size: "330 مل",  packaging: "شرنج",  bottles: 20, caps: 20, labels: 20, carton: 0, shrink: 1 }
+    ];
+
+    const sku750K = Math.floor(calcSKU(totalBottles750, totalCaps, totalLabels750, totalCartons750, totalShrink, productSpecs[0]) * wasteFactor);
+    const sku750S = Math.floor(calcSKU(totalBottles750, totalCaps, totalLabels750, Infinity, totalShrink, productSpecs[1]) * wasteFactor);
+    const sku15LK = Math.floor(calcSKU(totalBottles15L, totalCaps, totalLabels15L, totalCartons15L, totalShrink, productSpecs[2]) * wasteFactor);
+    const sku15LS = Math.floor(calcSKU(totalBottles15L, totalCaps, totalLabels15L, Infinity, totalShrink, productSpecs[3]) * wasteFactor);
+    const sku330K = Math.floor(calcSKU(totalBottles330, totalCaps, totalLabels330, totalCartons330, totalShrink, productSpecs[4]) * wasteFactor);
+    const sku330S = Math.floor(calcSKU(totalBottles330, totalCaps, totalLabels330, Infinity, totalShrink, productSpecs[5]) * wasteFactor);
+    const total750 = sku750K + sku750S;
+    const total15L = sku15LK + sku15LS;
+    const total330 = sku330K + sku330S;
+    const totalAll = total750 + total15L + total330;
+
+    calcHtml = `
+      <div class="alert alert-success" style="margin-bottom:14px">
+        ${window.Icons.render("chart")}
+        <span><b>الطاقة الإنتاجية المتوقعة من هذا الطلب:</b> <span style="font-size:18px;font-weight:800;color:var(--primary)">${totalAll.toLocaleString('ar-EG')} كرتون</span>
+        (بعد خصم ${wastePercent}% تالف تقديري)</span>
+      </div>
+      <div class="kpi-grid" style="margin-bottom:14px">
+        <div class="kpi-card info" style="padding:12px">
+          <div class="label" style="font-size:11px">كراتين 750 مل</div>
+          <div class="value" style="font-size:20px">${total750.toLocaleString('ar-EG')}</div>
+          <div class="delta" style="font-size:10px">كرتون ${sku750K} + شرنج ${sku750S}</div>
+        </div>
+        <div class="kpi-card info" style="padding:12px">
+          <div class="label" style="font-size:11px">كراتين 1.5 لتر</div>
+          <div class="value" style="font-size:20px">${total15L.toLocaleString('ar-EG')}</div>
+          <div class="delta" style="font-size:10px">كرتون ${sku15LK} + شرنج ${sku15LS}</div>
+        </div>
+        <div class="kpi-card info" style="padding:12px">
+          <div class="label" style="font-size:11px">كراتين 330 مل</div>
+          <div class="value" style="font-size:20px">${total330.toLocaleString('ar-EG')}</div>
+          <div class="delta" style="font-size:10px">كرتون ${sku330K} + شرنج ${sku330S}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  const html = `
+    <div class="kpi-grid" style="margin-bottom:14px">
+      <div class="kpi-card info"><div class="label">الطلب</div><div class="value" style="font-size:18px">${req.code}</div></div>
+      <div class="kpi-card"><div class="label">التاريخ</div><div class="value" style="font-size:18px">${req.date}</div></div>
+      <div class="kpi-card success"><div class="label">عدد البنود</div><div class="value" style="font-size:18px">${req.itemCount}</div></div>
+      <div class="kpi-card"><div class="label">النوع</div><div class="value" style="font-size:14px">${isRaw ? 'مواد خام' : 'قطعة غيار'}</div></div>
+    </div>
+    ${calcHtml}
+    <table>
+      <tbody>
+        <tr><td><b>المرسل</b></td><td>${req.fromUserName} (${req.fromUser})</td></tr>
+        <tr><td><b>التذكيرات</b></td><td>${req.reminders || 0}</td></tr>
+        ${req.processedBy ? `<tr><td><b>معالج بواسطة</b></td><td>${req.processedBy} في ${req.processedDate}</td></tr>` : ''}
+        ${req.rejectionReason ? `<tr><td><b>سبب الرفض</b></td><td>${req.rejectionReason}</td></tr>` : ''}
+        ${req.notes ? `<tr><td><b>ملاحظات عامة</b></td><td>${req.notes}</td></tr>` : ''}
+      </tbody>
+    </table>
+    <h3 style="margin-top:18px;color:var(--primary)">البنود (${req.items.length})</h3>
+    ${req.items.map((item, i) => {
+      if (isRaw) {
+        return `<div style="padding:10px;border-bottom:1px solid rgba(0,0,0,0.05);font-size:13px">
+          <b>${i+1}.</b> <b>${item.material}</b> - <span class="text-primary">الكمية: ${item.qty} ${item.unit}</span>
+          ${item.notes ? `<br><span class="text-muted" style="font-size:11px">${item.notes}</span>` : ''}
+        </div>`;
+      } else {
+        return `<div style="padding:12px;border-bottom:1px solid rgba(0,0,0,0.05);font-size:13px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <b>${i+1}.</b> <b style="color:var(--primary)">${item.partName}</b>
+              <br><span class="text-muted">الآلة: ${item.machine}</span>
+              ${item.model ? ` <span class="text-muted">- الموديل: ${item.model}</span>` : ''}
+              <br><span class="text-primary">الكمية: ${item.qty} ${item.unit}</span>
+              ${item.notes ? `<br><span class="text-muted" style="font-size:11px">${item.notes}</span>` : ''}
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+              ${item.machinePhoto ? `<a href="${item.machinePhoto}" target="_blank"><img src="${item.machinePhoto}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;box-shadow:var(--shadow-in-sm)" title="صورة الآلة"></a>` : ''}
+              ${item.partPhoto ? `<a href="${item.partPhoto}" target="_blank"><img src="${item.partPhoto}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;box-shadow:var(--shadow-in-sm)" title="صورة القطعة"></a>` : ''}
+              ${item.nameplatePhoto ? `<a href="${item.nameplatePhoto}" target="_blank"><img src="${item.nameplatePhoto}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;box-shadow:var(--shadow-in-sm)" title="لوحة البيانات"></a>` : ''}
+            </div>
+          </div>
+        </div>`;
+      }
+    }).join('')}
+  `;
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay active';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:800px">
+      <div class="modal-header">
+        <h3>${window.Icons.render("eye")} تفاصيل الطلب ${req.code}</h3>
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+      </div>
+      <div class="modal-body">${html}</div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">إغلاق</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+};
+
+window.Modules._showRequestModalHtml = function(title, html) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay active';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:900px">
+      <div class="modal-header">
+        <h3>${title}</h3>
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+      </div>
+      <div class="modal-body">${html}</div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">إغلاق</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+};
