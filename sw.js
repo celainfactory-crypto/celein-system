@@ -1,6 +1,6 @@
 // Service Worker - نظام سيلين PWA
-const CACHE_NAME = 'celein-v1';
-const RUNTIME = 'runtime-v1';
+const CACHE_NAME = 'celein-v10';
+const RUNTIME = 'runtime-v10';
 
 const PRECACHE_URLS = [
   '/',
