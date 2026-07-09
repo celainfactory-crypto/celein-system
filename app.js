@@ -40,7 +40,13 @@ window.APP = (function () {
           </div>
           <div class="form-group">
             <label>كلمة المرور</label>
-            <input type="password" id="loginPass" placeholder="" autocomplete="current-password" />
+            <div class="password-wrapper">
+              <input type="password" id="loginPass" placeholder="" autocomplete="current-password" />
+              <button type="button" class="toggle-password" id="togglePassBtn" onclick="APP.togglePassword()" aria-label="إظهار/إخفاء كلمة المرور">
+                <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="icon-eye-off" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </button>
+            </div>
           </div>
           <button class="login-btn" onclick="APP.doLogin()">
             <span id="loginBtnText">تسجيل الدخول</span>
@@ -52,6 +58,22 @@ window.APP = (function () {
     document.getElementById("loginPass").addEventListener("keypress", e => {
       if (e.key === "Enter") doLogin();
     });
+  }
+
+  // Toggle password visibility
+  function togglePassword() {
+    const passInput = document.getElementById("loginPass");
+    const eyeIcon = document.querySelector(".toggle-password .icon-eye");
+    const eyeOffIcon = document.querySelector(".toggle-password .icon-eye-off");
+    if (passInput.type === "password") {
+      passInput.type = "text";
+      eyeIcon.style.display = "none";
+      eyeOffIcon.style.display = "block";
+    } else {
+      passInput.type = "password";
+      eyeIcon.style.display = "block";
+      eyeOffIcon.style.display = "none";
+    }
   }
 
   function doLogin() {
@@ -133,6 +155,9 @@ window.APP = (function () {
         </aside>
         <div class="main">
           <header class="topbar">
+            <button class="menu-toggle" id="menuToggleBtn" onclick="APP.toggleSidebar()" aria-label="القائمة" title="القائمة">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
             <div class="page-title" id="pageTitle">لوحة التحكم</div>
             <div class="user-info">
               <div class="export-bar" id="exportBar">
@@ -161,6 +186,7 @@ window.APP = (function () {
           </footer>
         </div>
       </div>
+      <nav class="mobile-bottom-nav" id="mobileNav"></nav>
     `;
     renderNav();
     navigate("dashboard");
@@ -222,6 +248,24 @@ window.APP = (function () {
     nav.querySelectorAll(".nav-item").forEach(el => {
       el.addEventListener("click", () => navigate(el.dataset.id));
     });
+
+    // Build mobile bottom nav (5 most important modules)
+    const mobileNav = document.getElementById("mobileNav");
+    if (mobileNav) {
+      const priorityIds = ["dashboard", "production", "purchaseRequest", "inventory", "reports"];
+      const mobileItems = priorityIds
+        .map(id => allModules.find(m => m.id === id))
+        .filter(m => m && m.roles.includes(role));
+      mobileNav.innerHTML = mobileItems.map(m => `
+        <a href="#" data-id="${m.id}" class="${currentModule === m.id ? 'active' : ''}">
+          ${Icons.render(m.icon)}
+          <span>${m.label.replace('الإنتاج والتوالف', 'الإنتاج').replace('إدارة المخزون', 'المخزون').replace('التقارير الشاملة', 'التقارير')}</span>
+        </a>
+      `).join("");
+      mobileNav.querySelectorAll("a").forEach(el => {
+        el.addEventListener("click", e => { e.preventDefault(); navigate(el.dataset.id); });
+      });
+    }
   }
 
   function navigate(moduleId) {
@@ -245,6 +289,11 @@ window.APP = (function () {
       settings: "إعدادات النظام والتخصيص"
     };
     document.getElementById("pageTitle").textContent = titles[moduleId] || moduleId;
+    // Close sidebar on mobile after navigation
+    if (window.innerWidth <= 900) {
+      const sb = document.querySelector('.sidebar');
+      if (sb) sb.classList.remove('open');
+    }
     const content = document.getElementById("content");
     content.innerHTML = `<div class="card"><div class="spinner"></div> جاري التحميل...</div>`;
 

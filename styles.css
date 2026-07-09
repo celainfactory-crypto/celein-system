@@ -1078,3 +1078,125 @@ tfoot td {
   background: var(--success-light);
   border-radius: var(--radius-pill);
 }
+
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-wrapper input {
+  width: 100%;
+  padding-left: 45px !important;
+}
+
+.toggle-password {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+  min-height: 36px;
+  min-width: 36px;
+}
+
+.toggle-password:hover {
+  background: var(--bg-darker);
+  color: var(--primary-dark);
+}
+
+.toggle-password:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+/* Menu Toggle Button */
+.menu-toggle {
+  background: var(--bg);
+  color: var(--primary);
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-out-sm);
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.menu-toggle:active {
+  box-shadow: var(--shadow-in-sm);
+  transform: scale(0.95);
+}
+
+@media (max-width: 900px) {
+  .menu-toggle {
+    display: inline-flex !important;
+  }
+  .topbar {
+    flex-direction: row-reverse;
+  }
+  .topbar > .menu-toggle { order: -1; }
+}
+
+/* Bottom Navigation for Mobile */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg);
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+    z-index: 50;
+    justify-content: space-around;
+    align-items: center;
+    gap: 4px;
+  }
+  .mobile-bottom-nav a {
+    flex: 1;
+    text-decoration: none;
+    color: var(--text-light);
+    text-align: center;
+    padding: 6px 4px;
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-height: 48px;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .mobile-bottom-nav a.active,
+  .mobile-bottom-nav a:active {
+    color: var(--primary);
+    background: var(--bg);
+    box-shadow: var(--shadow-in-sm);
+  }
+  .mobile-bottom-nav svg {
+    width: 20px;
+    height: 20px;
+  }
+  .main {
+    padding-bottom: 80px !important;
+  }
+}
