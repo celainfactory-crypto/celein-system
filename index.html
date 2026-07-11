@@ -65,11 +65,15 @@
       document.body.classList.add("ready");
     });
 
-    // PWA: Register Service Worker
+    // PWA: Register Service Worker + force update check
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('✓ PWA Service Worker registered'))
+        navigator.serviceWorker.register('/sw.js?v=11')
+          .then(reg => {
+            console.log('✓ PWA Service Worker v11 registered');
+            // Force update check every 60 seconds
+            setInterval(() => reg.update(), 60000);
+          })
           .catch(err => console.warn('SW registration failed:', err));
       });
     }
