@@ -5,6 +5,7 @@
    ============================================================ */
 
 window.APP = (function () {
+  window.APP_VERSION = 'v18.7';
   let currentUser = null;
   let currentModule = "dashboard";
   let db = null;
@@ -14,6 +15,9 @@ window.APP = (function () {
     DB.init();
     db = DB.load();
 
+    // ============ Auto-Update Check ============
+    checkForUpdates();
+
     const session = DB.getSession();
     if (session) {
       currentUser = session;
@@ -21,6 +25,54 @@ window.APP = (function () {
     } else {
       showLogin();
     }
+  }
+
+  // التحقق من التحديثات تلقائياً
+  let updateCheckInterval = null;
+  function checkForUpdates() {
+    // تحقق فوري
+    performUpdateCheck();
+    // تحقق كل دقيقتين
+    if (updateCheckInterval) clearInterval(updateCheckInterval);
+    updateCheckInterval = setInterval(performUpdateCheck, 2 * 60 * 1000);
+  }
+
+  function performUpdateCheck() {
+    // جلب رقم الإصدار من السيرفر (يتجاوز الكاش)
+    fetch('/version.json?t=' + Date.now())
+      .then(r => r.ok ? r.json() : null)
+      .then(remote => {
+        if (!remote) return;
+        const current = window.APP_VERSION || 'unknown';
+        if (remote.version && remote.version !== current) {
+          showUpdateBanner(remote);
+        }
+      })
+      .catch(() => {});
+  }
+
+  function showUpdateBanner(remote) {
+    // لا تعرض الشريط مرتين
+    if (document.getElementById('pwaUpdateBanner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'pwaUpdateBanner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:linear-gradient(135deg,#2d9d5c,#1e7d4a);color:white;padding:14px 20px;text-align:center;z-index:99999;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,0.3);cursor:pointer;font-family:Cairo,sans-serif;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap';
+    banner.innerHTML = `
+      <span style="font-size:20px">🔄</span>
+      <span>يوجد تحديث جديد <b>${remote.version}</b> - ${remote.message || 'تحسينات وأسماء محدثة'}</span>
+      <button id="applyUpdateBtn" style="background:white;color:#1e2d4f;border:none;padding:6px 16px;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;margin-right:12px">تحديث الآن</button>
+      <button id="dismissUpdateBtn" style="background:transparent;color:white;border:1px solid rgba(255,255,255,0.5);padding:6px 12px;border-radius:8px;cursor:pointer;font-family:inherit">لاحقاً</button>
+    `;
+    document.body.appendChild(banner);
+    document.body.style.paddingTop = '64px';
+    document.getElementById('applyUpdateBtn').onclick = () => {
+      localStorage.clear();
+      location.href = '/?v=' + Date.now();
+    };
+    document.getElementById('dismissUpdateBtn').onclick = () => {
+      banner.remove();
+      document.body.style.paddingTop = '';
+    };
   }
 
   function showLogin() {
