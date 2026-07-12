@@ -6,7 +6,7 @@
    ============================================================ */
 
 window.DB = (function () {
-  const KEY = "celein_db_v18";
+  const KEY = "celein_db_v19";
   const SESSION_KEY = "celein_session_v1";
   const OLD_KEYS = ['celein_db_v11','celein_db_v12','celein_db_v13','celein_db_v14','celein_db_v15'];
 
