@@ -2139,6 +2139,405 @@ window.Modules.profile = function(container) {
   `;
 };
 
+/* ============ تغيير كلمة المرور ============ */
+Modules._changePassword = function() {
+  const user = APP.getCurrentUser();
+  if (!user) return;
+  const current = prompt('كلمة المرور الحالية:');
+  if (!current) return;
+  if (current !== user.password) { alert('⛔ كلمة المرور الحالية غير صحيحة'); return; }
+  const newPass = prompt('كلمة المرور الجديدة (4 أحرف على الأقل):');
+  if (!newPass || newPass.length < 4) { alert('⚠️ كلمة المرور قصيرة جداً'); return; }
+  const confirm = prompt('أكد كلمة المرور الجديدة:');
+  if (confirm !== newPass) { alert('⛔ كلمة المرور غير متطابقة'); return; }
+  const db = APP.getDB();
+  const u = db.users.find(x => x.id === user.id);
+  if (!u) return;
+  u.password = newPass;
+  APP.saveDB(db);
+  DB.setSession({...u, password: newPass});
+  alert('✅ تم تغيير كلمة المرور بنجاح');
+};
+
+/* ============ رفع الصور والوثائق (base64) ============ */
+Modules._handleFileUpload = function(input, type, employeeId) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { alert('⚠️ حجم الملف يتجاوز 5MB'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const data = e.target.result;
+    const db = APP.getDB();
+    const emp = db.employeesLog.find(x => x.id === employeeId);
+    if (!emp) return;
+    if (type === 'photo') emp.photo = data;
+    else if (type === 'idCardPhoto') emp.idCardPhoto = data;
+    else if (type === 'cv') emp.cv = data;
+    else if (type === 'certificate') {
+      if (!emp.certificates) emp.certificates = [];
+      emp.certificates.push({ name: file.name, data: data, uploadDate: new Date().toISOString() });
+    }
+    APP.saveDB(db);
+    alert('✅ تم رفع الملف بنجاح');
+    if (window.Modules.profile) window.Modules.profile(document.getElementById('content'));
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+};
+
+Modules._deleteEmployeeDocument = function(employeeId, type, index) {
+  const db = APP.getDB();
+  const emp = db.employeesLog.find(x => x.id === employeeId);
+  if (!emp) return;
+  if (!confirm('حذف هذا الملف؟')) return;
+  if (type === 'photo') emp.photo = null;
+  else if (type === 'idCardPhoto') emp.idCardPhoto = null;
+  else if (type === 'cv') emp.cv = null;
+  else if (type === 'certificate') emp.certificates.splice(index, 1);
+  APP.saveDB(db);
+  if (window.Modules.profile) window.Modules.profile(document.getElementById('content'));
+};
+
+/* ============ تحديث صفحة الملف الشخصي الشاملة ============ */
+window.Modules.profile = function(container) {
+  const db = APP.getDB();
+  const user = APP.getCurrentUser();
+  if (!user) { container.innerHTML = '<div class="alert alert-danger">خطأ</div>'; return; }
+
+  // الموظف المرتبط
+  const emp = user.employeeId ? db.employeesLog.find(e => e.id === user.employeeId) : null;
+  const roleLabel = (DB.PERMISSIONS && DB.PERMISSIONS.roleLabels && DB.PERMISSIONS.roleLabels[user.role]) || user.role;
+  const isAdmin = user.role === 'admin' || user.role === 'hr_manager';
+  const canEdit = isAdmin || (emp && user.employeeId === emp.id);
+  const allowedPages = Object.entries(DB.PERMISSIONS.pages)
+    .filter(([pid, roles]) => roles.includes(user.role) || (user.customPermissions || []).includes(pid))
+    .map(([pid]) => pid);
+
+  const allPagesLabels = {
+    dashboard: 'لوحة التحكم', production: 'الإنتاج', purchaseRequest: 'طلبات الشراء',
+    costs: 'التكاليف', pricing: 'الأسعار', inventory: 'المخزون', vouchers: 'سندات الصرف',
+    sales: 'المبيعات', agents: 'الوكلاء', lab: 'المختبر', procurement: 'المشتريات',
+    hr: 'الموارد البشرية', reports: 'التقارير', users: 'إدارة المستخدمين',
+    permissions: 'إدارة الصلاحيات', settings: 'الإعدادات', profile: 'الملف الشخصي'
+  };
+
+  container.innerHTML = `
+    <div class="alert alert-info">
+      <span>${Icons.render("user")}</span>
+      <span>مرحباً <b>${user.name}</b> — هنا تجد كل معلوماتك الشخصية والوظيفية.</span>
+    </div>
+
+    <!-- صورة شخصية + بيانات أساسية -->
+    <div class="card">
+      <h3>${Icons.render("user")} الصورة الشخصية والبيانات الأساسية</h3>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start;flex-wrap:wrap">
+        <div style="text-align:center">
+          <div id="emp-photo-preview" style="width:120px;height:120px;border-radius:50%;background:var(--bg-darker);display:flex;align-items:center;justify-content:center;overflow:hidden;margin:0 auto">
+            ${emp && emp.photo ? `<img src="${emp.photo}" style="width:100%;height:100%;object-fit:cover" />` : `<span style="font-size:48px;color:var(--text-muted)">${user.name.charAt(0)}</span>`}
+          </div>
+          ${canEdit && emp ? `
+            <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="Modules._handleFileUpload(this, 'photo', ${emp.id})" />
+            <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="document.getElementById('photo-input').click()">${Icons.render("upload")} تغيير الصورة</button>
+            ${emp.photo ? `<button class="btn btn-sm btn-danger" style="margin-top:4px" onclick="Modules._deleteEmployeeDocument(${emp.id}, 'photo')">${Icons.render("trash")} حذف</button>` : ''}
+          ` : ''}
+        </div>
+        <div class="form-grid" style="flex:1;min-width:280px">
+          <div class="form-group">
+            <label>الرقم الوظيفي</label>
+            <input type="text" value="${user.empId || '—'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+          </div>
+          <div class="form-group">
+            <label>اسم المستخدم</label>
+            <input type="text" value="${user.username}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+          </div>
+          <div class="form-group">
+            <label>الاسم الكامل</label>
+            <input type="text" value="${user.name}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+          </div>
+          <div class="form-group">
+            <label>الصلاحية</label>
+            <input type="text" value="${roleLabel}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+          </div>
+          <div class="form-group">
+            <label>القسم</label>
+            <input type="text" value="${user.department || '—'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+          </div>
+          <div class="form-group">
+            <label>الحالة</label>
+            <input type="text" value="${user.active ? '✅ نشط' : '❌ موقوف'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+          </div>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn btn-secondary" onclick="Modules._changePassword()">${Icons.render("lock")} تغيير كلمة المرور</button>
+      </div>
+    </div>
+
+    ${emp ? `
+    <!-- بيانات الموظف الكاملة -->
+    <div class="card">
+      <h3>${Icons.render("users")} بيانات الموظف</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>الرقم الوظيفي (HR)</label>
+          <input type="text" value="${emp.empId}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>الوظيفة</label>
+          <input type="text" value="${emp.position || '—'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>القسم</label>
+          <input type="text" value="${emp.department || '—'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>تاريخ التعيين</label>
+          <input type="text" value="${emp.hireDate || '—'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>الراتب الأساسي</label>
+          <input type="text" value="${(emp.salary || 0).toLocaleString('ar-EG')} ر.ي" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>البدلات</label>
+          <input type="text" value="${(emp.allowances || 0).toLocaleString('ar-EG')} ر.ي" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>إجمالي الراتب</label>
+          <input type="text" value="${((emp.salary || 0) + (emp.allowances || 0)).toLocaleString('ar-EG')} ر.ي" readonly style="background:var(--bg-darker);cursor:not-allowed;color:var(--success);font-weight:bold" />
+        </div>
+        <div class="form-group">
+          <label>الحالة</label>
+          <input type="text" value="${emp.status === 'active' ? '✅ نشط' : (emp.terminationStatus ? '⛔ ' + (emp.terminationStatus.type || 'منتهي') : '❌ موقوف')}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+      </div>
+    </div>
+
+    <!-- الهوية الشخصية -->
+    <div class="card">
+      <h3>${Icons.render("shield")} الهوية الشخصية</h3>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start;flex-wrap:wrap">
+        <div style="text-align:center">
+          <div id="id-photo-preview" style="width:200px;height:130px;border-radius:8px;background:var(--bg-darker);display:flex;align-items:center;justify-content:center;overflow:hidden;border:2px dashed var(--text-muted)">
+            ${emp.idCardPhoto ? `<img src="${emp.idCardPhoto}" style="width:100%;height:100%;object-fit:contain" />` : `<span style="color:var(--text-muted);font-size:13px;text-align:center;padding:10px">صورة الهوية<br>(وجه أمامي)</span>`}
+          </div>
+          ${canEdit ? `
+            <input type="file" id="id-input" accept="image/*" style="display:none" onchange="Modules._handleFileUpload(this, 'idCardPhoto', ${emp.id})" />
+            <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="document.getElementById('id-input').click()">${Icons.render("upload")} رفع صورة الهوية</button>
+            ${emp.idCardPhoto ? `<button class="btn btn-sm btn-danger" style="margin-top:4px" onclick="Modules._deleteEmployeeDocument(${emp.id}, 'idCardPhoto')">${Icons.render("trash")} حذف</button>` : ''}
+          ` : ''}
+        </div>
+        <div class="form-grid" style="flex:1;min-width:280px">
+          <div class="form-group">
+            <label>رقم الهوية</label>
+            <input type="text" id="id_card_number" value="${emp.idCardNumber || ''}" ${canEdit ? '' : 'readonly'} placeholder="رقم الهوية" />
+          </div>
+          <div class="form-group">
+            <label>مكان الإصدار</label>
+            <input type="text" id="id_card_place" value="${(emp.idCardData && emp.idCardData.place) || ''}" ${canEdit ? '' : 'readonly'} placeholder="مكان الإصدار" />
+          </div>
+          <div class="form-group">
+            <label>تاريخ الإصدار</label>
+            <input type="date" id="id_card_date" value="${(emp.idCardData && emp.idCardData.date) || ''}" ${canEdit ? '' : 'readonly'} />
+          </div>
+          <div class="form-group">
+            <label>الجنسية</label>
+            <input type="text" id="id_card_nationality" value="${(emp.idCardData && emp.idCardData.nationality) || ''}" ${canEdit ? '' : 'readonly'} placeholder="الجنسية" />
+          </div>
+          ${canEdit ? `<div class="form-group" style="grid-column:1/-1"><button class="btn btn-primary" onclick="Modules._saveIDCardData(${emp.id})">${Icons.render("check")} حفظ بيانات الهوية</button></div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <!-- السيرة الذاتية -->
+    <div class="card">
+      <h3>${Icons.render("report")} السيرة الذاتية (CV)</h3>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        ${emp.cv ? `
+          <a href="${emp.cv}" download="cv_${emp.empId}.png" class="btn btn-success">${Icons.render("download")} تحميل السيرة الذاتية</a>
+          ${canEdit ? `<button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployeeDocument(${emp.id}, 'cv')">${Icons.render("trash")} حذف</button>` : ''}
+        ` : `<span class="text-muted">لم يتم رفع السيرة الذاتية بعد</span>`}
+        ${canEdit ? `
+          <input type="file" id="cv-input" accept="image/*,.pdf" style="display:none" onchange="Modules._handleFileUpload(this, 'cv', ${emp.id})" />
+          <button class="btn btn-primary" onclick="document.getElementById('cv-input').click()">${Icons.render("upload")} رفع السيرة الذاتية</button>
+        ` : ''}
+      </div>
+    </div>
+
+    <!-- الشهادات -->
+    <div class="card">
+      <h3>${Icons.render("award")} الشهادات والدورات</h3>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${(emp.certificates || []).length === 0 ? '<p class="text-muted">لا توجد شهادات مرفوعة</p>' : ''}
+        ${(emp.certificates || []).map((cert, i) => `
+          <div style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border-radius:8px">
+            <a href="${cert.data}" target="_blank" class="btn btn-sm btn-secondary">${Icons.render("download")} ${cert.name}</a>
+            <span class="text-muted" style="font-size:11px">${cert.uploadDate ? new Date(cert.uploadDate).toLocaleDateString('ar-EG') : ''}</span>
+            ${canEdit ? `<button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployeeDocument(${emp.id}, 'certificate', ${i})">${Icons.render("trash")}</button>` : ''}
+          </div>
+        `).join('')}
+        ${canEdit ? `
+          <input type="file" id="cert-input" accept="image/*,.pdf" style="display:none" onchange="Modules._handleFileUpload(this, 'certificate', ${emp.id})" />
+          <button class="btn btn-primary" onclick="document.getElementById('cert-input').click()">${Icons.render("upload")} رفع شهادة جديدة</button>
+        ` : ''}
+      </div>
+    </div>
+
+    ${isAdmin ? `
+    <!-- إدارة حالة التوظيف (HR/Admin فقط) -->
+    <div class="card">
+      <h3>${Icons.render("alert")} إدارة حالة التوظيف</h3>
+      <p class="text-muted">إنهاء العقد أو تغيير حالة الموظف</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>الحالة الحالية</label>
+          <input type="text" value="${emp.status === 'active' ? '✅ نشط' : '⛔ ' + (emp.terminationStatus ? emp.terminationStatus.type : 'منتهي')}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-danger" onclick="Modules._terminateEmployee(${emp.id})">${Icons.render("x")} إنهاء التعاقد</button>
+      </div>
+    </div>
+    ` : ''}
+    ` : `
+    <div class="alert alert-warning">
+      <span>${Icons.render("alert")}</span>
+      <span>لم يتم ربط هذا الحساب ببيانات موظف. تواصل مع مدير الموارد البشرية.</span>
+    </div>
+    `}
+
+    <div class="card">
+      <h3>${Icons.render("key")} الصلاحيات والصفحات المتاحة</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${allowedPages.map(p => `<span class="badge badge-info">${allPagesLabels[p] || p}</span>`).join('')}
+      </div>
+    </div>
+  `;
+};
+
+Modules._saveIDCardData = function(empId) {
+  const db = APP.getDB();
+  const emp = db.employeesLog.find(e => e.id === empId);
+  if (!emp) return;
+  emp.idCardNumber = document.getElementById('id_card_number').value.trim();
+  emp.idCardData = {
+    place: document.getElementById('id_card_place').value.trim(),
+    date: document.getElementById('id_card_date').value,
+    nationality: document.getElementById('id_card_nationality').value.trim()
+  };
+  APP.saveDB(db);
+  alert('✅ تم حفظ بيانات الهوية');
+};
+
+Modules._terminateEmployee = function(empId) {
+  const reason = prompt('سبب إنهاء التعاقد:');
+  if (!reason) return;
+  const typeOptions = ['فصل', 'استقالة', 'انتهاء العقد', 'تقاعد', 'إيقاف مؤقت'];
+  const type = prompt('النوع: ' + typeOptions.join(' / '), 'استقالة');
+  if (!type) return;
+  const date = prompt('التاريخ (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+  if (!date) return;
+  const db = APP.getDB();
+  const emp = db.employeesLog.find(e => e.id === empId);
+  if (!emp) return;
+  emp.status = 'terminated';
+  emp.terminationStatus = { type, reason, date, recordedBy: APP.getCurrentUser().name, recordedAt: new Date().toISOString() };
+  if (!db.terminatedEmployees) db.terminatedEmployees = [];
+  db.terminatedEmployees.push({ employeeId: empId, ...emp.terminationStatus });
+  // إيقاف الحساب
+  const u = db.users.find(x => x.employeeId === empId);
+  if (u) u.active = false;
+  APP.saveDB(db);
+  alert('✅ تم إنهاء التعاقد');
+  window.Modules.profile(document.getElementById('content'));
+};
+
+/* ============ إدارة الموظفين المنتهية عقودهم ============ */
+window.Modules.terminated = function(container) {
+  const db = APP.getDB();
+  const isAdmin = APP.getCurrentUser() && (APP.getCurrentUser().role === 'admin' || APP.getCurrentUser().role === 'hr_manager');
+  if (!isAdmin) { container.innerHTML = '<div class="alert alert-danger">⛔ صلاحية للمدير والمشرف فقط</div>'; return; }
+  
+  const term = db.terminatedEmployees || [];
+  const active = db.employeesLog.filter(e => e.status === 'active' || !e.status);
+  const terminated = db.employeesLog.filter(e => e.status === 'terminated');
+  
+  container.innerHTML = `
+    <div class="alert alert-info">
+      <span>${Icons.render("info")}</span>
+      <span>إدارة الموظفين المنتهية عقودهم أو المفصولين أو المستقيلين</span>
+    </div>
+
+    <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:20px">
+      <div class="kpi-card success">
+        <div class="label"><span class="ic">${Icons.render("users")}</span>نشط</div>
+        <div class="value">${active.length}</div>
+      </div>
+      <div class="kpi-card danger">
+        <div class="label"><span class="ic">${Icons.render("x")}</span>منتهي / مفصول</div>
+        <div class="value">${terminated.length}</div>
+      </div>
+      <div class="kpi-card info">
+        <div class="label"><span class="ic">${Icons.render("users")}</span>الإجمالي</div>
+        <div class="value">${db.employeesLog.length}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>${Icons.render("x")} الموظفين المنتهية عقودهم (${terminated.length})</h3>
+      ${terminated.length === 0 ? '<p class="text-muted">لا يوجد حالياً</p>' : `
+      <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>الرقم الوظيفي</th>
+            <th>الاسم</th>
+            <th>الوظيفة</th>
+            <th>القسم</th>
+            <th>نوع التوقف</th>
+            <th>التاريخ</th>
+            <th>السبب</th>
+            <th>سُجّل بواسطة</th>
+            <th>إجراء</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${terminated.map(e => `
+            <tr>
+              <td data-label="الرقم"><b>${e.empId}</b></td>
+              <td data-label="الاسم">${e.name}</td>
+              <td data-label="الوظيفة">${e.position || '—'}</td>
+              <td data-label="القسم">${e.department || '—'}</td>
+              <td data-label="النوع"><span class="badge badge-danger">${(e.terminationStatus && e.terminationStatus.type) || '—'}</span></td>
+              <td data-label="التاريخ">${(e.terminationStatus && e.terminationStatus.date) || '—'}</td>
+              <td data-label="السبب">${(e.terminationStatus && e.terminationStatus.reason) || '—'}</td>
+              <td data-label="سُجّل بواسطة" class="text-muted">${(e.terminationStatus && e.terminationStatus.recordedBy) || '—'}</td>
+              <td data-label="إجراء"><button class="btn btn-sm btn-success" onclick="Modules._reinstateEmployee(${e.id})">${Icons.render("refresh")} إعادة توظيف</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      </div>
+      `}
+    </div>
+  `;
+};
+
+Modules._reinstateEmployee = function(empId) {
+  if (!confirm('إعادة هذا الموظف إلى العمل؟')) return;
+  const db = APP.getDB();
+  const emp = db.employeesLog.find(e => e.id === empId);
+  if (!emp) return;
+  emp.status = 'active';
+  emp.terminationStatus = null;
+  const u = db.users.find(x => x.employeeId === empId);
+  if (u) u.active = true;
+  if (db.terminatedEmployees) db.terminatedEmployees = db.terminatedEmployees.filter(t => t.employeeId !== empId);
+  APP.saveDB(db);
+  alert('✅ تم إعادة الموظف للعمل');
+  window.Modules.terminated(document.getElementById('content'));
+};
+
 /* ============ الإعدادات ============ */
 window.Modules.settings = function(container) {
   const db = APP.getDB();
