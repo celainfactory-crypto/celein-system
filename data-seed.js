@@ -215,3 +215,5 @@ window.SEED = {
   // === طلبات الشراء (من الإنتاج إلى المشتريات) ===
   purchaseRequests: []
 };
+
+// === v18.6 BUILD 1783881359 - FORCE NETLIFY DEPLOY ===
