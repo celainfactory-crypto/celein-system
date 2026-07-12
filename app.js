@@ -240,7 +240,7 @@ window.APP = (function () {
       { id: "agents",        group: "المبيعات",          icon: "handshake",     label: "الوكلاء",                roles: ["admin","sales","accountant"] },
       { id: "lab",           group: "المختبر والمحطة",    icon: "flask",         label: "سجل المختبر",            roles: ["admin","lab","production"] },
       { id: "procurement",   group: "المشتريات",          icon: "cart",          label: "المشتريات والموردين",    roles: ["admin","procurement","accountant","production"] },
-      { id: "hr",            group: "الموارد البشرية",   icon: "users",         label: "شؤون الموظفين",          roles: ["admin","procurement","accountant"] },
+      { id: "hr",            group: "الموارد البشرية",   icon: "users",         label: "الموارد البشرية",          roles: ["admin","procurement","accountant"] },
       { id: "reports",       group: "التقارير",          icon: "report",        label: "التقارير الشاملة",       roles: ["admin","accountant","sales","production"] },
       { id: "users",         group: "الإدارة",          icon: "shield",        label: "إدارة المستخدمين",       roles: ["admin"] },
       { id: "settings",      group: "الإدارة",          icon: "settings",      label: "الإعدادات والتخصيص",      roles: ["admin"] }
