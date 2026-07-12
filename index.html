@@ -68,7 +68,7 @@
     // PWA: Register Service Worker + force update check
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js?v=11')
+        navigator.serviceWorker.register('/sw-proxy.js?v=19')
           .then(reg => {
             console.log('✓ PWA Service Worker v11 registered');
             // Force update check every 60 seconds
