@@ -2009,3 +2009,199 @@ tfoot td {
 tr.manager-row td {
   border-left: 3px solid var(--primary);
 }
+
+/* ===== Employee Hierarchy Tree ===== */
+#hierarchyTree {
+  padding: 0;
+}
+.hierarchy-level {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+.hierarchy-level-0 {
+  margin-bottom: 25px;
+}
+.hierarchy-level-1 {
+  margin-top: 0;
+}
+.hierarchy-connector {
+  width: 2px;
+  height: 30px;
+  background: linear-gradient(to bottom, var(--primary), transparent);
+  margin: 0 auto;
+}
+
+/* GM Card */
+.hierarchy-gm-block {
+  text-align: center;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+}
+.hierarchy-gm-header {
+  background: linear-gradient(135deg, #1e2d4f, #2a3d6f);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 12px 12px 0 0;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.hierarchy-gm-card {
+  background: linear-gradient(135deg, var(--primary), #4a5d8f);
+  color: white;
+  padding: 25px;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 8px 20px rgba(30,45,79,0.3);
+}
+.gm-card {
+  text-align: center;
+  padding: 10px;
+}
+.gm-card .emp-name {
+  font-size: 22px !important;
+  font-weight: bold !important;
+  color: white !important;
+  margin: 8px 0;
+}
+.gm-card .emp-position {
+  color: rgba(255,255,255,0.9) !important;
+  font-size: 15px !important;
+  font-weight: 500;
+}
+.gm-card .emp-salary {
+  color: rgba(255,255,255,0.95) !important;
+  font-size: 16px !important;
+  margin-top: 8px;
+  font-weight: bold;
+}
+.gm-card .emp-id {
+  background: rgba(255,255,255,0.2);
+  color: white !important;
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-weight: bold;
+}
+
+/* Manager Section */
+.hierarchy-managers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 15px;
+}
+.hierarchy-manager-block {
+  background: var(--bg-card);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
+}
+.hierarchy-manager-header {
+  background: linear-gradient(135deg, #3a4d7f, #4a5d8f);
+  color: white;
+  padding: 8px 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.hierarchy-manager-header .badge {
+  background: rgba(255,255,255,0.2) !important;
+  color: white !important;
+  margin-right: auto;
+}
+.hierarchy-icon {
+  font-size: 16px;
+}
+.hierarchy-manager-card {
+  padding: 15px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(90deg, rgba(30,45,79,0.05), transparent);
+}
+.manager-card {
+  background: linear-gradient(90deg, rgba(30,45,79,0.08), transparent) !important;
+  border-left: 4px solid var(--primary) !important;
+}
+.manager-card .emp-name {
+  color: var(--primary) !important;
+  font-weight: bold !important;
+}
+
+/* Workers */
+.hierarchy-workers {
+  padding: 12px 15px;
+}
+.hierarchy-workers-title {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.hierarchy-workers-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.worker-card {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  gap: 10px;
+  align-items: center;
+  box-shadow: 2px 2px 4px var(--shadow-dark), -2px -2px 4px var(--shadow-light);
+  transition: all 0.2s ease;
+  border-right: 3px solid transparent;
+}
+.worker-card:hover {
+  transform: translateX(-3px);
+  border-right-color: var(--primary);
+  box-shadow: 3px 3px 6px var(--shadow-dark), -3px -3px 6px var(--shadow-light);
+}
+.emp-id {
+  background: var(--primary);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+.emp-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+}
+.emp-position {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.emp-salary {
+  font-weight: bold;
+  color: var(--primary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.emp-actions {
+  display: flex;
+  gap: 5px;
+}
+
+@media (max-width: 768px) {
+  .hierarchy-managers-grid {
+    grid-template-columns: 1fr;
+  }
+  .worker-card {
+    grid-template-columns: 1fr;
+    text-align: right;
+  }
+  .emp-actions {
+    justify-content: flex-end;
+  }
+}

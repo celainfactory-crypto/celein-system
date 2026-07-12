@@ -1404,53 +1404,82 @@ window.Modules.hr = function(container) {
         ` : ''}
 
         <div class="card">
-          <h3>${Icons.render("users")} سجل الموظفين - مرتب حسب التسلسل الإداري (المدير أولاً ثم الموظفون)</h3>
-          <p style="color:var(--text-muted);margin-bottom:15px">اضغط على اسم القسم لعرض/إخفاء الموظفين</p>
-          <div id="deptAccordion">
-            ${departments.map((dept, idx) => {
-              const mgr = getDeptManager(dept);
-              const workers = getDeptWorkers(dept);
-              const deptTotal = getDisplayDeptEmployees(dept).reduce((s, e) => s + (e.salary+(e.allowances||0)), 0);
-              return `
-                <div class="dept-accordion" data-dept="${dept}">
-                  <div class="dept-header" onclick="Modules._toggleDept('${dept}')">
-                    <div style="display:flex;align-items:center;gap:10px;flex:1;flex-wrap:wrap">
-                      ${Icons.render("chevronDown")}
-                      <b style="font-size:16px">${dept}</b>
-                      <span class="badge badge-info">${getDisplayDeptEmployees(dept).length} موظف</span>
-                      <span class="badge badge-success">${deptTotal.toLocaleString('ar-EG')} ر.ي</span>
-                    </div>
-                  </div>
-                  <div class="dept-body" id="dept-${idx}" style="display:none">
-                    ${mgr ? `<div class="manager-highlight">
-                        <div class="manager-badge">${Icons.render("user")} مدير القسم</div>
-                        <div style="display:flex;align-items:center;gap:15px;flex-wrap:wrap">
-                          <div>
-                            <div style="font-weight:bold;font-size:15px">${mgr.name}</div>
-                            <div style="color:var(--text-muted);font-size:13px">${mgr.position} | ${mgr.empId}</div>
-                          </div>
-                          <div style="margin-right:auto">
-                            <span class="text-primary"><b>${mgr.salary.toLocaleString('ar-EG')}</b> ر.ي</span>
-                          </div>
-                          ${isAdmin ? '<button class="btn btn-sm btn-primary" onclick="Modules._editEmployee('+mgr.id+')">'+Icons.render("edit")+'</button>' : ''}
-                        </div>
-                      </div>` : ''}
-                    ${workers.length > 0 ? `<div class="workers-list">
-                        <div style="font-weight:bold;margin:10px 0;color:var(--text-muted)">الموظفون (${workers.length}):</div>
-                        ${workers.map(w => `
-                          <div class="worker-row" data-search="${w.empId} ${w.name}">
-                            <div style="display:flex;align-items:center;gap:10px;flex:1;flex-wrap:wrap">
-                              <span class="badge badge-info">${w.empId}</span>
-                              <span><b>${w.name}</b></span>
-                              <span style="color:var(--text-muted);font-size:13px">${w.position}</span>
-                              <span style="margin-right:auto" class="text-primary"><b>${(w.salary+(w.allowances||0)).toLocaleString('ar-EG')}</b> ر.ي</span>
-                              ${isAdmin ? '<button class="btn btn-sm btn-primary" onclick="Modules._editEmployee('+w.id+')">'+Icons.render("edit")+'</button> <button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployee('+w.id+')">'+Icons.render("trash")+'</button>' : ''}
-                            </div>
-                          </div>`).join('')}
-                      </div>` : ''}
-                  </div>
-                </div>`;
-            }).join('')}
+          <h3>${Icons.render("users")} سجل الموظفين</h3>
+          <div id="hierarchyTree">
+            ${(() => {
+              // المدير العام أولاً
+              const gm = db.employeesLog.find(e => e.empId === '105');
+              // مدراء الأقسام (تحت المدير العام)
+              const managerIds = [54, 68, 72, 73, 76, 83, 86];  // الـ internal ids للمدراء
+              const managers = managerIds.map(id => db.employeesLog.find(e => e.id === id)).filter(Boolean);
+              
+              function renderEmployeeCard(emp, isGm = false, isManager = false) {
+                const editBtn = isAdmin ? '<button class="btn btn-sm btn-primary" onclick="Modules._editEmployee('+emp.id+')">'+Icons.render("edit")+'</button>' : '';
+                const deleteBtn = isAdmin ? '<button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployee('+emp.id+')">'+Icons.render("trash")+'</button>' : '';
+                return '<div class="emp-card '+(isGm ? 'gm-card' : isManager ? 'manager-card' : 'worker-card')+'">'
+                  + '<div class="emp-id">'+emp.empId+'</div>'
+                  + '<div class="emp-name">'+emp.name+'</div>'
+                  + '<div class="emp-position">'+emp.position+'</div>'
+                  + '<div class="emp-salary">'+(emp.salary+(emp.allowances||0)).toLocaleString('ar-EG')+' ر.ي</div>'
+                  + (editBtn || deleteBtn ? '<div class="emp-actions">'+editBtn+deleteBtn+'</div>' : '')
+                  + '</div>';
+              }
+              
+              function renderManagerSection(mgr) {
+                if (!mgr) return '';
+                // التابعين حسب managerId (PDF id أو internal id)
+                const subordinates = db.employeesLog.filter(e => {
+                  if (e.id === mgr.id) return false;
+                  // managerId قد يكون internal id أو empId
+                  if (e.managerId === mgr.id) return true;
+                  if (e.managerId === parseInt(mgr.empId)) return true;
+                  return false;
+                });
+                return '<div class="hierarchy-manager-block">'
+                  + '<div class="hierarchy-manager-header">'
+                  + '<span class="hierarchy-icon">'+Icons.render("user")+'</span>'
+                  + '<b>'+mgr.position+' - '+mgr.department+'</b>'
+                  + '<span class="badge badge-info">'+subordinates.length+' موظف</span>'
+                  + '</div>'
+                  + '<div class="hierarchy-manager-card">'
+                  + renderEmployeeCard(mgr, false, true)
+                  + '</div>'
+                  + (subordinates.length > 0
+                    ? '<div class="hierarchy-workers"><div class="hierarchy-workers-title">الموظفون ('+subordinates.length+'):</div><div class="hierarchy-workers-grid">'
+                      + subordinates.map(w => renderEmployeeCard(w, false, false)).join('')
+                      + '</div></div>'
+                    : '')
+                  + '</div>';
+              }
+              
+              // المدير العام في الأعلى
+              let html = '<div class="hierarchy-level hierarchy-level-0">';
+              if (gm) {
+                html += '<div class="hierarchy-gm-block">'
+                  + '<div class="hierarchy-gm-header">'
+                  + Icons.render("star") + ' <b>الإدارة العليا</b>'
+                  + '</div>'
+                  + '<div class="hierarchy-gm-card">'
+                  + renderEmployeeCard(gm, true, true)
+                  + '</div>'
+                  + '</div>';
+              }
+              html += '</div>';
+              
+              // مدراء الأقسام
+              html += '<div class="hierarchy-connector"></div>';
+              html += '<div class="hierarchy-level hierarchy-level-1">';
+              html += '<div class="hierarchy-managers-grid">';
+              managers.forEach(mgr => {
+                html += renderManagerSection(mgr);
+              });
+              html += '</div></div>';
+              
+              return html;
+            })()}
+          </div>
+        </div>
+      </div>}).join('')}
           </div>
         </div>
       </div>
