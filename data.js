@@ -6,7 +6,7 @@
    ============================================================ */
 
 window.DB = (function () {
-  const KEY = "celein_db_v11";
+  const KEY = "celein_db_v12";
   const SESSION_KEY = "celein_session_v1";
 
   // تهيئة قاعدة البيانات من البذور
