@@ -2779,6 +2779,571 @@ window.Modules.orgchart = function(container) {
   render();
 };
 
+/* ============ الشجرة التفاعلية ============ */
+window.Modules.orgtree = function(container) {
+  const db = APP.getDB();
+  const employees = db.employeesLog || [];
+
+  // ألوان الأقسام
+  const deptColors = {
+    'الإدارة': '#1e2d4f',
+    'الموارد البشرية': '#5a6b8c',
+    'الإنتاج': '#3a8bd8',
+    'المبيعات': '#d8463a',
+    'المختبر': '#9c27b0',
+    'المخازن': '#2d9d5c',
+    'مخازن البيضاء': '#7cb342',
+    'الخدمات': '#e89c2b',
+    'العلاقات العامة': '#f57c00',
+    'الحسابات': '#455a64',
+    'المشتريات': '#00897b',
+    'الأمن': '#616161',
+    'المالية': '#7b1fa2'
+  };
+  const getColor = dept => deptColors[dept] || '#607d8b';
+
+  // بناء الشجرة من البيانات الفعلية
+  function buildTree() {
+    // الإدارة العليا (3)
+    const top = employees.filter(e => ['admin','executive','chairman'].includes((e.username||'').toLowerCase()));
+    
+    // المدراء
+    const managerRoles = ['مدير', 'مشرف', 'كيميائي', 'أمين', 'محاسب'];
+    const managers = employees.filter(e => e.position && managerRoles.some(r => e.position.includes(r)) && e.position !== 'مدير شؤون الموظفين');
+    
+    // الموظفون العاديون
+    const regulars = employees.filter(e => !managers.includes(e) && !top.includes(e));
+    
+    // بناء عقد الشجرة
+    const nodes = [];
+    const links = [];
+    
+    // العقد الجذرية
+    top.forEach((p, i) => {
+      nodes.push({
+        id: 'top_' + p.id,
+        name: p.name,
+        role: p.position,
+        empId: p.empId,
+        salary: p.salary,
+        department: p.department,
+        level: 0,
+        type: 'top',
+        raw: p
+      });
+    });
+    
+    // العقد الوسيطة (المدراء)
+    managers.forEach(m => {
+      const node = {
+        id: 'mgr_' + m.id,
+        name: m.name,
+        role: m.position,
+        empId: m.empId,
+        salary: m.salary,
+        department: m.department,
+        level: 1,
+        type: 'manager',
+        raw: m,
+        children: []
+      };
+      nodes.push(node);
+      
+      // ربط بأعلى مستوى إداري
+      links.push({ source: 'top_1', target: node.id });
+      
+      // ربط الموظفين بالمدراء
+      const teamMembers = regulars.filter(e => e.managerId == m.empId);
+      teamMembers.forEach(tm => {
+        const child = {
+          id: 'emp_' + tm.id,
+          name: tm.name,
+          role: tm.position,
+          empId: tm.empId,
+          salary: tm.salary,
+          allowances: tm.allowances,
+          department: tm.department,
+          level: 2,
+          type: 'employee',
+          raw: tm
+        };
+        nodes.push(child);
+        links.push({ source: node.id, target: child.id });
+        node.children.push(child.id);
+      });
+    });
+    
+    return { nodes, links };
+  }
+  
+  const tree = buildTree();
+  
+  // حالة الشجرة
+  const state = {
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+    selectedNode: null,
+    filter: '',
+    expanded: new Set(), // العقد المطوية
+    hoveredNode: null
+  };
+  
+  // توسيع/طي افتراضي: فقط الإدارة العليا
+  tree.nodes.forEach(n => {
+    if (n.type === 'top') state.expanded.add(n.id);
+  });
+  
+  // حساب موضع كل عقدة
+  function layoutTree() {
+    const levels = {};
+    tree.nodes.forEach(n => {
+      if (!levels[n.level]) levels[n.level] = [];
+      levels[n.level].push(n);
+    });
+    
+    const HORIZONTAL_GAP = 240;
+    const VERTICAL_GAP = 100;
+    const positions = {};
+    
+    // المستوى 0 (الإدارة العليا) - 3 عقد في المنتصف
+    if (levels[0]) {
+      const topW = levels[0].length * HORIZONTAL_GAP;
+      levels[0].forEach((n, i) => {
+        positions[n.id] = {
+          x: (i - (levels[0].length - 1) / 2) * HORIZONTAL_GAP,
+          y: 0
+        };
+      });
+    }
+    
+    // المستوى 1 (المدراء) - تحت الإدارة
+    if (levels[1]) {
+      const mgrW = levels[1].length * HORIZONTAL_GAP;
+      levels[1].forEach((n, i) => {
+        positions[n.id] = {
+          x: (i - (levels[1].length - 1) / 2) * HORIZONTAL_GAP,
+          y: VERTICAL_GAP * 2
+        };
+      });
+    }
+    
+    // المستوى 2 (الموظفون) - تحت المدراء
+    if (levels[2]) {
+      const childGroups = {};
+      levels[2].forEach(n => {
+        const link = tree.links.find(l => l.target === n.id);
+        if (link) {
+          if (!childGroups[link.source]) childGroups[link.source] = [];
+          childGroups[link.source].push(n);
+        }
+      });
+      
+      Object.keys(childGroups).forEach(mgrId => {
+        const mgrPos = positions[mgrId];
+        const children = childGroups[mgrId];
+        const childW = (children.length - 1) * 130;
+        children.forEach((n, i) => {
+          positions[n.id] = {
+            x: mgrPos.x + (i * 130) - childW / 2,
+            y: mgrPos.y + VERTICAL_GAP * 3
+          };
+        });
+      });
+    }
+    
+    return positions;
+  }
+  
+  const positions = layoutTree();
+  
+  // رسم الشجرة
+  function render() {
+    const filtered = state.filter
+      ? tree.nodes.filter(n => {
+          const q = state.filter.toLowerCase();
+          return n.name.toLowerCase().includes(q) || 
+                 String(n.empId).includes(q) || 
+                 (n.department || '').toLowerCase().includes(q) ||
+                 (n.role || '').toLowerCase().includes(q);
+        })
+      : tree.nodes;
+    
+    const visibleIds = new Set(filtered.map(n => n.id));
+    // إظهار الأبناء دائماً
+    filtered.forEach(n => {
+      tree.links.forEach(l => {
+        if (l.target === n.id) visibleIds.add(l.source);
+        if (l.source === n.id) visibleIds.add(l.target);
+      });
+    });
+    
+    container.innerHTML = `
+      <div class="alert alert-info">
+        <span>${Icons.render("sitemap")}</span>
+        <span><b>الشجرة التفاعلية</b> - اسحب للتنقل • استخدم العجلة للتكبير • انقر على أي عقدة للتفاصيل</span>
+      </div>
+
+      <div class="orgtree-toolbar">
+        <div class="orgtree-search">
+          <span class="ic">${Icons.render("search")}</span>
+          <input type="text" id="orgtreeSearch" placeholder="ابحث بالاسم أو الرقم الوظيفي أو القسم..." value="${state.filter}">
+        </div>
+        <div class="orgtree-controls">
+          <button class="btn btn-icon" onclick="Modules._orgtreeZoom(0.2)" title="تكبير">${Icons.render("plus")}</button>
+          <button class="btn btn-icon" onclick="Modules._orgtreeZoom(-0.2)" title="تصغير">${Icons.render("minus")}</button>
+          <button class="btn btn-icon" onclick="Modules._orgtreeReset()" title="إعادة الضبط">${Icons.render("refresh")}</button>
+          <button class="btn btn-icon" onclick="Modules._orgtreeFit()" title="ملائمة الشاشة">${Icons.render("maximize")}</button>
+        </div>
+      </div>
+
+      <div class="orgtree-layout">
+        <div class="orgtree-canvas-wrap" id="orgtreeCanvasWrap">
+          <svg class="orgtree-svg" id="orgtreeSvg">
+            <defs>
+              <pattern id="dotGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <circle cx="2" cy="2" r="1.5" fill="#cdd5e0" opacity="0.4"/>
+              </pattern>
+              <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                <path d="M0,0 L0,8 L8,4 z" fill="#94a3b8"/>
+              </marker>
+            </defs>
+            <rect class="orgtree-grid" width="100%" height="100%" fill="url(#dotGrid)"/>
+            <g class="orgtree-content" id="orgtreeContent">
+              <!-- Links -->
+              <g class="orgtree-links">
+                ${tree.links.map(l => {
+                  const sourceVisible = visibleIds.has(l.source);
+                  const targetVisible = visibleIds.has(l.target);
+                  if (!sourceVisible || !targetVisible) return '';
+                  const sp = positions[l.source];
+                  const tp = positions[l.target];
+                  if (!sp || !tp) return '';
+                  return `<path class="orgtree-link" data-from="${l.source}" data-to="${l.target}" d="M ${sp.x} ${sp.y} C ${sp.x} ${sp.y + 50}, ${tp.x} ${tp.y - 50}, ${tp.x} ${tp.y}" stroke="#94a3b8" stroke-width="2" fill="none" opacity="0.6"/>`;
+                }).join('')}
+              </g>
+              <!-- Nodes -->
+              <g class="orgtree-nodes">
+                ${filtered.map(n => {
+                  const p = positions[n.id];
+                  if (!p) return '';
+                  const color = getColor(n.department);
+                  const isExpanded = state.expanded.has(n.id);
+                  return `
+                    <g class="orgtree-node" data-id="${n.id}" transform="translate(${p.x},${p.y})" onclick="Modules._orgtreeSelect('${n.id}')">
+                      <rect class="node-bg" x="-100" y="-30" width="200" height="80" rx="12" 
+                        fill="${n.type === 'top' ? '#1e2d4f' : (n.type === 'manager' ? color : 'white')}"
+                        stroke="${color}" stroke-width="2"/>
+                      <text class="node-avatar" x="0" y="2" text-anchor="middle" 
+                        font-size="24" font-weight="bold"
+                        fill="${n.type === 'employee' ? color : 'white'}">
+                        ${n.name.charAt(0)}
+                      </text>
+                      <text class="node-name" x="55" y="-8" text-anchor="start" 
+                        font-size="13" font-weight="600"
+                        fill="${n.type === 'employee' ? '#1e2d4f' : 'white'}">
+                        ${n.name.length > 18 ? n.name.slice(0, 16) + '…' : n.name}
+                      </text>
+                      <text class="node-role" x="55" y="10" text-anchor="start" 
+                        font-size="10"
+                        fill="${n.type === 'employee' ? '#5a6b8c' : 'rgba(255,255,255,0.8)'}">
+                        ${n.role}
+                      </text>
+                      <text class="node-id" x="55" y="26" text-anchor="start" 
+                        font-size="9" font-weight="700"
+                        fill="${n.type === 'employee' ? color : 'rgba(255,255,255,0.7)'}">
+                        ID${String(n.empId).padStart(3, '0')}
+                      </text>
+                      <circle class="node-toggle" cx="100" cy="-30" r="10" 
+                        fill="${n.type === 'top' ? color : '#1e2d4f'}" 
+                        stroke="white" stroke-width="2"
+                        opacity="${tree.links.filter(l => l.source === n.id).length ? 1 : 0}"/>
+                      <text class="node-toggle-text" x="100" y="-26" text-anchor="middle" 
+                        font-size="12" font-weight="bold" fill="white"
+                        opacity="${tree.links.filter(l => l.source === n.id).length ? 1 : 0}">${isExpanded ? '−' : '+'}</text>
+                    </g>
+                  `;
+                }).join('')}
+              </g>
+            </g>
+          </svg>
+          <div class="orgtree-zoom-info" id="orgtreeZoomInfo">${Math.round(state.zoom * 100)}%</div>
+        </div>
+        <div class="orgtree-sidebar" id="orgtreeSidebar">
+          <div class="orgtree-sidebar-empty">
+            <span>${Icons.render("user")}</span>
+            <h3>انقر على موظف لعرض تفاصيله</h3>
+            <p>يمكنك التكبير/التصغير، السحب، والبحث في الشجرة</p>
+            <div class="orgtree-stats">
+              <div class="orgtree-stat"><b>${tree.nodes.length}</b><span>إجمالي العقد</span></div>
+              <div class="orgtree-stat"><b>${tree.links.length}</b><span>الروابط</span></div>
+              <div class="orgtree-stat"><b>${tree.nodes.filter(n => n.type === 'manager').length}</b><span>المدراء</span></div>
+              <div class="orgtree-stat"><b>${tree.nodes.filter(n => n.type === 'employee').length}</b><span>الموظفون</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // تطبيق التحويلات
+    applyTransform();
+    
+    // ربط البحث
+    const searchInput = document.getElementById('orgtreeSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', e => {
+        state.filter = e.target.value;
+        render();
+      });
+    }
+    
+    // ربط Pan/Zoom
+    setupPanZoom();
+  }
+  
+  function applyTransform() {
+    const content = document.getElementById('orgtreeContent');
+    if (content) {
+      content.setAttribute('transform', `translate(${state.panX},${state.panY}) scale(${state.zoom})`);
+    }
+    const info = document.getElementById('orgtreeZoomInfo');
+    if (info) info.textContent = Math.round(state.zoom * 100) + '%';
+  }
+  
+  function setupPanZoom() {
+    const wrap = document.getElementById('orgtreeCanvasWrap');
+    if (!wrap) return;
+    
+    let isPanning = false;
+    let startX, startY;
+    
+    wrap.addEventListener('mousedown', e => {
+      if (e.target.closest('.orgtree-node')) return;
+      isPanning = true;
+      startX = e.clientX - state.panX;
+      startY = e.clientY - state.panY;
+      wrap.style.cursor = 'grabbing';
+    });
+    
+    wrap.addEventListener('mousemove', e => {
+      if (!isPanning) return;
+      state.panX = e.clientX - startX;
+      state.panY = e.clientY - startY;
+      applyTransform();
+    });
+    
+    wrap.addEventListener('mouseup', () => {
+      isPanning = false;
+      wrap.style.cursor = 'grab';
+    });
+    
+    wrap.addEventListener('mouseleave', () => {
+      isPanning = false;
+      wrap.style.cursor = 'grab';
+    });
+    
+    wrap.addEventListener('wheel', e => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      state.zoom = Math.max(0.3, Math.min(2.5, state.zoom + delta));
+      applyTransform();
+    }, { passive: false });
+    
+    // Touch support
+    let lastTouchDist = 0;
+    wrap.addEventListener('touchstart', e => {
+      if (e.touches.length === 2) {
+        lastTouchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+      } else if (e.touches.length === 1) {
+        isPanning = true;
+        startX = e.touches[0].clientX - state.panX;
+        startY = e.touches[0].clientY - state.panY;
+      }
+    });
+    
+    wrap.addEventListener('touchmove', e => {
+      if (e.touches.length === 2) {
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const delta = (dist - lastTouchDist) * 0.01;
+        state.zoom = Math.max(0.3, Math.min(2.5, state.zoom + delta));
+        lastTouchDist = dist;
+        applyTransform();
+        e.preventDefault();
+      } else if (e.touches.length === 1 && isPanning) {
+        state.panX = e.touches[0].clientX - startX;
+        state.panY = e.touches[0].clientY - startY;
+        applyTransform();
+        e.preventDefault();
+      }
+    }, { passive: false });
+    
+    wrap.addEventListener('touchend', () => { isPanning = false; });
+  }
+  
+  Modules._orgtreeSelect = function(nodeId) {
+    const node = tree.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    // التبديل بين التوسيع والطي عند النقر على الدائرة
+    const hasChildren = tree.links.some(l => l.source === nodeId);
+    if (hasChildren) {
+      // نقر على الدائرة فقط يطوي/يوسع
+      // لكن للنقر على العقدة نعرض التفاصيل
+    }
+    
+    state.selectedNode = node;
+    const sidebar = document.getElementById('orgtreeSidebar');
+    if (!sidebar) return;
+    
+    const color = getColor(node.department);
+    const photo = node.raw.photo 
+      ? `<img src="${node.raw.photo}" class="orgtree-photo"/>`
+      : `<div class="orgtree-photo-placeholder" style="background:${color}">${node.name.charAt(0)}</div>`;
+    
+    sidebar.innerHTML = `
+      <div class="orgtree-detail" style="--dept-color:${color}">
+        <div class="orgtree-detail-header" style="background:linear-gradient(135deg,${color},${color}cc)">
+          ${photo}
+          <h3>${node.name}</h3>
+          <div class="orgtree-detail-role">${node.role}</div>
+        </div>
+        <div class="orgtree-detail-body">
+          <div class="orgtree-detail-row">
+            <span class="orgtree-detail-label">${Icons.render("id-card")} الرقم الوظيفي</span>
+            <span class="orgtree-detail-value"><b>ID${String(node.empId).padStart(3, '0')}</b></span>
+          </div>
+          <div class="orgtree-detail-row">
+            <span class="orgtree-detail-label">${Icons.render("grid")} القسم</span>
+            <span class="orgtree-detail-value">${node.department || '-'}</span>
+          </div>
+          <div class="orgtree-detail-row">
+            <span class="orgtree-detail-label">${Icons.render("calendar")} تاريخ التعيين</span>
+            <span class="orgtree-detail-value">${node.raw.hireDate || '-'}</span>
+          </div>
+          ${node.salary ? `
+            <div class="orgtree-detail-row">
+              <span class="orgtree-detail-label">${Icons.render("money")} الراتب الأساسي</span>
+              <span class="orgtree-detail-value"><b>${Number(node.salary).toLocaleString('ar-EG')} ر.ي</b></span>
+            </div>
+          ` : ''}
+          ${node.allowances ? `
+            <div class="orgtree-detail-row">
+              <span class="orgtree-detail-label">${Icons.render("money")} البدلات</span>
+              <span class="orgtree-detail-value">${Number(node.allowances).toLocaleString('ar-EG')} ر.ي</span>
+            </div>
+          ` : ''}
+          ${node.salary || node.allowances ? `
+            <div class="orgtree-detail-row" style="background:rgba(0,0,0,0.05);font-weight:700">
+              <span class="orgtree-detail-label">${Icons.render("calculator")} الإجمالي</span>
+              <span class="orgtree-detail-value" style="color:${color}">${(Number(node.salary||0) + Number(node.allowances||0)).toLocaleString('ar-EG')} ر.ي</span>
+            </div>
+          ` : ''}
+          ${node.type !== 'top' ? `
+            <div class="orgtree-detail-row">
+              <span class="orgtree-detail-label">${Icons.render("user")} اسم الدخول</span>
+              <span class="orgtree-detail-value" style="font-family:monospace">ID${String(node.empId).padStart(3, '0')}</span>
+            </div>
+          ` : ''}
+          ${hasChildren ? `
+            <div class="orgtree-detail-row">
+              <span class="orgtree-detail-label">${Icons.render("users")} الفريق</span>
+              <span class="orgtree-detail-value">${tree.links.filter(l => l.source === nodeId).length} أعضاء</span>
+            </div>
+            <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="Modules._orgtreeToggle('${nodeId}')">
+              ${state.expanded.has(nodeId) ? Icons.render("minus") + ' طي الفريق' : Icons.render("plus") + ' توسيع الفريق'}
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  };
+  
+  Modules._orgtreeToggle = function(nodeId) {
+    if (state.expanded.has(nodeId)) state.expanded.delete(nodeId);
+    else state.expanded.add(nodeId);
+    render();
+    Modules._orgtreeSelect(nodeId);
+  };
+  
+  Modules._orgtreeZoom = function(delta) {
+    state.zoom = Math.max(0.3, Math.min(2.5, state.zoom + delta));
+    applyTransform();
+  };
+  
+  Modules._orgtreeReset = function() {
+    state.zoom = 1;
+    state.panX = 0;
+    state.panY = 0;
+    applyTransform();
+  };
+  
+  Modules._orgtreeFit = function() {
+    const wrap = document.getElementById('orgtreeCanvasWrap');
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    
+    // حساب حدود الشجرة
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    Object.values(positions).forEach(p => {
+      minX = Math.min(minX, p.x - 100);
+      maxX = Math.max(maxX, p.x + 100);
+      minY = Math.min(minY, p.y - 30);
+      maxY = Math.max(maxY, p.y + 50);
+    });
+    
+    const w = maxX - minX;
+    const h = maxY - minY;
+    const scaleX = (rect.width - 100) / w;
+    const scaleY = (rect.height - 100) / h;
+    state.zoom = Math.min(scaleX, scaleY, 1.5);
+    state.panX = -((minX + maxX) / 2);
+    state.panY = -((minY + maxY) / 2) + 50;
+    applyTransform();
+  };
+  
+  // تصدير
+  Exports.register('orgtree', {
+    label: 'الشجرة التفاعلية',
+    pdf: () => {
+      const html = Modules.orgtree._exportHTML();
+      Exports.exportPDF('الشجرة التفاعلية', html, 'orgtree');
+    },
+    excel: () => {
+      const headers = ['الاسم', 'الرقم الوظيفي', 'الوظيفة', 'القسم', 'الراتب'];
+      const rows = tree.nodes.map(n => [n.name, `ID${String(n.empId).padStart(3, '0')}`, n.role, n.department, n.salary || 0]);
+      Exports.exportExcel(Exports.rowsToHTMLTable(headers, rows, { title: 'الشجرة التفاعلية' }), 'orgtree');
+    },
+    csv: () => {
+      const headers = ['الاسم', 'الرقم الوظيفي', 'الوظيفة', 'القسم', 'الراتب'];
+      const rows = tree.nodes.map(n => [n.name, `ID${String(n.empId).padStart(3, '0')}`, n.role, n.department, n.salary || 0]);
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), 'orgtree');
+    },
+    json: () => Exports.exportJSON(tree, 'orgtree_data'),
+    print: () => window.print()
+  });
+  
+  Modules.orgtree._exportHTML = function() {
+    return `
+      <h2>الشجرة التفاعلية - مصنع سيلين</h2>
+      <p>التاريخ: ${new Date().toLocaleDateString('ar-EG')}</p>
+      <table>
+        <thead><tr><th>الاسم</th><th>الرقم الوظيفي</th><th>الوظيفة</th><th>القسم</th><th>الراتب</th></tr></thead>
+        <tbody>
+          ${tree.nodes.map(n => `<tr><td>${n.name}</td><td>ID${String(n.empId).padStart(3, '0')}</td><td>${n.role}</td><td>${n.department}</td><td>${(n.salary||0).toLocaleString('ar-EG')}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    `;
+  };
+  
+  render();
+};
+
 /* ============ الإعدادات ============ */
 window.Modules.settings = function(container) {
   const db = APP.getDB();

@@ -249,6 +249,8 @@ window.APP = (function () {
       { id: "users",         group: "الإدارة",          icon: "shield",        label: "إدارة المستخدمين",       roles: ["admin","hr_manager"] },
       { id: "permissions",   group: "الإدارة",          icon: "key",           label: "إدارة الصلاحيات",         roles: ["admin","hr_manager"] },
       { id: "terminated",    group: "الإدارة",          icon: "x",             label: "الموظفون المنتهية عقودهم", roles: ["admin","hr_manager"] },
+      { id: "orgchart",      group: "الإدارة",          icon: "sitemap",       label: "الهيكل التنظيمي",         roles: ["admin","executive","chairman","accountant","hr_manager"] },
+      { id: "orgtree",       group: "الإدارة",          icon: "gitBranch",     label: "الشجرة التفاعلية",        roles: ["admin","executive","chairman","accountant","hr_manager"] },
       { id: "settings",      group: "الإدارة",          icon: "settings",      label: "الإعدادات والتخصيص",      roles: ["admin"] }
     ];
 

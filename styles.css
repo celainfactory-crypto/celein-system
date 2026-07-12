@@ -891,6 +891,394 @@ tfoot td {
 .export-menu { animation: popIn 0.15s ease; }
 
 /* ============================================================
+   الهيكل التنظيمي
+   ============================================================ */
+.orgchart-section {
+  margin-bottom: 24px;
+  text-align: center;
+}
+.orgchart-level-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 16px;
+  padding: 8px 16px;
+  background: rgba(30,45,79,0.05);
+  border-radius: var(--radius-lg);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.orgchart-row {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+.orgchart-row.orgchart-top {
+  margin-bottom: 24px;
+}
+.orgchart-connector-vertical {
+  width: 3px;
+  height: 32px;
+  background: linear-gradient(to bottom, var(--primary) 0%, transparent 100%);
+  margin: 0 auto 16px;
+  border-radius: 2px;
+}
+.orgchart-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-soft);
+  text-align: center;
+  min-width: 180px;
+  max-width: 240px;
+  flex: 1 1 200px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  position: relative;
+}
+.orgchart-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-raised);
+}
+.orgchart-top-card {
+  cursor: default;
+  min-width: 200px;
+}
+.orgchart-top-card:hover { transform: none; }
+.orgchart-manager-card {
+  background: var(--bg);
+  border-width: 2px;
+}
+.org-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0 auto 10px;
+  color: white;
+  border: 3px solid rgba(255,255,255,0.3);
+}
+.org-icon-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 10px;
+  color: white;
+}
+.org-name {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+.orgchart-top-card .org-name { color: white; }
+.orgchart-manager-card .org-name { color: var(--primary); }
+.org-role {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-bottom: 4px;
+}
+.orgchart-top-card .org-role { color: rgba(255,255,255,0.9); }
+.org-username {
+  font-size: 11px;
+  opacity: 0.7;
+  font-family: monospace;
+  margin-top: 4px;
+}
+.orgchart-top-card .org-username { color: rgba(255,255,255,0.7); }
+.org-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.org-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+}
+.org-id {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(0,0,0,0.05);
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-family: monospace;
+}
+.orgchart-manager-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  margin-top: 12px;
+  border-right: 4px solid currentColor;
+}
+.orgchart-manager-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 22px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.orgchart-dept-card {
+  margin-top: 16px;
+  animation: slideDown 0.3s ease;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+  .orgchart-card { min-width: 140px; max-width: 100%; }
+  .orgchart-row { flex-direction: column; }
+  .orgchart-row.orgchart-top { flex-direction: row; }
+  .orgchart-row.orgchart-managers { flex-direction: row; flex-wrap: wrap; }
+  .orgchart-manager-card { flex: 1 1 calc(50% - 8px); }
+}
+@media (max-width: 480px) {
+  .orgchart-manager-card { flex: 1 1 100%; }
+}
+
+/* ============================================================
+   الشجرة التفاعلية
+   ============================================================ */
+.orgtree-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.orgtree-search {
+  flex: 1;
+  min-width: 250px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-inset);
+  color: var(--text-muted);
+}
+.orgtree-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  color: var(--text);
+  font-family: inherit;
+}
+.orgtree-controls {
+  display: flex;
+  gap: 6px;
+}
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+}
+.orgtree-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 16px;
+  height: calc(100vh - 280px);
+  min-height: 500px;
+}
+.orgtree-canvas-wrap {
+  position: relative;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+}
+.orgtree-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.orgtree-node {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.orgtree-node:hover .node-bg {
+  filter: brightness(1.1);
+  stroke-width: 3;
+}
+.orgtree-node:hover {
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+}
+.orgtree-zoom-info {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  padding: 4px 12px;
+  background: rgba(255,255,255,0.95);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  box-shadow: var(--shadow-soft);
+  pointer-events: none;
+}
+.orgtree-sidebar {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  overflow-y: auto;
+  padding: 16px;
+}
+.orgtree-sidebar-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-muted);
+}
+.orgtree-sidebar-empty .ic {
+  display: block;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 12px;
+  background: var(--bg);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+}
+.orgtree-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 16px;
+}
+.orgtree-stat {
+  background: var(--bg);
+  padding: 12px;
+  border-radius: var(--radius);
+  text-align: center;
+}
+.orgtree-stat b {
+  display: block;
+  font-size: 24px;
+  color: var(--primary);
+  font-weight: 800;
+}
+.orgtree-stat span {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.orgtree-detail-header {
+  padding: 24px 16px;
+  border-radius: var(--radius);
+  text-align: center;
+  color: white;
+  margin-bottom: 12px;
+}
+.orgtree-photo {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid rgba(255,255,255,0.3);
+  margin-bottom: 8px;
+}
+.orgtree-photo-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 800;
+  color: white;
+  margin: 0 auto 8px;
+  border: 4px solid rgba(255,255,255,0.3);
+}
+.orgtree-detail-header h3 {
+  margin: 8px 0 4px;
+  color: white;
+  font-size: 16px;
+}
+.orgtree-detail-role {
+  font-size: 12px;
+  opacity: 0.9;
+}
+.orgtree-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.orgtree-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+.orgtree-detail-label {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.orgtree-detail-value {
+  font-weight: 600;
+  color: var(--text);
+}
+
+@media (max-width: 1024px) {
+  .orgtree-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .orgtree-canvas-wrap {
+    height: 500px;
+  }
+  .orgtree-sidebar {
+    max-height: 400px;
+  }
+}
+@media (max-width: 480px) {
+  .orgtree-toolbar { flex-direction: column; align-items: stretch; }
+  .orgtree-search { min-width: 0; }
+}
+
+/* ============================================================
    الطباعة
    ============================================================ */
 @media print {
