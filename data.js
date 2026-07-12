@@ -8,9 +8,14 @@
 window.DB = (function () {
   const KEY = "celein_db_v16";
   const SESSION_KEY = "celein_session_v1";
+  const OLD_KEYS = ['celein_db_v11','celein_db_v12','celein_db_v13','celein_db_v14','celein_db_v15'];
 
   // تهيئة قاعدة البيانات من البذور
   function init() {
+    // مسح الإصدارات القديمة تلقائياً لتجنب البقاء على بيانات قديمة
+    OLD_KEYS.forEach(k => {
+      try { localStorage.removeItem(k); } catch(e) {}
+    });
     if (!localStorage.getItem(KEY)) {
       localStorage.setItem(KEY, JSON.stringify(window.SEED));
     }
