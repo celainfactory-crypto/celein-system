@@ -214,3 +214,4 @@ window.SEED = {
   // === طلبات الشراء (من الإنتاج إلى المشتريات) ===
   purchaseRequests: []
 };
+// Force deploy 1783880057
