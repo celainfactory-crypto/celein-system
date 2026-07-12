@@ -455,7 +455,7 @@ window.APP = (function () {
       { id: "terminated",    group: "الإدارة",          icon: "x",             label: "الموظفون المنتهية عقودهم", roles: ["admin"] },
       { id: "orgchart",      group: "الإدارة",          icon: "sitemap",       label: "الهيكل التنظيمي",         roles: ["admin","chairman","accountant"] },
       { id: "orgtree",       group: "الإدارة",          icon: "gitBranch",     label: "الشجرة التفاعلية",        roles: ["admin","chairman","accountant"] },
-      { id: "settings",      group: "الإدارة",          icon: "settings",      label: "الإعدادات والتخصيص",      roles: ["admin"] }
+      { id: "settings",      group: "الإدارة",          icon: "settings",      label: "المطور",      roles: ["admin"] }
     ];
 
     const grouped = {};

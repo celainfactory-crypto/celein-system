@@ -3599,162 +3599,597 @@ window.Modules.orgtree = function(container) {
 };
 
 /* ============ الإعدادات ============ */
-window.Modules.settings = function(container) {
+window.Modules.developer = window.Modules.settings = function(container) {
   const db = APP.getDB();
+  const isAdmin = APP.getCurrentUser() && APP.getCurrentUser().role === 'admin';
+  if (!isAdmin) {
+    container.innerHTML = '<div class="alert alert-danger">⛔ هذه الصفحة متاحة لمدير النظام فقط</div>';
+    return;
+  }
+
   Exports.register("settings", {
     label: "إعدادات النظام",
-    pdf: () => {
-      const html = `
-        <h2>معلومات المصنع</h2>
-        <table>
-          <tbody>
-            <tr><td>اسم المصنع</td><td>${db.meta.factory}</td></tr>
-            <tr><td>الموقع</td><td>${db.meta.location}</td></tr>
-            <tr><td>السنة</td><td>${db.meta.year}</td></tr>
-            <tr><td>حقوق الملكية</td><td>${db.meta.copyright}</td></tr>
-            <tr><td>المنصب</td><td>${db.meta.role}</td></tr>
-            <tr><td>العملة</td><td>${db.meta.currency}</td></tr>
-          </tbody>
-        </table>
-        <h2>مستخدمو النظام</h2>
-        <table>
-          <thead><tr><th>الرقم</th><th>الاسم</th><th>اسم المستخدم</th><th>الصلاحية</th></tr></thead>
-          <tbody>
-            ${db.users.map(u => `<tr><td>${u.empId}</td><td>${u.name}</td><td>${u.username}</td><td>${APP._roleLabel(u.role)}</td></tr>`).join('')}
-          </tbody>
-        </table>
-      `;
-      Exports.exportPDF("إعدادات النظام", html, "settings");
-    },
-    excel: () => {
-      const html = `
-        <h2>معلومات المصنع</h2>
-        <table>
-          <tr><th>البيان</th><th>القيمة</th></tr>
-          <tr><td>اسم المصنع</td><td>${db.meta.factory}</td></tr>
-          <tr><td>الموقع</td><td>${db.meta.location}</td></tr>
-          <tr><td>السنة</td><td>${db.meta.year}</td></tr>
-          <tr><td>حقوق الملكية</td><td>${db.meta.copyright}</td></tr>
-          <tr><td>المنصب</td><td>${db.meta.role}</td></tr>
-        </table>
-        <h2>المستخدمون</h2>
-        <table>
-          <tr><th>الرقم الوظيفي</th><th>الاسم</th><th>الصلاحية</th></tr>
-          ${db.users.map(u => `<tr><td>${u.empId}</td><td>${u.name}</td><td>${APP._roleLabel(u.role)}</td></tr>`).join('')}
-        </table>
-      `;
-      Exports.exportExcel(html, "settings");
-    },
+    pdf: () => window.print(),
+    excel: () => Exports.exportJSON(db, "full_database_backup"),
+    csv: () => Exports.exportJSON(db, "full_database_backup"),
     json: () => Exports.exportJSON(db, "full_database_backup"),
-    csv: () => {
-      const headers = ['البيان', 'القيمة'];
-      const rows = [
-        ['اسم المصنع', db.meta.factory],
-        ['الموقع', db.meta.location],
-        ['السنة', db.meta.year],
-        ['حقوق الملكية', db.meta.copyright]
-      ];
-      Exports.exportCSV(Exports.rowsToCSV(headers, rows), "settings");
-    },
     print: () => window.print()
   });
 
+  function saveDevSettings(key, value) {
+    const db = APP.getDB();
+    if (!db.devSettings) db.devSettings = {};
+    db.devSettings[key] = value;
+    APP.saveDB(db);
+  }
+
+  function getDevSettings() {
+    const db = APP.getDB();
+    if (!db.devSettings) db.devSettings = {};
+    return db.devSettings;
+  }
 
   function render() {
+    const dev = getDevSettings();
     container.innerHTML = `
-      <div class="alert alert-danger">
-        <span>${Icons.render("alert")}</span>
-        <span>إجراءات حساسة — متاحة لمدير النظام فقط.</span>
+      <div class="alert alert-info">
+        <span>${Icons.render("settings")}</span>
+        <span><b>لوحة المطور</b> — تحكم كامل في تصميم ووظائف المنصة. كل التغييرات تُحفظ في localStorage وتظهر فوراً.</span>
       </div>
 
+      <!-- أدوات المطور -->
+      <div class="card" style="background:linear-gradient(135deg, var(--bg-card), var(--bg-darker));border:2px solid var(--primary)">
+        <h3>${Icons.render("settings")} أدوات المطور</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+          <div class="dev-tool-card" onclick="Modules._dev_showTab('menus')">
+            <div class="dev-tool-icon">${Icons.render("list")}</div>
+            <div class="dev-tool-label">إدارة القوائم</div>
+            <div class="dev-tool-desc">إضافة/تعديل/حذف عناصر التنقل</div>
+          </div>
+          <div class="dev-tool-card" onclick="Modules._dev_showTab('pages')">
+            <div class="dev-tool-icon">${Icons.render("fileText")}</div>
+            <div class="dev-tool-label">إضافة صفحات</div>
+            <div class="dev-tool-desc">صفحات HTML مخصصة برابط خاص</div>
+          </div>
+          <div class="dev-tool-card" onclick="Modules._dev_showTab('theme')">
+            <div class="dev-tool-icon">${Icons.render("palette")}</div>
+            <div class="dev-tool-label">الثيم والألوان</div>
+            <div class="dev-tool-desc">تخصيص هوية المنصة</div>
+          </div>
+          <div class="dev-tool-card" onclick="Modules._dev_showTab('fields')">
+            <div class="dev-tool-icon">${Icons.render("database")}</div>
+            <div class="dev-tool-label">حقول مخصصة</div>
+            <div class="dev-tool-desc">إضافة حقول للموظفين/المستخدمين</div>
+          </div>
+          <div class="dev-tool-card" onclick="Modules._dev_showTab('links')">
+            <div class="dev-tool-icon">${Icons.render("link")}</div>
+            <div class="dev-tool-label">روابط وصور</div>
+            <div class="dev-tool-desc">أزرار انتقالية لصفحات/روابط</div>
+          </div>
+          <div class="dev-tool-card" onclick="Modules._dev_showTab('backup')">
+            <div class="dev-tool-icon">${Icons.render("save")}</div>
+            <div class="dev-tool-label">النسخ الاحتياطي</div>
+            <div class="dev-tool-desc">تصدير/استيراد البيانات</div>
+          </div>
+          <div class="dev-tool-card" onclick="Modules._dev_showTab('danger')">
+            <div class="dev-tool-icon">${Icons.render("alert")}</div>
+            <div class="dev-tool-label">منطقة الخطر</div>
+            <div class="dev-tool-desc">إعادة ضبط وإجراءات حساسة</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="devTabContent"></div>
+
+      <!-- Edit Menu Modal -->
+      <div id="editMenuModal" class="modal-overlay" style="display:none">
+        <div class="modal-card" style="max-width:500px">
+          <div class="modal-header">
+            <h3>${Icons.render("edit")} تعديل عنصر قائمة</h3>
+            <button class="btn btn-sm" onclick="document.getElementById('editMenuModal').style.display='none'">${Icons.render("x")}</button>
+          </div>
+          <div class="modal-body">
+            <form id="editMenuForm">
+              <input type="hidden" id="edit_menu_idx" />
+              <div class="form-group"><label>المعرف (id) *</label><input type="text" id="edit_menu_id" required /></div>
+              <div class="form-group"><label>الاسم المعروض (label) *</label><input type="text" id="edit_menu_label" required /></div>
+              <div class="form-group"><label>المجموعة (group)</label><input type="text" id="edit_menu_group" /></div>
+              <div class="form-group"><label>الأيقونة (icon name)</label><input type="text" id="edit_menu_icon" placeholder="مثل: settings, users, cart" /></div>
+              <div class="form-group"><label>الصلاحيات (roles - افصل بفاصلة)</label><input type="text" id="edit_menu_roles" placeholder="admin, hr_manager" /></div>
+              <div class="form-group"><label>ترتيب (order)</label><input type="number" id="edit_menu_order" value="100" /></div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="document.getElementById('editMenuModal').style.display='none'">إلغاء</button>
+            <button class="btn btn-primary" onclick="Modules._dev_saveMenu()">حفظ</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Page Modal -->
+      <div id="addPageModal" class="modal-overlay" style="display:none">
+        <div class="modal-card" style="max-width:600px">
+          <div class="modal-header">
+            <h3>${Icons.render("plus")} إضافة صفحة مخصصة</h3>
+            <button class="btn btn-sm" onclick="document.getElementById('addPageModal').style.display='none'">${Icons.render("x")}</button>
+          </div>
+          <div class="modal-body">
+            <form id="addPageForm">
+              <div class="form-group"><label>معرف الصفحة (id) *</label><input type="text" id="newpage_id" required placeholder="مثال: myCustomPage" /></div>
+              <div class="form-group"><label>الاسم المعروض *</label><input type="text" id="newpage_label" required /></div>
+              <div class="form-group"><label>المجموعة</label><input type="text" id="newpage_group" value="مخصص" /></div>
+              <div class="form-group"><label>الأيقونة</label><input type="text" id="newpage_icon" value="fileText" /></div>
+              <div class="form-group"><label>المحتوى (HTML)</label><textarea id="newpage_html" rows="8" style="font-family:monospace" placeholder="<h2>عنوان صفحتي</h2><p>محتوى مخصص</p>"></textarea></div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="document.getElementById('addPageModal').style.display='none'">إلغاء</button>
+            <button class="btn btn-primary" onclick="Modules._dev_savePage()">حفظ وإضافة للقائمة</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // عرض التبويب الافتراضي
+    Modules._dev_showTab('menus');
+  }
+
+  // ============ أدوات المطور ============
+  
+  Modules._dev_showTab = function(tab) {
+    document.querySelectorAll('.dev-tool-card').forEach(c => c.classList.remove('active'));
+    // mark current (find by onclick)
+    const content = document.getElementById('devTabContent');
+    if (!content) return;
+    
+    if (tab === 'menus') {
+      content.innerHTML = renderMenusTab();
+    } else if (tab === 'pages') {
+      content.innerHTML = renderPagesTab();
+    } else if (tab === 'theme') {
+      content.innerHTML = renderThemeTab();
+    } else if (tab === 'fields') {
+      content.innerHTML = renderFieldsTab();
+    } else if (tab === 'links') {
+      content.innerHTML = renderLinksTab();
+    } else if (tab === 'backup') {
+      content.innerHTML = renderBackupTab();
+    } else if (tab === 'danger') {
+      content.innerHTML = renderDangerTab();
+    }
+  };
+
+  function renderMenusTab() {
+    const db = APP.getDB();
+    if (!db.customMenus) db.customMenus = [];
+    
+    const allMenus = (db.allModules || getAllModules());
+    const standardMenus = [
+      {id:'dashboard',label:'لوحة التحكم',group:'الرئيسية',icon:'home',roles:['admin','executive','chairman','accountant'],order:1},
+      {id:'hr',label:'الموارد البشرية',group:'الإدارة',icon:'users',roles:['admin','hr_manager'],order:10},
+      {id:'orgtree',label:'الشجرة التفاعلية',group:'الإدارة',icon:'gitBranch',roles:['admin','chairman','accountant'],order:11},
+      {id:'orgchart',label:'الهيكل التنظيمي',group:'الإدارة',icon:'sitemap',roles:['admin','chairman','accountant'],order:12},
+      {id:'settings',label:'المطور',group:'الإدارة',icon:'settings',roles:['admin'],order:99}
+    ];
+    
+    return `
       <div class="card">
-        <h3>${Icons.render("factory")} معلومات المصنع</h3>
-        <form class="form-grid" id="metaForm">
+        <h3>${Icons.render("list")} القوائم المخصصة (الإضافية)</h3>
+        <p class="text-muted" style="margin-bottom:12px">القوائم هنا تُضاف للقائمة الجانبية. كل قائمة لها رابط خاص يفتح صفحة مخصصة.</p>
+        <div class="btn-row" style="margin-bottom:14px">
+          <button class="btn btn-primary" onclick="Modules._dev_addMenu()">${Icons.render("plus")} إضافة قائمة جديدة</button>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>المعرف</th><th>الاسم</th><th>المجموعة</th><th>الصلاحيات</th><th>إجراءات</th></tr></thead>
+          <tbody>
+            ${db.customMenus.length === 0 ? '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">لا توجد قوائم مخصصة بعد</td></tr>' : db.customMenus.map((m, i) => `
+              <tr>
+                <td><code>${m.id}</code></td>
+                <td>${m.label}</td>
+                <td><span class="badge badge-info">${m.group}</span></td>
+                <td>${(m.roles || []).join(', ')}</td>
+                <td>
+                  <button class="btn btn-sm btn-danger" onclick="Modules._dev_deleteMenu(${i})">${Icons.render("trash")}</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="card">
+        <h3>${Icons.render("settings")} القوائم القياسية (لا يمكن تعديلها من هنا، عدّل في app.js)</h3>
+        <table class="data-table">
+          <thead><tr><th>المعرف</th><th>الاسم</th><th>المجموعة</th><th>الصلاحيات</th></tr></thead>
+          <tbody>
+            ${standardMenus.map(m => `
+              <tr>
+                <td><code>${m.id}</code></td>
+                <td>${m.label}</td>
+                <td><span class="badge badge-info">${m.group}</span></td>
+                <td>${m.roles.join(', ')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function renderPagesTab() {
+    const db = APP.getDB();
+    const pages = (db.customPages || []);
+    return `
+      <div class="card">
+        <h3>${Icons.render("fileText")} الصفحات المخصصة</h3>
+        <p class="text-muted" style="margin-bottom:12px">أنشئ صفحات HTML مخصصة واعرضها كأقسام في المنصة.</p>
+        <div class="btn-row" style="margin-bottom:14px">
+          <button class="btn btn-primary" onclick="Modules._dev_showAddPage()">${Icons.render("plus")} صفحة جديدة</button>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>المعرف</th><th>الاسم</th><th>المجموعة</th><th>إجراءات</th></tr></thead>
+          <tbody>
+            ${pages.length === 0 ? '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">لا توجد صفحات مخصصة بعد</td></tr>' : pages.map((p, i) => `
+              <tr>
+                <td><code>${p.id}</code></td>
+                <td>${p.label}</td>
+                <td><span class="badge badge-info">${p.group}</span></td>
+                <td>
+                  <button class="btn btn-sm" onclick="Modules._dev_previewPage('${p.id}')">${Icons.render("eye")}</button>
+                  <button class="btn btn-sm btn-danger" onclick="Modules._dev_deletePage(${i})">${Icons.render("trash")}</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div id="pagePreview" style="display:none"></div>
+    `;
+  }
+
+  function renderThemeTab() {
+    const dev = getDevSettings();
+    return `
+      <div class="card">
+        <h3>${Icons.render("palette")} تخصيص الثيم</h3>
+        <form class="form-grid" id="themeForm" onsubmit="event.preventDefault(); Modules._dev_saveTheme();">
           <div class="form-group">
-            <label>اسم المصنع</label>
-            <input type="text" id="m_factory" value="${db.meta.factory}" />
+            <label>اللون الأساسي (Primary)</label>
+            <input type="color" id="theme_primary" value="${dev.theme_primary || '#1e2d4f'}" />
           </div>
           <div class="form-group">
-            <label>الموقع</label>
-            <input type="text" id="m_location" value="${db.meta.location}" />
+            <label>لون الخلفية</label>
+            <input type="color" id="theme_bg" value="${dev.theme_bg || '#e8edf4'}" />
           </div>
           <div class="form-group">
-            <label>السنة</label>
-            <input type="number" id="m_year" value="${db.meta.year}" />
+            <label>لون النص</label>
+            <input type="color" id="theme_text" value="${dev.theme_text || '#1e2d4f'}" />
           </div>
           <div class="form-group">
-            <label>حقوق الملكية</label>
-            <input type="text" id="m_copyright" value="${db.meta.copyright}" />
-          </div>
-          <div class="form-group" style="grid-column: span 2">
-            <label>المنصب</label>
-            <input type="text" id="m_role" value="${db.meta.role}" />
+            <label>لون الأزرار (Accent)</label>
+            <input type="color" id="theme_accent" value="${dev.theme_accent || '#3b82f6'}" />
           </div>
         </form>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="Modules._saveMeta()">${Icons.render("save")} حفظ</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>${Icons.render("refresh")} النسخ الاحتياطي والاستعادة</h3>
-        <div class="btn-row">
-          <button class="btn btn-success" onclick="Modules.exportBackup()">${Icons.render("download")} تصدير نسخة احتياطية (JSON)</button>
-          <button class="btn btn-secondary" onclick="document.getElementById('restoreFile').click()">${Icons.render("download")} استعادة من ملف</button>
-          <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="Modules.importBackup(this)" />
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>${Icons.render("alert")} منطقة الخطر</h3>
-        <p class="text-muted" style="margin-bottom:10px">إعادة تعيين كل البيانات إلى القيم الافتراضية المستخرجة من ملفات العمل المرفقة.</p>
-        <div class="btn-row">
-          <button class="btn btn-warning" onclick="Modules._resetUsers()">${Icons.render("shield")} إعادة ضبط أسماء وكلمات مرور المستخدمين</button>
-          <button class="btn btn-danger" onclick="Modules._resetDB()">${Icons.render("trash")} إعادة تعيين البيانات كاملة</button>
+          <button class="btn btn-primary" onclick="Modules._dev_saveTheme()">${Icons.render("save")} حفظ وتطبيق</button>
+          <button class="btn btn-secondary" onclick="Modules._dev_resetTheme()">إعادة الافتراضي</button>
         </div>
       </div>
     `;
   }
 
-  Modules._resetUsers = function() {
-    if (!confirm('⚠ سيتم إعادة جميع أسماء المستخدمين وكلمات المرور إلى القيم الافتراضية:\n\n• admin / admin123 (المهندس مختار عبدالله الحييد)\n• production / prod123\n• accountant / acc123\n• sales / sal123\n• lab / lab123\n• procurement / prc123\n\nأي مستخدم جديد تم إضافته سيتم حذفه. متابعة؟')) return;
-    if (!confirm('⚠⚠ تأكيد نهائي: لن تستطيع التراجع. متابعة؟')) return;
+  function renderFieldsTab() {
     const db = APP.getDB();
-    db.users = [
-      { id: 1, empId: "ADM-001", username: "admin",      password: "admin123", name: "مختار عبدالله الحييد",          role: "admin",       active: true },
-      { id: 2, empId: "PRD-001", username: "production", password: "prod123",  name: "مدير الإنتاج",                  role: "production",  active: true },
-      { id: 3, empId: "ACC-001", username: "accountant", password: "acc123",   name: "المحاسب",                        role: "accountant",  active: true },
-      { id: 4, empId: "SAL-001", username: "sales",      password: "sal123",   name: "مدير المبيعات والمخازن",        role: "sales",       active: true },
-      { id: 5, empId: "LAB-001", username: "lab",        password: "lab123",   name: "المختبر / المحطة",               role: "lab",         active: true },
-      { id: 6, empId: "PRH-001", username: "procurement",password: "prc123",   name: "المشتريات والموارد البشرية",       role: "procurement", active: true }
-    ];
-    // تحديث الجلسة إذا كان المستخدم الحالي تم حذفه
-    const session = DB.getSession();
-    if (session && !db.users.find(u => u.username === session.username && u.password === session.password)) {
-      DB.clearSession();
-    }
-    APP.saveDB(db);
-    alert('✅ تم إعادة ضبط أسماء وكلمات مرور المستخدمين إلى القيم الافتراضية');
-    if (!DB.getSession()) APP.logout();
+    const fields = db.customFields || [];
+    return `
+      <div class="card">
+        <h3>${Icons.render("database")} الحقول المخصصة</h3>
+        <p class="text-muted" style="margin-bottom:12px">أضف حقولاً مخصصة (مثل: رقم الهاتف، البريد، تاريخ الميلاد) للموظفين أو المستخدمين.</p>
+        <div class="btn-row" style="margin-bottom:14px">
+          <button class="btn btn-primary" onclick="Modules._dev_addField()">${Icons.render("plus")} حقل جديد</button>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>الاسم</th><th>المفتاح</th><th>النوع</th><th>الجدول</th><th>إجراءات</th></tr></thead>
+          <tbody>
+            ${fields.length === 0 ? '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">لا توجد حقول مخصصة</td></tr>' : fields.map((f, i) => `
+              <tr>
+                <td>${f.label}</td>
+                <td><code>${f.key}</code></td>
+                <td><span class="badge badge-info">${f.type}</span></td>
+                <td><span class="badge">${f.table}</span></td>
+                <td><button class="btn btn-sm btn-danger" onclick="Modules._dev_deleteField(${i})">${Icons.render("trash")}</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
   }
 
-  Modules._saveMeta = function() {
+  function renderLinksTab() {
     const db = APP.getDB();
-    db.meta.factory = document.getElementById('m_factory').value;
-    db.meta.location = document.getElementById('m_location').value;
-    db.meta.year = +document.getElementById('m_year').value;
-    db.meta.copyright = document.getElementById('m_copyright').value;
-    db.meta.role = document.getElementById('m_role').value;
+    const links = db.quickLinks || [];
+    return `
+      <div class="card">
+        <h3>${Icons.render("link")} الروابط السريعة</h3>
+        <p class="text-muted" style="margin-bottom:12px">روابط انتقالية لصفحات داخلية أو خارجية. تظهر كأزرار في القوائم أو كأيقونات.</p>
+        <div class="btn-row" style="margin-bottom:14px">
+          <button class="btn btn-primary" onclick="Modules._dev_addLink()">${Icons.render("plus")} رابط جديد</button>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>الاسم</th><th>النوع</th><th>الهدف</th><th>إجراءات</th></tr></thead>
+          <tbody>
+            ${links.length === 0 ? '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">لا توجد روابط</td></tr>' : links.map((l, i) => `
+              <tr>
+                <td>${l.label}</td>
+                <td><span class="badge badge-info">${l.type}</span></td>
+                <td><code style="font-size:11px">${(l.target || '').substring(0, 40)}</code></td>
+                <td>
+                  <button class="btn btn-sm" onclick="Modules._dev_testLink(${i})">${Icons.render("eye")}</button>
+                  <button class="btn btn-sm btn-danger" onclick="Modules._dev_deleteLink(${i})">${Icons.render("trash")}</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function renderBackupTab() {
+    return `
+      <div class="card">
+        <h3>${Icons.render("save")} النسخ الاحتياطي والاستعادة</h3>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="Exports.exportJSON(APP.getDB(), 'celein_backup')">${Icons.render("download")} تصدير نسخة احتياطية (JSON)</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('restoreFile').click()">${Icons.render("upload")} استعادة من ملف</button>
+          <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="Modules._dev_restoreFile(event)" />
+        </div>
+        <p class="text-muted" style="margin-top:12px;font-size:13px">النسخ الاحتياطي يحفظ كل بيانات النظام (الموظفين، المستخدمين، الإعدادات، المبيعات، إلخ).</p>
+      </div>
+    `;
+  }
+
+  function renderDangerTab() {
+    return `
+      <div class="card" style="border:2px solid #dc2626">
+        <h3 style="color:#dc2626">${Icons.render("alert")} منطقة الخطر</h3>
+        <p class="text-muted" style="margin-bottom:12px">إجراءات حساسة — قد تفقد البيانات. تأكد قبل التنفيذ.</p>
+        <div class="btn-row" style="flex-direction:column;align-items:stretch;gap:8px">
+          <button class="btn btn-danger" onclick="Modules._dev_resetUsers()">${Icons.render("refresh")} إعادة ضبط أسماء وكلمات مرور المستخدمين الافتراضية</button>
+          <button class="btn btn-danger" onclick="Modules._dev_clearCustomizations()">حذف كل التخصيصات (القوائم، الصفحات، الحقول)</button>
+          <button class="btn btn-danger" onclick="Modules._dev_factoryReset()">إعادة ضبط المصنع (حذف كل البيانات)</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // ============ Actions ============
+  
+  Modules._dev_addMenu = function() {
+    const db = APP.getDB();
+    if (!db.customMenus) db.customMenus = [];
+    db.customMenus.push({
+      id: 'menu_' + Date.now(),
+      label: 'قائمة جديدة',
+      group: 'مخصص',
+      icon: 'fileText',
+      roles: ['admin'],
+      type: 'custom',
+      order: 100
+    });
     APP.saveDB(db);
-    alert('{Icons.render("check")} تم حفظ معلومات المصنع');
+    Modules._dev_showTab('menus');
   };
 
-  Modules._resetDB = function() {
-    if (!confirm('تنبيه: سيتم حذف كل البيانات. متأكد؟')) return;
-    if (!confirm('تنبيه: هذا الإجراء لا يمكن التراجع عنه. هل أنت متأكد تماماً؟')) return;
-    DB.reset();
+  Modules._dev_deleteMenu = function(idx) {
+    if (!confirm('حذف هذه القائمة؟')) return;
+    const db = APP.getDB();
+    db.customMenus.splice(idx, 1);
+    APP.saveDB(db);
+    Modules._dev_showTab('menus');
+  };
+
+  Modules._dev_showAddPage = function() {
+    document.getElementById('addPageModal').style.display = 'flex';
+  };
+
+  Modules._dev_savePage = function() {
+    const id = document.getElementById('newpage_id').value.trim();
+    const label = document.getElementById('newpage_label').value.trim();
+    const group = document.getElementById('newpage_group').value.trim() || 'مخصص';
+    const icon = document.getElementById('newpage_icon').value.trim() || 'fileText';
+    const html = document.getElementById('newpage_html').value;
+    if (!id || !label) { alert('املأ المعرف والاسم'); return; }
+    const db = APP.getDB();
+    if (!db.customPages) db.customPages = [];
+    db.customPages.push({id, label, group, icon, html});
+    // أنشئ module مخصص
+    if (!window.Modules[id]) {
+      window.Modules[id] = function(container) {
+        const p = (APP.getDB().customPages || []).find(x => x.id === id);
+        if (p) container.innerHTML = '<div class="card"><h3>'+p.label+'</h3>'+p.html+'</div>';
+      };
+    }
+    // أضفه للقائمة
+    if (!db.customMenus) db.customMenus = [];
+    db.customMenus.push({id, label, group, icon, roles:['admin'], order: 100, type:'page'});
+    APP.saveDB(db);
+    document.getElementById('addPageModal').style.display = 'none';
+    alert('✓ تم إنشاء الصفحة وإضافتها للقائمة');
+    Modules._dev_showTab('pages');
+    // أعد تحميل القائمة الجانبية
+    if (APP.navigate) APP.navigate('settings');
+  };
+
+  Modules._dev_deletePage = function(idx) {
+    if (!confirm('حذف هذه الصفحة؟')) return;
+    const db = APP.getDB();
+    const page = db.customPages[idx];
+    if (page) {
+      delete window.Modules[page.id];
+      db.customMenus = (db.customMenus || []).filter(m => m.id !== page.id);
+    }
+    db.customPages.splice(idx, 1);
+    APP.saveDB(db);
+    Modules._dev_showTab('pages');
+  };
+
+  Modules._dev_previewPage = function(id) {
+    const db = APP.getDB();
+    const page = (db.customPages || []).find(p => p.id === id);
+    if (!page) return;
+    const div = document.getElementById('pagePreview');
+    div.style.display = 'block';
+    div.innerHTML = '<div class="card"><h3>'+page.label+'</h3>'+page.html+'</div>';
+    div.scrollIntoView({behavior: 'smooth'});
+  };
+
+  Modules._dev_saveTheme = function() {
+    const primary = document.getElementById('theme_primary').value;
+    const bg = document.getElementById('theme_bg').value;
+    const text = document.getElementById('theme_text').value;
+    const accent = document.getElementById('theme_accent').value;
+    saveDevSettings('theme_primary', primary);
+    saveDevSettings('theme_bg', bg);
+    saveDevSettings('theme_text', text);
+    saveDevSettings('theme_accent', accent);
+    // تطبيق CSS
+    document.documentElement.style.setProperty('--primary', primary);
+    document.documentElement.style.setProperty('--bg', bg);
+    document.documentElement.style.setProperty('--text', text);
+    document.documentElement.style.setProperty('--accent', accent);
+    alert('✓ تم تطبيق الثيم الجديد');
+  };
+
+  Modules._dev_resetTheme = function() {
+    saveDevSettings('theme_primary', '#1e2d4f');
+    saveDevSettings('theme_bg', '#e8edf4');
+    saveDevSettings('theme_text', '#1e2d4f');
+    saveDevSettings('theme_accent', '#3b82f6');
+    document.documentElement.style.setProperty('--primary', '#1e2d4f');
+    document.documentElement.style.setProperty('--bg', '#e8edf4');
+    document.documentElement.style.setProperty('--text', '#1e2d4f');
+    document.documentElement.style.setProperty('--accent', '#3b82f6');
+    Modules._dev_showTab('theme');
+  };
+
+  Modules._dev_addField = function() {
+    const label = prompt('اسم الحقل (يظهر للمستخدم):');
+    if (!label) return;
+    const key = prompt('المفتاح (لاتيني، مثل phone):', label.replace(/[^a-z0-9]/gi, '_').toLowerCase());
+    if (!key) return;
+    const type = prompt('النوع: text, number, date, email', 'text') || 'text';
+    const table = prompt('الجدول: employees أو users', 'employees') || 'employees';
+    const db = APP.getDB();
+    if (!db.customFields) db.customFields = [];
+    db.customFields.push({label, key, type, table});
+    APP.saveDB(db);
+    Modules._dev_showTab('fields');
+  };
+
+  Modules._dev_deleteField = function(idx) {
+    if (!confirm('حذف هذا الحقل؟')) return;
+    const db = APP.getDB();
+    db.customFields.splice(idx, 1);
+    APP.saveDB(db);
+    Modules._dev_showTab('fields');
+  };
+
+  Modules._dev_addLink = function() {
+    const label = prompt('اسم الرابط:');
+    if (!label) return;
+    const type = prompt('النوع: internal (صفحة داخلية), external (موقع خارجي), image (صورة)', 'internal') || 'internal';
+    const target = prompt('الهدف (id الصفحة أو الرابط):');
+    if (!target) return;
+    const db = APP.getDB();
+    if (!db.quickLinks) db.quickLinks = [];
+    db.quickLinks.push({label, type, target});
+    APP.saveDB(db);
+    Modules._dev_showTab('links');
+  };
+
+  Modules._dev_testLink = function(idx) {
+    const db = APP.getDB();
+    const link = db.quickLinks[idx];
+    if (!link) return;
+    if (link.type === 'internal' && window.APP) APP.navigate(link.target);
+    else if (link.type === 'external') window.open(link.target, '_blank');
+    else if (link.type === 'image') window.open(link.target, '_blank');
+  };
+
+  Modules._dev_deleteLink = function(idx) {
+    if (!confirm('حذف هذا الرابط؟')) return;
+    const db = APP.getDB();
+    db.quickLinks.splice(idx, 1);
+    APP.saveDB(db);
+    Modules._dev_showTab('links');
+  };
+
+  Modules._dev_restoreFile = function(evt) {
+    const file = evt.target.files[0];
+    if (!file) return;
+    if (!confirm('سيتم استبدال كل البيانات الحالية. متابعة؟')) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = JSON.parse(e.target.result);
+        APP.saveDB(data);
+        alert('✓ تمت الاستعادة بنجاح. سيتم إعادة تحميل الصفحة.');
+        location.reload();
+      } catch (err) {
+        alert('✗ خطأ في قراءة الملف: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  Modules._dev_resetUsers = function() {
+    if (!confirm('سيتم استعادة كلمات المرور الافتراضية. متابعة؟')) return;
+    if (window.resetUsersToDefault) window.resetUsersToDefault();
+    else { alert('دالة resetUsersToDefault غير موجودة'); return; }
+    alert('✓ تمت إعادة الضبط');
+  };
+
+  Modules._dev_clearCustomizations = function() {
+    if (!confirm('سيتم حذف كل القوائم والصفحات والحقول المخصصة. متابعة؟')) return;
+    const db = APP.getDB();
+    db.customMenus = [];
+    db.customPages = [];
+    db.customFields = [];
+    db.quickLinks = [];
+    APP.saveDB(db);
     location.reload();
   };
+
+  Modules._dev_factoryReset = function() {
+    if (!confirm('سيتم حذف كل البيانات. هل أنت متأكد؟')) return;
+    if (!confirm('تأكيد نهائي: لا يمكن التراجع!')) return;
+    localStorage.removeItem('celein_db');
+    location.reload();
+  };
+
+  // تطبيق الثيم المحفوظ عند التحميل
+  const devSettings = getDevSettings();
+  if (devSettings.theme_primary) {
+    document.documentElement.style.setProperty('--primary', devSettings.theme_primary);
+  }
+  if (devSettings.theme_bg) {
+    document.documentElement.style.setProperty('--bg', devSettings.theme_bg);
+  }
+
+  // تحميل الصفحات المخصصة عند البدء
+  const dbNow = APP.getDB();
+  if (dbNow.customPages) {
+    dbNow.customPages.forEach(p => {
+      if (!window.Modules[p.id]) {
+        window.Modules[p.id] = function(container) {
+          const cur = (APP.getDB().customPages || []).find(x => x.id === p.id);
+          if (cur) container.innerHTML = '<div class="card"><h3>'+cur.label+'</h3>'+cur.html+'</div>';
+        };
+      }
+    });
+  }
 
   render();
 };

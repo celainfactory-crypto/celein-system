@@ -2022,3 +2022,47 @@ tr.manager-row:hover {
 tr.manager-row td:first-child {
   font-weight: bold;
 }
+
+/* ===== Developer Tools ===== */
+.dev-tool-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 18px 14px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border: 2px solid transparent;
+  box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
+  text-align: center;
+}
+.dev-tool-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--primary);
+  box-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light);
+}
+.dev-tool-card.active {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark, #2a3d6f));
+  color: white;
+  border-color: var(--primary);
+}
+.dev-tool-card.active .dev-tool-desc,
+.dev-tool-card.active .dev-tool-icon {
+  color: white;
+}
+.dev-tool-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+  color: var(--primary);
+}
+.dev-tool-label {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.dev-tool-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+#devTabContent {
+  margin-top: 16px;
+}
