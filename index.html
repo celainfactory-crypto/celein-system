@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1e2d4f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="سيلين" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="format-detection" content="telephone=no" />
+
+  <title>مصنع سيلين للمياه المعدنية والمرطبات - نظام إدارة متكامل</title>
+  <meta name="description" content="نظام إداري ومحاسبي ذكي - مصنع سيلين للمياه المعدنية - الجمهورية اليمنية - البيضاء 2026" />
+  <meta name="author" content="المهندس مختار عبدالله الحييد" />
+  <meta name="application-name" content="نظام سيلين" />
+  <meta name="keywords" content="سيلين, مصنع, مياه, إدارة, محاسبة, اليمن, البيضاء" />
+
+  <!-- Favicon & App Icons -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="152x152" href="/icon-152.png" />
+  <link rel="apple-touch-icon" sizes="144x144" href="/icon-144.png" />
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+
+  <!-- نظام سيلين -->
+  <script src="https://cdn.jsdelivr.net/gh/celainfactory-crypto/celein-system@main/data-2026-07-12-final.js"></script>
+  <script src="data.js?v=1783880237"></script>
+  <script src="icons.js?v=1783880237"></script>
+  <script src="exports.js?v=1783880237"></script>
+  <script src="app.js?v=1783881262"></script>
+  <script src="modules.js?v=1783880237"></script>
+  <script src="modules2.js?v=1783880237"></script>
+  <script src="reports.js?v=1783880237"></script>
+
+  <style>
+    /* Pre-render hide to prevent FOUC */
+    body { visibility: hidden; }
+    body.ready { visibility: visible; }
+  </style>
+</head>
+<body>
+  <noscript>
+    <div style="padding:40px;text-align:center;font-family:Cairo,sans-serif">
+      <h1>مصنع سيلين - نظام الإدارة المتكامل</h1>
+      <p>يرجى تفعيل JavaScript لتشغيل النظام.</p>
+    </div>
+  </noscript>
+
+  <script>
+    // ضمان ظهور المحتوى بعد تحميل كل الملفات
+    window.addEventListener("load", () => {
+      document.body.classList.add("ready");
+    });
+
+    // PWA: Register Service Worker + force update check
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw-proxy.js?v=19')
+          .then(reg => {
+            console.log('✓ PWA Service Worker v11 registered');
+            // Force update check every 60 seconds
+            setInterval(() => reg.update(), 60000);
+          })
+          .catch(err => console.warn('SW registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>

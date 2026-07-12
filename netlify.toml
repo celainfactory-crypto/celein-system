@@ -1,0 +1,8 @@
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "/data-seed.js"
+  to = "https://cdn.jsdelivr.net/gh/celainfactory-crypto/celein-system@main/data-seed.js"
+  status = 200
+  force = true
