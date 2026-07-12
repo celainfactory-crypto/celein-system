@@ -1405,75 +1405,61 @@ window.Modules.hr = function(container) {
 
         <div class="card">
           <h3>${Icons.render("users")} سجل الموظفين</h3>
-          <div id="hierarchyTree">
+          <div id="employeeRegistry">
             ${(() => {
-              // المدير العام أولاً
-              const gm = db.employeesLog.find(e => e.empId === '105');
-              // مدراء الأقسام (تحت المدير العام)
-              const managerIds = [54, 68, 72, 73, 76, 83, 86];  // الـ internal ids للمدراء
-              const managers = managerIds.map(id => db.employeesLog.find(e => e.id === id)).filter(Boolean);
-              
-              function renderEmployeeCard(emp, isGm = false, isManager = false) {
-                const editBtn = isAdmin ? '<button class="btn btn-sm btn-primary" onclick="Modules._editEmployee('+emp.id+')">'+Icons.render("edit")+'</button>' : '';
-                const deleteBtn = isAdmin ? '<button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployee('+emp.id+')">'+Icons.render("trash")+'</button>' : '';
-                return '<div class="emp-card '+(isGm ? 'gm-card' : isManager ? 'manager-card' : 'worker-card')+'">'
-                  + '<div class="emp-id">'+emp.empId+'</div>'
-                  + '<div class="emp-name">'+emp.name+'</div>'
-                  + '<div class="emp-position">'+emp.position+'</div>'
-                  + '<div class="emp-salary">'+(emp.salary+(emp.allowances||0)).toLocaleString('ar-EG')+' ر.ي</div>'
-                  + (editBtn || deleteBtn ? '<div class="emp-actions">'+editBtn+deleteBtn+'</div>' : '')
-                  + '</div>';
+              function empRow(emp) {
+                return '<tr>'
+                  + '<td><b>'+emp.empId+'</b></td>'
+                  + '<td>'+emp.name+'</td>'
+                  + '<td>'+emp.position+'</td>'
+                  + '<td><span class="badge badge-info">'+emp.department+'</span></td>'
+                  + '<td class="text-primary"><b>'+(emp.salary+(emp.allowances||0)).toLocaleString('ar-EG')+'</b></td>'
+                  + '<td class="text-muted">'+emp.hireDate+'</td>'
+                  + (isAdmin ? '<td><button class="btn btn-sm" onclick="Modules._editEmployee('+emp.id+')">'+Icons.render("edit")+'</button> <button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployee('+emp.id+')">'+Icons.render("trash")+'</button></td>' : '')
+                  + '</tr>';
               }
               
-              function renderManagerSection(mgr) {
-                if (!mgr) return '';
-                // التابعين حسب managerId (PDF id أو internal id)
-                const subordinates = db.employeesLog.filter(e => {
-                  if (e.id === mgr.id) return false;
-                  // managerId قد يكون internal id أو empId
-                  if (e.managerId === mgr.id) return true;
-                  if (e.managerId === parseInt(mgr.empId)) return true;
-                  return false;
-                });
-                return '<div class="hierarchy-manager-block">'
-                  + '<div class="hierarchy-manager-header">'
-                  + '<span class="hierarchy-icon">'+Icons.render("user")+'</span>'
-                  + '<b>'+mgr.position+' - '+mgr.department+'</b>'
-                  + '<span class="badge badge-info">'+subordinates.length+' موظف</span>'
-                  + '</div>'
-                  + '<div class="hierarchy-manager-card">'
-                  + renderEmployeeCard(mgr, false, true)
-                  + '</div>'
-                  + (subordinates.length > 0
-                    ? '<div class="hierarchy-workers"><div class="hierarchy-workers-title">الموظفون ('+subordinates.length+'):</div><div class="hierarchy-workers-grid">'
-                      + subordinates.map(w => renderEmployeeCard(w, false, false)).join('')
-                      + '</div></div>'
-                    : '')
-                  + '</div>';
+              function section(title, manager, workers) {
+                let html = '<div style="margin-bottom:14px;padding:10px 14px;background:var(--bg-darker);border-radius:10px;border-right:3px solid var(--primary)">';
+                html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">';
+                html += '<b style="color:var(--primary);font-size:14px">'+title+'</b>';
+                if (manager) {
+                  html += '<span class="badge badge-info">المدير: '+manager.name+'</span>';
+                }
+                html += '<span class="badge badge-info" style="margin-right:auto">'+workers.length+' موظف</span>';
+                html += '</div>';
+                if (workers.length > 0) {
+                  html += '<div style="overflow-x:auto"><table class="data-table" style="margin:0;font-size:13px"><thead><tr><th>الرقم</th><th>الاسم</th><th>الوظيفة</th><th>القسم</th><th>الراتب+البدلات</th><th>التعيين</th>'+(isAdmin ? '<th>إجراءات</th>' : '')+'</tr></thead><tbody>';
+                  workers.forEach(w => { html += empRow(w); });
+                  html += '</tbody></table></div>';
+                }
+                html += '</div>';
+                return html;
               }
               
-              // المدير العام في الأعلى
-              let html = '<div class="hierarchy-level hierarchy-level-0">';
-              if (gm) {
-                html += '<div class="hierarchy-gm-block">'
-                  + '<div class="hierarchy-gm-header">'
-                  + Icons.render("star") + ' <b>الإدارة العليا</b>'
-                  + '</div>'
-                  + '<div class="hierarchy-gm-card">'
-                  + renderEmployeeCard(gm, true, true)
-                  + '</div>'
-                  + '</div>';
-              }
-              html += '</div>';
+              let html = '';
+              const sections = [
+                ['الإدارة العليا', ['الإدارة']],
+                ['الموارد البشرية', ['الموارد البشرية']],
+                ['الإنتاج', ['الإنتاج']],
+                ['المبيعات', ['المبيعات']],
+                ['المختبر', ['المختبر']],
+                ['المخازن', ['المخازن', 'مخازن البيضاء']],
+                ['الخدمات', ['الخدمات']],
+                ['العلاقات العامة', ['العلاقات العامة']],
+                ['الحسابات', ['الحسابات']],
+                ['المشتريات', ['المشتريات']],
+                ['المالية', ['المالية']],
+                ['الأمن', ['الأمن']]
+              ];
               
-              // مدراء الأقسام
-              html += '<div class="hierarchy-connector"></div>';
-              html += '<div class="hierarchy-level hierarchy-level-1">';
-              html += '<div class="hierarchy-managers-grid">';
-              managers.forEach(mgr => {
-                html += renderManagerSection(mgr);
+              sections.forEach(([title, depts]) => {
+                const emps = db.employeesLog.filter(e => depts.includes(e.department));
+                if (emps.length === 0) return;
+                const mgr = emps.find(e => /مدير|مشرف|كيميائي/.test(e.position));
+                const workers = emps.filter(e => e !== mgr);
+                html += section(title, mgr, workers);
               });
-              html += '</div></div>';
               
               return html;
             })()}
