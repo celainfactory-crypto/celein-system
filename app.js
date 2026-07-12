@@ -123,6 +123,144 @@ window.APP = (function () {
     if (sidebar) sidebar.classList.toggle('open');
   }
 
+  // --- PWA Install ---
+  let deferredInstallPrompt = null;
+  let isPwaInstalled = false;
+
+  // استماع لحدث التثبيت (متصفح Chrome/Edge/Android)
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    showInstallButton();
+  });
+
+  // تطبيق تم تثبيته
+  window.addEventListener('appinstalled', () => {
+    isPwaInstalled = true;
+    hideInstallButton();
+    showToast('تم تحميل التطبيق بنجاح! ✓ يمكنك الآن فتحه من شاشتك الرئيسية', 'success');
+    deferredInstallPrompt = null;
+  });
+
+  function showInstallButton() {
+    const btn = document.getElementById('installPwaBtn');
+    if (btn && !isPwaInstalled) {
+      btn.style.display = 'inline-flex';
+      btn.classList.add('pulse-anim');
+    }
+  }
+
+  function hideInstallButton() {
+    const btn = document.getElementById('installPwaBtn');
+    if (btn) {
+      btn.style.display = 'none';
+      btn.classList.remove('pulse-anim');
+    }
+  }
+
+  function installPWA() {
+    if (!deferredInstallPrompt) {
+      // دليل يدوي في حال لم يطلق المتصفح الحدث
+      showManualInstallGuide();
+      return;
+    }
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then((choice) => {
+      if (choice.outcome === 'accepted') {
+        showToast('جاري تثبيت التطبيق...', 'info');
+      } else {
+        showToast('يمكنك التحميل لاحقاً', 'info');
+      }
+      deferredInstallPrompt = null;
+    });
+  }
+
+  function showManualInstallGuide() {
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    const isMac = /Mac/.test(navigator.userAgent) && !/iPhone|iPad/.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+    const isWin = /Windows/.test(navigator.userAgent);
+
+    let html = '';
+    if (isIOS) {
+      html = `
+        <h3>${Icons.render('phone')} تحميل التطبيق على iPhone/iPad</h3>
+        <ol style="text-align:right;line-height:2">
+          <li>اضغط على أيقونة <b>المشاركة</b> ${Icons.render('share')} في الأسفل</li>
+          <li>اختر <b>"إضافة إلى الشاشة الرئيسية"</b> ${Icons.render('plus')}</li>
+          <li>اضغط <b>"إضافة"</b> في الأعلى</li>
+          <li>التطبيق سيظهر على شاشتك الرئيسية كتطبيق أصلي</li>
+        </ol>
+      `;
+    } else if (isAndroid) {
+      html = `
+        <h3>${Icons.render('phone')} تحميل التطبيق على Android</h3>
+        <ol style="text-align:right;line-height:2">
+          <li>اضغط على <b>القائمة ⋮</b> في الأعلى</li>
+          <li>اختر <b>"تثبيت التطبيق"</b> أو <b>"إضافة إلى الشاشة الرئيسية"</b></li>
+          <li>اتبع التعليمات</li>
+        </ol>
+      `;
+    } else if (isWin || isMac) {
+      html = `
+        <h3>${Icons.render('monitor')} تحميل التطبيق على ${isWin ? 'Windows' : 'Mac'}</h3>
+        <ol style="text-align:right;line-height:2">
+          <li>اضغط على أيقونة <b>التثبيت ⬇</b> في شريط العنوان (يمين)</li>
+          <li>أو من القائمة: <b>⋮</b> ← <b>"تثبيت مصنع سيلين"</b></li>
+          <li>التطبيق سيفتح في نافذة منفصلة ويعمل بدون إنترنت</li>
+        </ol>
+      `;
+    } else {
+      html = `
+        <h3>${Icons.render('download')} تحميل التطبيق</h3>
+        <p>استخدم خيار "إضافة إلى الشاشة الرئيسية" من قائمة المتصفح</p>
+      `;
+    }
+
+    // كشف iOS
+    const isInStandaloneMode = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+    if (isInStandaloneMode) {
+      html = `
+        <h3>${Icons.render('check')} التطبيق مُثبّت بالفعل!</h3>
+        <p>أنت تستخدم التطبيق المثبّت. كل الميزات تعمل بدون إنترنت.</p>
+      `;
+    }
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal-box" style="max-width:500px">
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">${Icons.render('x')}</button>
+        ${html}
+        <div class="alert alert-info" style="margin-top:16px">
+          <span>${Icons.render('info')}</span>
+          <span><b>مميزات التطبيق المُثبّت:</b> يعمل بدون إنترنت، أيقونة على الشاشة، شاشة كاملة، إشعارات</span>
+        </div>
+        <div style="text-align:center;margin-top:16px">
+          <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove()">${Icons.render('check')} فهمت</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = 'pwa-toast pwa-toast-' + type;
+    toast.innerHTML = `<span>${message}</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
+  }
+
+  // كشف إذا كان التطبيق يعمل في وضع standalone
+  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+    isPwaInstalled = true;
+  }
+
   // Close sidebar when clicking outside (mobile)
   document.addEventListener('click', (e) => {
     const sidebar = document.querySelector('.sidebar');
@@ -181,6 +319,9 @@ window.APP = (function () {
             </button>
             <div class="page-title" id="pageTitle">لوحة التحكم</div>
             <div class="user-info">
+              <button class="install-pwa-btn" id="installPwaBtn" style="display:none" onclick="APP.installPWA()" title="تحميل التطبيق على الجهاز">
+                ${Icons.render('download')} <span class="install-text">تحميل التطبيق</span>
+              </button>
               <div class="export-bar" id="exportBar">
                 <button class="btn-export" onclick="APP.showExportMenu(event)" title="تصدير التقرير الحالي">
                   ${Icons.render('download')} تصدير <span style="margin-right:4px">▾</span>
@@ -352,7 +493,7 @@ window.APP = (function () {
   function saveDB(d) { DB.save(d); db = d; }
   function getUser() { return currentUser; }
 
-  return { init, navigate, logout, doLogin, getDB, saveDB, getUser, getCurrentUser, showExportMenu, doExport, toggleSidebar, togglePasswordGlobal };
+  return { init, navigate, logout, doLogin, getDB, saveDB, getUser, getCurrentUser, showExportMenu, doExport, toggleSidebar, togglePasswordGlobal, installPWA, showManualInstallGuide };
 })();
 
 window.addEventListener("DOMContentLoaded", () => APP.init());

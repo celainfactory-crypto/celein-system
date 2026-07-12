@@ -1279,6 +1279,80 @@ tfoot td {
 }
 
 /* ============================================================
+   PWA Install Button
+   ============================================================ */
+.install-pwa-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #2d9d5c, #1e7d4a);
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(45, 157, 92, 0.3);
+  transition: all 0.3s ease;
+  margin-left: 8px;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.install-pwa-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(45, 157, 92, 0.5);
+  background: linear-gradient(135deg, #34b06a, #258a55);
+}
+.install-pwa-btn:active {
+  transform: translateY(0);
+}
+.install-pwa-btn .ic {
+  display: flex;
+  align-items: center;
+}
+.pulse-anim {
+  animation: pwaPulse 2s ease-in-out infinite;
+}
+@keyframes pwaPulse {
+  0%, 100% { box-shadow: 0 4px 12px rgba(45, 157, 92, 0.3); }
+  50% { box-shadow: 0 4px 20px rgba(45, 157, 92, 0.7), 0 0 0 8px rgba(45, 157, 92, 0.1); }
+}
+
+.pwa-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: white;
+  color: #1e2d4f;
+  padding: 14px 24px;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  z-index: 99999;
+  transition: transform 0.3s ease;
+  max-width: 90%;
+  text-align: center;
+  font-weight: 500;
+  border-right: 4px solid #2d9d5c;
+}
+.pwa-toast.show {
+  transform: translateX(-50%) translateY(0);
+}
+.pwa-toast-success { border-right-color: #2d9d5c; }
+.pwa-toast-info { border-right-color: #3a8bd8; }
+.pwa-toast-error { border-right-color: #d8463a; }
+
+@media (max-width: 640px) {
+  .install-pwa-btn .install-text { display: none; }
+  .install-pwa-btn { padding: 8px 10px; }
+  .install-pwa-btn::after {
+    content: 'تثبيت';
+    font-size: 12px;
+  }
+}
+
+/* ============================================================
    الطباعة
    ============================================================ */
 @media print {
