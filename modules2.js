@@ -1411,7 +1411,7 @@ window.Modules.hr = function(container) {
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
               <span class="badge badge-info">إجمالي: ${db.employeesLog.length}</span>
-              <span class="badge badge-success">نشط: ${db.employeesLog.filter(e => e.status === 'active' || !e.status).length}</span>
+              <span class="badge badge-success">نشط: ${db.employeesLog.filter(e => !e.status || e.status === 'active').length}</span>
               <span class="badge badge-warning">موقوف: ${db.employeesLog.filter(e => e.status === 'suspended').length}</span>
               <span class="badge badge-danger">مفصول: ${db.employeesLog.filter(e => e.status === 'terminated').length}</span>
             </div>
@@ -1427,38 +1427,79 @@ window.Modules.hr = function(container) {
                 <th>تاريخ التعيين</th>
                 <th>الراتب</th>
                 <th>البدلات</th>
+                <th>الإجمالي</th>
                 <th>الحالة</th>
                 <th>إجراءات</th>
               </tr>
             </thead>
             <tbody>
-              ${db.employeesLog.map(e => {
-                const status = e.status || 'active';
-                let statusBadge = '';
-                if (status === 'active') statusBadge = '<span class="badge badge-success">موظف</span>';
-                else if (status === 'suspended') statusBadge = '<span class="badge badge-warning">موقوف</span>';
-                else if (status === 'terminated') {
-                  const tDate = e.terminationStatus?.date || '-';
-                  statusBadge = '<span class="badge badge-danger">مفصول</span> <span class="text-muted" style="font-size:11px">'+tDate+'</span>';
+              ${(() => {
+                // ترتيب هرمي: GM → 7 مدراء → موظفيهم
+                const order = ['الإدارة العليا', 'الموارد البشرية', 'الإنتاج', 'المبيعات', 'المختبر', 'المخازن', 'الخدمات', 'العلاقات العامة', 'الحسابات', 'المشتريات', 'المالية', 'الأمن'];
+                
+                function row(emp) {
+                  const status = emp.status || 'active';
+                  let statusBadge = '';
+                  if (status === 'active') statusBadge = '<span class="badge badge-success">موظف</span>';
+                  else if (status === 'suspended') statusBadge = '<span class="badge badge-warning">موقوف</span>';
+                  else if (status === 'terminated') {
+                    const tDate = (emp.terminationStatus && emp.terminationStatus.date) || '-';
+                    statusBadge = '<span class="badge badge-danger">مفصول</span><br><span class="text-muted" style="font-size:11px">تاريخ الفصل: '+tDate+'</span>';
+                  }
+                  return '<tr data-search="'+(emp.empId+' '+emp.name+' '+emp.department+' '+emp.position).toLowerCase()+'">'
+                    + '<td><b>'+emp.empId+'</b></td>'
+                    + '<td><b>'+emp.name+'</b></td>'
+                    + '<td>'+emp.position+'</td>'
+                    + '<td class="text-muted">'+(emp.managerName || 'الإدارة العليا')+'</td>'
+                    + '<td class="text-muted">'+emp.hireDate+'</td>'
+                    + '<td class="text-primary"><b>'+emp.salary.toLocaleString('ar-EG')+'</b></td>'
+                    + '<td>'+(emp.allowances || 0).toLocaleString('ar-EG')+'</td>'
+                    + '<td class="text-success"><b>'+(emp.salary + (emp.allowances || 0)).toLocaleString('ar-EG')+'</b></td>'
+                    + '<td>'+statusBadge+'</td>'
+                    + '<td style="white-space:nowrap">'
+                    +   (isAdmin
+                          ? '<button class="btn btn-sm" onclick="Modules._editEmployee('+emp.id+')" title="تعديل البيانات">'+Icons.render("edit")+'</button> '
+                            + '<button class="btn btn-sm btn-warning" onclick="Modules._changeStatus('+emp.id+')" title="تغيير الحالة">'+Icons.render("refresh")+'</button> '
+                            + '<button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployee('+emp.id+')" title="حذف">'+Icons.render("trash")+'</button>'
+                          : '<span class="text-muted" style="font-size:12px">عرض فقط</span>')
+                    + '</td>'
+                    + '</tr>';
                 }
-                return '<tr data-search="'+(e.empId+' '+e.name+' '+e.department+' '+e.position).toLowerCase()+'">'
-                  + '<td><b>'+e.empId+'</b></td>'
-                  + '<td><b>'+e.name+'</b></td>'
-                  + '<td>'+e.position+'</td>'
-                  + '<td class="text-muted">'+(e.managerName || 'الإدارة العليا')+'</td>'
-                  + '<td class="text-muted">'+e.hireDate+'</td>'
-                  + '<td class="text-primary"><b>'+e.salary.toLocaleString('ar-EG')+'</b></td>'
-                  + '<td>'+(e.allowances || 0).toLocaleString('ar-EG')+'</td>'
-                  + '<td>'+statusBadge+'</td>'
-                  + '<td>'
-                  +   (isAdmin
-                        ? '<button class="btn btn-sm" onclick="Modules._editEmployee('+e.id+')" title="تعديل">'+Icons.render("edit")+'</button> '
-                          + '<button class="btn btn-sm btn-secondary" onclick="Modules._toggleStatus('+e.id+')" title="تغيير الحالة">'+Icons.render("refresh")+'</button> '
-                          + '<button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployee('+e.id+')" title="حذف">'+Icons.render("trash")+'</button>'
-                        : '')
-                  + '</td>'
-                  + '</tr>';
-              }).join('')}
+                
+                let html = '';
+                order.forEach(dept => {
+                  // إذا كان "الإدارة العليا"، اجلب الموظف الذي department = 'الإدارة'
+                  let emps;
+                  if (dept === 'الإدارة العليا') {
+                    emps = db.employeesLog.filter(e => e.department === 'الإدارة');
+                  } else if (dept === 'المخازن') {
+                    emps = db.employeesLog.filter(e => e.department === 'المخازن' || e.department === 'مخازن البيضاء');
+                  } else {
+                    emps = db.employeesLog.filter(e => e.department === dept);
+                  }
+                  if (emps.length === 0) return;
+                  
+                  // المدير أولاً ثم الباقي
+                  const mgr = emps.find(e => /مدير|مشرف|كيميائي/.test(e.position));
+                  const sorted = [];
+                  if (mgr) sorted.push(mgr);
+                  emps.filter(e => e !== mgr).forEach(e => sorted.push(e));
+                  
+                  sorted.forEach(e => {
+                    // إضافة تنسيق مختلف للمدير
+                    const isMgr = e === mgr;
+                    const rowHtml = row(e);
+                    if (isMgr) {
+                      // لف الصف في تنسيق المدير
+                      html += rowHtml.replace('<tr data-search', '<tr class="manager-row" data-search');
+                    } else {
+                      html += rowHtml;
+                    }
+                  });
+                });
+                
+                return html;
+              })()}
             </tbody>
           </table>
           </div>
@@ -1587,28 +1628,42 @@ window.Modules.hr = function(container) {
     });
   };
 
-  Modules._toggleStatus = function(id) {
+  Modules._changeStatus = function(id) {
     if (!isAdmin) { alert('⛔ صلاحية التعديل للمدير فقط'); return; }
     const db = APP.getDB();
     const emp = db.employeesLog.find(e => e.id === id);
     if (!emp) return;
     
     const current = emp.status || 'active';
-    let next, nextLabel;
-    if (current === 'active') { next = 'suspended'; nextLabel = 'موقوف'; }
-    else if (current === 'suspended') { next = 'terminated'; nextLabel = 'مفصول'; }
-    else { next = 'active'; nextLabel = 'موظف'; }
+    const choice = prompt(
+      'اختر الحالة الجديدة للموظف "'+emp.name+'":\n\n'+
+      '1 - موظف (نشط)\n'+
+      '2 - موقوف\n'+
+      '3 - مفصول\n\n'+
+      'أدخل الرقم (1، 2، أو 3):',
+      current === 'active' ? '1' : current === 'suspended' ? '2' : '3'
+    );
     
-    if (!confirm('تغيير حالة الموظف "'+emp.name+'" إلى "'+nextLabel+'"؟')) return;
+    if (!choice) return;
+    let next, nextLabel, termDate = null;
+    if (choice === '1') { next = 'active'; nextLabel = 'موظف (نشط)'; }
+    else if (choice === '2') { next = 'suspended'; nextLabel = 'موقوف'; }
+    else if (choice === '3') {
+      next = 'terminated';
+      nextLabel = 'مفصول';
+      termDate = prompt('تاريخ الفصل (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+      if (!termDate) return;
+    } else { return; }
     
     emp.status = next;
     if (next === 'terminated') {
-      emp.terminationStatus = { date: new Date().toISOString().split('T')[0], reason: 'قرار إداري' };
+      emp.terminationStatus = { date: termDate, reason: 'قرار إداري' };
     } else {
       emp.terminationStatus = null;
     }
     APP.saveDB(db);
     render();
+    alert('✓ تم تغيير حالة "'+emp.name+'" إلى: '+nextLabel);
   };
 
   Modules._filterEmployees = function() {

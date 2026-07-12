@@ -2010,3 +2010,15 @@ tr.manager-row td {
   border-left: 3px solid var(--primary);
 }
 
+
+/* Manager row in employee registry */
+tr.manager-row {
+  background: linear-gradient(90deg, rgba(30,45,79,0.08), rgba(30,45,79,0.02)) !important;
+  border-right: 3px solid var(--primary) !important;
+}
+tr.manager-row:hover {
+  background: linear-gradient(90deg, rgba(30,45,79,0.12), rgba(30,45,79,0.04)) !important;
+}
+tr.manager-row td:first-child {
+  font-weight: bold;
+}
