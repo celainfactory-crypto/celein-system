@@ -1263,7 +1263,7 @@ window.Modules.procurement = function(container) {
   render();
 };
 
-/* ============ شؤون الموظفين ============ */
+/* ============ الموارد البشرية ============ */
 window.Modules.hr = function(container) {
   const db = APP.getDB();
   const isAdmin = APP.getCurrentUser() && APP.getCurrentUser().role === 'admin';
@@ -1273,7 +1273,7 @@ window.Modules.hr = function(container) {
   const grandTotal = totalSalary + totalAllowances;
 
   Exports.register("hr", {
-    label: "شؤون الموظفين",
+    label: "الموارد البشرية",
     pdf: () => {
       const headers = ['الرقم الوظيفي', 'الاسم', 'الوظيفة', 'القسم', 'الراتب', 'البدلات', 'الإجمالي', 'تاريخ التعيين'];
       const rows = db.employeesLog.map(e => [e.empId, e.name, e.position, e.department, e.salary.toLocaleString('ar-EG') + ' ر.ي', e.allowances.toLocaleString('ar-EG') + ' ر.ي', (e.salary + e.allowances).toLocaleString('ar-EG') + ' ر.ي', e.hireDate]);
@@ -1289,7 +1289,7 @@ window.Modules.hr = function(container) {
       const sumFooter = ['الإجمالي', db.employeesLog.length, totalSalary.toLocaleString('ar-EG') + ' ر.ي', totalAllowances.toLocaleString('ar-EG') + ' ر.ي'];
       const html = Exports.rowsToHTMLTable(headers, rows, { title: 'سجل الموظفين - مصنع سيلين' }) +
                    Exports.rowsToHTMLTable(sumHeaders, sumRows, { title: 'ملخص حسب القسم', footerRow: [sumFooter] });
-      Exports.exportPDF("شؤون الموظفين - مصنع سيلين", html, "hr");
+      Exports.exportPDF("الموارد البشرية - مصنع سيلين", html, "hr");
     },
     excel: () => {
       const headers = ['الرقم الوظيفي', 'الاسم', 'الوظيفة', 'القسم', 'الراتب', 'البدلات', 'الإجمالي', 'تاريخ التعيين'];
@@ -1974,7 +1974,7 @@ window.Modules.settings = function(container) {
       { id: 3, empId: "ACC-001", username: "accountant", password: "acc123",   name: "المحاسب",                        role: "accountant",  active: true },
       { id: 4, empId: "SAL-001", username: "sales",      password: "sal123",   name: "مدير المبيعات والمخازن",        role: "sales",       active: true },
       { id: 5, empId: "LAB-001", username: "lab",        password: "lab123",   name: "المختبر / المحطة",               role: "lab",         active: true },
-      { id: 6, empId: "PRH-001", username: "procurement",password: "prc123",   name: "المشتريات وشؤون الموظفين",       role: "procurement", active: true }
+      { id: 6, empId: "PRH-001", username: "procurement",password: "prc123",   name: "المشتريات والموارد البشرية",       role: "procurement", active: true }
     ];
     // تحديث الجلسة إذا كان المستخدم الحالي تم حذفه
     const session = DB.getSession();
@@ -2077,7 +2077,7 @@ APP._roleLabel = function(role) {
     accountant: "المحاسب",
     sales: "إدارة المبيعات والمخازن",
     lab: "المختبر والمحطة",
-    procurement: "المشتريات وشؤون الموظفين"
+    procurement: "المشتريات والموارد البشرية"
   };
   return m[role] || role;
 };
