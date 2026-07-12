@@ -2538,6 +2538,247 @@ Modules._reinstateEmployee = function(empId) {
   window.Modules.terminated(document.getElementById('content'));
 };
 
+/* ============ الهيكل التنظيمي ============ */
+window.Modules.orgchart = function(container) {
+  const db = APP.getDB();
+  const employees = db.employeesLog || [];
+  
+  // الإدارة العليا
+  const topManagement = [
+    { name: 'مختار عبدالله الحييد', role: 'المدير العام', username: 'admin', salary: 220000, color: '#1e2d4f' },
+    { name: 'علي أحمد ديان العطري', role: 'المدير التنفيذي', username: 'executive', salary: 0, color: '#2c3e6d' },
+    { name: 'حسين أحمد السعيدي', role: 'رئيس مجلس الإدارة', username: 'chairman', salary: 0, color: '#3a4d7d' }
+  ];
+  
+  // المدراء حسب القسم
+  const departments = [
+    { name: 'الإنتاج', icon: 'factory', color: '#3a8bd8', manager: 'بشار شكري محمد القدسي', managerId: 68 },
+    { name: 'المبيعات', icon: 'truck', color: '#d8463a', manager: 'هاشم عبدالله محمد الجنيدي', managerId: 73 },
+    { name: 'المختبر', icon: 'flask', color: '#9c27b0', manager: 'عيسى محمد عبدالرحمن سعيد', managerId: 54 },
+    { name: 'المخازن', icon: 'box', color: '#2d9d5c', manager: 'حبيب توفيق مكرد القدسي', managerId: 76 },
+    { name: 'الخدمات', icon: 'shield', color: '#e89c2b', manager: 'ناصر محمد العزاني عبده', managerId: 86 },
+    { name: 'الحسابات', icon: 'money', color: '#5a6b8c', manager: 'أنور سليم محمد الخولاني', managerId: 83 },
+    { name: 'المشتريات', icon: 'cart', color: '#00897b', manager: 'صالح علي أحمد الوحيشي', managerId: 72 }
+  ];
+  
+  // حساب الإحصائيات
+  const totalEmployees = employees.filter(e => e.status === 'active' || !e.status).length;
+  const totalSalary = employees.reduce((s, e) => s + (Number(e.salary) || 0) + (Number(e.allowances) || 0), 0);
+  const totalDepartments = departments.length;
+  const totalActiveManagers = employees.filter(e => e.position && (e.position.includes('مدير') || e.position.includes('مشرف') || e.position.includes('كيميائي') || e.position.includes('أمين'))).length;
+
+  // تجميع الموظفين حسب القسم
+  const deptEmployees = {};
+  departments.forEach(d => {
+    deptEmployees[d.name] = employees.filter(e => e.department === d.name);
+  });
+
+  function render() {
+    container.innerHTML = `
+      <div class="alert alert-info">
+        <span>${Icons.render("info")}</span>
+        <span><b>الهيكل التنظيمي</b> - مصنع سيلين للمياه المعدنية والمرطبات - 2026</span>
+      </div>
+
+      <!-- إحصائيات سريعة -->
+      <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:24px">
+        <div class="kpi-card" style="background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:white">
+          <div class="label" style="color:rgba(255,255,255,0.9)">
+            <span class="ic" style="color:rgba(255,255,255,0.9)">${Icons.render("users")}</span>
+            إجمالي الموظفين
+          </div>
+          <div class="value" style="color:white">${totalEmployees}</div>
+        </div>
+        <div class="kpi-card success">
+          <div class="label"><span class="ic">${Icons.render("money")}</span>إجمالي الرواتب</div>
+          <div class="value" style="font-size:18px">${totalSalary.toLocaleString('ar-EG')}</div>
+        </div>
+        <div class="kpi-card info">
+          <div class="label"><span class="ic">${Icons.render("grid")}</span>الأقسام</div>
+          <div class="value">${totalDepartments}</div>
+        </div>
+        <div class="kpi-card warning">
+          <div class="label"><span class="ic">${Icons.render("user")}</span>المدراء</span></div>
+          <div class="value">${totalActiveManagers}</div>
+        </div>
+      </div>
+
+      <!-- الإدارة العليا -->
+      <div class="orgchart-section">
+        <div class="orgchart-level-title">${Icons.render("shield")} الإدارة العليا</div>
+        <div class="orgchart-row orgchart-top">
+          ${topManagement.map(p => `
+            <div class="orgchart-card orgchart-top-card" style="background:linear-gradient(135deg,${p.color},var(--primary-dark));color:white">
+              <div class="org-avatar">${p.name.charAt(0)}</div>
+              <div class="org-name">${p.name}</div>
+              <div class="org-role">${p.role}</div>
+              <div class="org-username">@${p.username}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="orgchart-connector-vertical"></div>
+      </div>
+
+      <!-- المدراء -->
+      <div class="orgchart-section">
+        <div class="orgchart-level-title">${Icons.render("briefcase")} مدراء الأقسام</div>
+        <div class="orgchart-row orgchart-managers">
+          ${departments.map(d => {
+            const mgr = employees.find(e => e.empId == d.managerId);
+            const count = (deptEmployees[d.name] || []).length;
+            return `
+            <div class="orgchart-card orgchart-manager-card" data-dept="${d.name}" onclick="Modules._toggleDept('${d.name}')" style="border-color:${d.color}">
+              <div class="org-icon-circle" style="background:${d.color}">${Icons.render(d.icon)}</div>
+              <div class="org-name">${d.manager}</div>
+              <div class="org-role" style="color:${d.color}">مدير ${d.name}</div>
+              <div class="org-stats">
+                <span class="org-badge" style="background:${d.color}">${count} موظف</span>
+                ${mgr ? `<span class="org-id">ID${String(mgr.empId).padStart(3, '0')}</span>` : ''}
+              </div>
+            </div>
+          `}).join('')}
+        </div>
+      </div>
+
+      <!-- تفاصيل الأقسام (قابلة للطي) -->
+      ${departments.map(d => {
+        const team = deptEmployees[d.name] || [];
+        const mgr = employees.find(e => e.empId == d.managerId);
+        const totalDeptSalary = team.reduce((s, e) => s + (Number(e.salary) || 0) + (Number(e.allowances) || 0), 0);
+        return `
+          <div class="card orgchart-dept-card" id="dept-${d.name}" style="display:none">
+            <div class="header-row" style="display:flex;justify-content:space-between;align-items:center">
+              <h3 style="color:${d.color}">${Icons.render(d.icon)} فريق ${d.name}</h3>
+              <div>
+                <span class="badge" style="background:${d.color};color:white">${team.length} موظف</span>
+                <span class="badge badge-info" style="margin-right:8px">إجمالي: ${totalDeptSalary.toLocaleString('ar-EG')} ر.ي</span>
+              </div>
+            </div>
+            ${mgr ? `
+              <div class="orgchart-manager-info">
+                <div class="orgchart-manager-avatar" style="background:${d.color}">${mgr.name.charAt(0)}</div>
+                <div>
+                  <div style="font-weight:bold;font-size:16px">${mgr.name}</div>
+                  <div class="text-muted" style="font-size:13px">${mgr.position} • ID${String(mgr.empId).padStart(3, '0')} • ${(mgr.salary || 0).toLocaleString('ar-EG')} ر.ي</div>
+                </div>
+              </div>
+            ` : ''}
+            <table class="data-table" style="margin-top:12px">
+              <thead>
+                <tr>
+                  <th>الرقم الوظيفي</th>
+                  <th>الاسم</th>
+                  <th>الوظيفة</th>
+                  <th>تاريخ التعيين</th>
+                  <th>الراتب</th>
+                  <th>البدلات</th>
+                  <th>الإجمالي</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${mgr ? `<tr style="background:rgba(0,0,0,0.02)">
+                  <td data-label="الرقم"><b>ID${String(mgr.empId).padStart(3, '0')}</b> <span class="badge" style="background:${d.color};color:white;font-size:10px">مدير</span></td>
+                  <td data-label="الاسم"><b>${mgr.name}</b></td>
+                  <td data-label="الوظيفة">${mgr.position}</td>
+                  <td data-label="تاريخ التعيين">${mgr.hireDate}</td>
+                  <td data-label="الراتب">${(mgr.salary || 0).toLocaleString('ar-EG')}</td>
+                  <td data-label="البدلات">${(mgr.allowances || 0).toLocaleString('ar-EG')}</td>
+                  <td data-label="الإجمالي"><b style="color:${d.color}">${((mgr.salary || 0) + (mgr.allowances || 0)).toLocaleString('ar-EG')}</b></td>
+                </tr>` : ''}
+                ${team.filter(e => e.empId != d.managerId).map(e => `
+                  <tr>
+                    <td data-label="الرقم">ID${String(e.empId).padStart(3, '0')}</td>
+                    <td data-label="الاسم">${e.name}</td>
+                    <td data-label="الوظيفة">${e.position}</td>
+                    <td data-label="تاريخ التعيين">${e.hireDate}</td>
+                    <td data-label="الراتب">${(e.salary || 0).toLocaleString('ar-EG')}</td>
+                    <td data-label="البدلات">${(e.allowances || 0).toLocaleString('ar-EG')}</td>
+                    <td data-label="الإجمالي"><b>${((e.salary || 0) + (e.allowances || 0)).toLocaleString('ar-EG')}</b></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }).join('')}
+
+      <!-- التصدير -->
+      <div class="card" style="text-align:center">
+        <h3>${Icons.render("download")} تصدير الهيكل التنظيمي</h3>
+        <div class="btn-row" style="justify-content:center">
+          <button class="btn btn-primary" onclick="Modules._exportOrgChart('pdf')">${Icons.render("pdf")} تصدير PDF</button>
+          <button class="btn btn-success" onclick="Modules._exportOrgChart('print')">${Icons.render("print")} طباعة</button>
+          <button class="btn btn-secondary" onclick="Modules._expandAllDepts()">${Icons.render("grid")} عرض كل الأقسام</button>
+          <button class="btn btn-secondary" onclick="Modules._collapseAllDepts()">${Icons.render("x")} إخفاء الكل</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // Toggle department details
+  Modules._toggleDept = function(deptName) {
+    const card = document.getElementById('dept-' + deptName);
+    if (card) {
+      card.style.display = card.style.display === 'none' ? 'block' : 'none';
+    }
+  };
+
+  Modules._expandAllDepts = function() {
+    departments.forEach(d => {
+      const card = document.getElementById('dept-' + d.name);
+      if (card) card.style.display = 'block';
+    });
+  };
+
+  Modules._collapseAllDepts = function() {
+    departments.forEach(d => {
+      const card = document.getElementById('dept-' + d.name);
+      if (card) card.style.display = 'none';
+    });
+  };
+
+  Modules._exportOrgChart = function(type) {
+    if (type === 'pdf') {
+      const headers = ['القسم', 'المدير', 'الرقم الوظيفي', 'عدد الموظفين', 'إجمالي الرواتب'];
+      const rows = departments.map(d => {
+        const team = deptEmployees[d.name] || [];
+        const total = team.reduce((s, e) => s + (Number(e.salary) || 0) + (Number(e.allowances) || 0), 0);
+        return [d.name, d.manager, `ID${String(d.managerId).padStart(3, '0')}`, team.length, total.toLocaleString('ar-EG')];
+      });
+      const html = Exports.rowsToHTMLTable(headers, rows, { title: 'الهيكل التنظيمي - مصنع سيلين' });
+      Exports.exportPDF('الهيكل التنظيمي', html, 'orgchart');
+    } else if (type === 'print') {
+      Modules._expandAllDepts();
+      setTimeout(() => window.print(), 500);
+    }
+  };
+
+  Exports.register('orgchart', {
+    label: 'الهيكل التنظيمي',
+    pdf: () => Modules._exportOrgChart('pdf'),
+    excel: () => {
+      const headers = ['القسم', 'المدير', 'الرقم الوظيفي', 'عدد الموظفين'];
+      const rows = departments.map(d => {
+        const team = deptEmployees[d.name] || [];
+        return [d.name, d.manager, `ID${String(d.managerId).padStart(3, '0')}`, team.length];
+      });
+      Exports.exportExcel(Exports.rowsToHTMLTable(headers, rows, { title: 'الهيكل التنظيمي' }), 'orgchart');
+    },
+    csv: () => {
+      const headers = ['القسم', 'المدير', 'الرقم الوظيفي', 'عدد الموظفين'];
+      const rows = departments.map(d => {
+        const team = deptEmployees[d.name] || [];
+        return [d.name, d.manager, `ID${String(d.managerId).padStart(3, '0')}`, team.length];
+      });
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), 'orgchart');
+    },
+    json: () => Exports.exportJSON({ orgchart: departments, employees: employees }, 'orgchart_data'),
+    print: () => Modules._exportOrgChart('print')
+  });
+
+  render();
+};
+
 /* ============ الإعدادات ============ */
 window.Modules.settings = function(container) {
   const db = APP.getDB();

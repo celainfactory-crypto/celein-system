@@ -67,6 +67,7 @@ window.DB = (function () {
       users:           ['admin', 'hr_manager'],
       permissions:     ['admin', 'hr_manager'],
       settings:        ['admin'],
+      orgchart:        ['admin', 'executive', 'chairman', 'accountant', 'hr_manager'],
       profile:         ['admin', 'executive', 'chairman', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker']
     },
     // كل صفحة: وضع العرض (full = تعديل، view = عرض فقط)
