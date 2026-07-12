@@ -6,7 +6,7 @@
    ============================================================ */
 
 window.DB = (function () {
-  const KEY = "celein_db_v8";
+  const KEY = "celein_db_v9";
   const SESSION_KEY = "celein_session_v1";
 
   // تهيئة قاعدة البيانات من البذور
@@ -52,18 +52,18 @@ window.DB = (function () {
     // كل صفحة: قائمة الأدوار المسموح لها
     pages: {
       dashboard:       ['admin', 'executive', 'chairman', 'accountant'],
-      production:      ['admin', 'hr_manager', 'production', 'accountant'],
-      purchaseRequest: ['admin', 'hr_manager', 'production', 'procurement', 'accountant'],
-      costs:           ['admin', 'hr_manager', 'production', 'accountant'],
-      pricing:         ['admin', 'hr_manager', 'accountant', 'sales'],
-      inventory:       ['admin', 'hr_manager', 'production', 'sales', 'accountant', 'procurement'],
-      vouchers:        ['admin', 'hr_manager', 'sales', 'accountant', 'production'],
-      sales:           ['admin', 'hr_manager', 'sales', 'accountant'],
-      agents:          ['admin', 'hr_manager', 'sales', 'accountant'],
-      lab:             ['admin', 'hr_manager', 'lab', 'production'],
-      procurement:     ['admin', 'hr_manager', 'procurement', 'accountant'],
-      hr:              ['admin', 'hr_manager', 'production', 'accountant', 'procurement'],
-      reports:         ['admin', 'executive', 'chairman', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement'],
+      production:      ['admin', 'production', 'accountant'],
+      purchaseRequest: ['admin', 'production', 'procurement', 'accountant'],
+      costs:           ['admin', 'accountant'],
+      pricing:         ['admin', 'accountant', 'sales'],
+      inventory:       ['admin', 'production', 'sales', 'accountant', 'procurement'],
+      vouchers:        ['admin', 'sales', 'accountant', 'production'],
+      sales:           ['admin', 'sales', 'accountant'],
+      agents:          ['admin', 'sales', 'accountant'],
+      lab:             ['admin', 'lab', 'production'],
+      procurement:     ['admin', 'procurement', 'accountant'],
+      hr:              ['admin', 'hr_manager'],
+      reports:         ['admin', 'executive', 'chairman', 'accountant', 'sales', 'production', 'lab', 'procurement'],
       users:           ['admin', 'hr_manager'],
       permissions:     ['admin', 'hr_manager'],
       settings:        ['admin'],
@@ -72,18 +72,18 @@ window.DB = (function () {
     // كل صفحة: وضع العرض (full = تعديل، view = عرض فقط)
     modes: {
       dashboard:       { admin: 'full', executive: 'view', chairman: 'view', accountant: 'full', hr_manager: 'view', production: 'view', sales: 'view', lab: 'view', procurement: 'view', worker: 'view' },
-      production:      { admin: 'full', hr_manager: 'view', production: 'full', accountant: 'view' },
-      purchaseRequest: { admin: 'full', hr_manager: 'full', production: 'full', procurement: 'full', accountant: 'full' },
-      costs:           { admin: 'full', hr_manager: 'view', production: 'view', accountant: 'full' },
-      pricing:         { admin: 'full', hr_manager: 'view', accountant: 'full', sales: 'view' },
-      inventory:       { admin: 'full', hr_manager: 'view', production: 'full', sales: 'full', accountant: 'view', procurement: 'view' },
-      vouchers:        { admin: 'full', hr_manager: 'view', sales: 'full', accountant: 'full', production: 'view' },
-      sales:           { admin: 'full', hr_manager: 'view', sales: 'full', accountant: 'full' },
-      agents:          { admin: 'full', hr_manager: 'view', sales: 'full', accountant: 'view' },
-      lab:             { admin: 'full', hr_manager: 'view', lab: 'full', production: 'view' },
-      procurement:     { admin: 'full', hr_manager: 'view', procurement: 'full', accountant: 'view' },
-      hr:              { admin: 'full', hr_manager: 'full', production: 'view', accountant: 'view', procurement: 'view' },
-      reports:         { admin: 'full', executive: 'view', chairman: 'view', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full' },
+      production:      { admin: 'full', production: 'full', accountant: 'view' },
+      purchaseRequest: { admin: 'full', production: 'full', procurement: 'full', accountant: 'full' },
+      costs:           { admin: 'full', accountant: 'full' },
+      pricing:         { admin: 'full', accountant: 'full', sales: 'view' },
+      inventory:       { admin: 'full', production: 'full', sales: 'full', accountant: 'view', procurement: 'view' },
+      vouchers:        { admin: 'full', sales: 'full', accountant: 'full', production: 'view' },
+      sales:           { admin: 'full', sales: 'full', accountant: 'full' },
+      agents:          { admin: 'full', sales: 'full', accountant: 'view' },
+      lab:             { admin: 'full', lab: 'full', production: 'view' },
+      procurement:     { admin: 'full', procurement: 'full', accountant: 'view' },
+      hr:              { admin: 'full', hr_manager: 'full' },
+      reports:         { admin: 'full', executive: 'view', chairman: 'view', accountant: 'full', sales: 'full', production: 'full', lab: 'full', procurement: 'full' },
       users:           { admin: 'full', hr_manager: 'full' },
       permissions:     { admin: 'full', hr_manager: 'full' },
       settings:        { admin: 'full' },
