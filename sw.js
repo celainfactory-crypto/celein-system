@@ -1,5 +1,5 @@
 // Service Worker - نظام سيلين v11 (Network-First)
-const VERSION = 'celein-v11';
+const VERSION = 'celein-v12';
 
 // Install: take control immediately
 self.addEventListener('install', event => {
