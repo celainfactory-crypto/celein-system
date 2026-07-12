@@ -1881,3 +1881,131 @@ tfoot td {
     font-size: 12px !important;
   }
 }
+
+/* ===== HR Submenu Cards ===== */
+.hr-submenu-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 18px 15px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border: 2px solid transparent;
+  box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light);
+  text-align: center;
+}
+.hr-submenu-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--primary);
+  box-shadow: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--shadow-light);
+}
+.hr-submenu-card.active {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark, #2a3d6f));
+  color: white;
+  border-color: var(--primary);
+}
+.hr-submenu-card.active .hr-submenu-desc {
+  color: rgba(255,255,255,0.85);
+}
+.hr-submenu-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  color: var(--primary);
+}
+.hr-submenu-card.active .hr-submenu-icon {
+  color: white;
+}
+.hr-submenu-label {
+  font-weight: bold;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+.hr-submenu-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ===== Department Accordion ===== */
+.dept-accordion {
+  margin-bottom: 10px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 3px 3px 6px var(--shadow-dark), -3px -3px 6px var(--shadow-light);
+}
+.dept-header {
+  background: var(--bg-card);
+  padding: 12px 18px;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+.dept-header:hover {
+  background: var(--bg-darker);
+}
+.dept-header.open {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark, #2a3d6f));
+  color: white;
+}
+.dept-header.open .badge {
+  background: rgba(255,255,255,0.2) !important;
+  color: white !important;
+}
+.dept-header .chevron-icon {
+  transition: transform 0.3s ease;
+}
+.dept-header.open .chevron-icon {
+  transform: rotate(180deg);
+}
+.dept-body {
+  background: var(--bg);
+  padding: 15px;
+  border-top: 1px solid var(--border);
+}
+.manager-highlight {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark, #2a3d6f));
+  color: white;
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 15px;
+  box-shadow: 3px 3px 8px var(--shadow-dark);
+}
+.manager-highlight .text-primary {
+  color: rgba(255,255,255,0.95) !important;
+}
+.manager-badge {
+  display: inline-block;
+  background: rgba(255,255,255,0.2);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+.workers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.worker-row {
+  background: var(--bg-card);
+  padding: 10px 15px;
+  border-radius: 10px;
+  box-shadow: 2px 2px 4px var(--shadow-dark), -2px -2px 4px var(--shadow-light);
+  transition: all 0.2s ease;
+}
+.worker-row:hover {
+  transform: translateX(-3px);
+  box-shadow: 3px 3px 6px var(--shadow-dark), -3px -3px 6px var(--shadow-light);
+}
+
+/* ===== Manager Row in table ===== */
+.manager-row {
+  background: linear-gradient(90deg, rgba(30,45,79,0.05), transparent);
+  font-weight: 600;
+}
+tr.manager-row td {
+  border-left: 3px solid var(--primary);
+}
