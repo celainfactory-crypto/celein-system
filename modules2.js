@@ -44,6 +44,7 @@ window.Modules.pricing = function(container) {
     print: () => window.print()
   });
 
+
   function render() {
     container.innerHTML = `
       <div class="alert alert-info">
@@ -202,6 +203,7 @@ window.Modules.inventory = function(container) {
     print: () => window.print()
   });
 
+
   function render() {
     const inv = DB.inventory(db);
 
@@ -310,6 +312,7 @@ window.Modules.vouchers = function(container) {
     json: () => Exports.exportJSON({ vouchers: db.vouchers }, "vouchers_data"),
     print: () => window.print()
   });
+
 
   function render() {
     container.innerHTML = `
@@ -484,6 +487,7 @@ window.Modules.sales = function(container) {
     print: () => window.print()
   });
 
+
   function render() {
     const reps = db.salesReps.map(r => DB.salesRepSummary(r.code, db));
 
@@ -635,6 +639,7 @@ window.Modules.agents = function(container) {
     print: () => window.print()
   });
 
+
   function render() {
     container.innerHTML = `
       <div class="alert alert-info">
@@ -769,6 +774,7 @@ window.Modules.lab = function(container) {
     json: () => Exports.exportJSON({ labLog: db.labLog }, "lab_data"),
     print: () => window.print()
   });
+
 
   function render() {
     container.innerHTML = `
@@ -956,6 +962,7 @@ window.Modules.procurement = function(container) {
       </div>
     `;
   }
+
 
   function render() {
     // طلبات الشراء الواردة من الإنتاج
@@ -1273,7 +1280,7 @@ window.Modules.hr = function(container) {
 
   const deptOrder = [
     'الإدارة','الموارد البشرية','الإنتاج','المبيعات','المختبر',
-    'المخازن','مخازن البيضاء','الخدمات','العلاقات العامة',
+    'المخازن','الخدمات','العلاقات العامة',
     'الحسابات','المشتريات','المالية','الأمن'
   ];
 
@@ -1311,11 +1318,31 @@ window.Modules.hr = function(container) {
   }
   function getDeptEmployees(dept) { return db.employeesLog.filter(e => e.department === dept); }
   function isManager(emp) { return /مدير|مشرف|كيميائي/.test(emp.position); }
-  function getDeptManager(dept) { return getDeptEmployees(dept).find(isManager); }
-  function getDeptWorkers(dept) { return getDeptEmployees(dept).filter(e => !isManager(e)); }
+  function getDeptManager(dept) { return getDisplayDeptEmployees(dept).find(isManager); }
+  function getDisplayDeptEmployees(dept) { return db.employeesLog.filter(e => getDisplayDeptName(e.department) === dept); }
+  function getDeptWorkers(dept) { return getDisplayDeptEmployees(dept).filter(e => !isManager(e)); }
+
+  function getCombinedDepartments() {
+    const raw = [...new Set(db.employeesLog.map(e => e.department))];
+    const grouped = {};
+    raw.forEach(d => {
+      let key = d;
+      if (d === 'مخازن البيضاء') key = 'المخازن';
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(d);
+    });
+    return grouped;
+  }
+
+  function getDisplayDeptName(dept) {
+    if (dept === 'مخازن البيضاء') return 'المخازن';
+    return dept;
+  }
+
 
   function render() {
-    const departments = getDepartments();
+    const groupedDepts = getCombinedDepartments();
+    const departments = Object.keys(groupedDepts);
     container.innerHTML = `
       <div class="card" style="background:linear-gradient(135deg,var(--bg-card),var(--bg-darker));border:2px solid var(--primary)">
         <h3 style="margin-bottom:15px">${Icons.render("users")} وحدات الموارد البشرية والإدارة</h3>
@@ -1377,58 +1404,20 @@ window.Modules.hr = function(container) {
         ` : ''}
 
         <div class="card">
-          <div class="header-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-            <h3>${Icons.render("list")} سجل الموظفين (${db.employeesLog.length})</h3>
-            <div class="search-bar" style="margin:0;flex:1;max-width:300px">
-              <input type="text" id="empSearch" placeholder="بحث بالاسم أو الرقم أو القسم..." oninput="Modules._filterEmployees()" />
-            </div>
-          </div>
-          <div style="overflow-x:auto">
-          <table class="data-table">
-            <thead><tr><th>الرقم</th><th>الاسم</th><th>الوظيفة</th><th>القسم</th><th>الراتب</th><th>البدلات</th><th>الإجمالي</th><th>المدير</th><th>تاريخ التعيين</th>${isAdmin ? '<th>إجراءات</th>' : ''}</tr></thead>
-            <tbody id="empTbody">
-              ${db.employeesLog.map(e => `
-                <tr data-search="${e.empId} ${e.name} ${e.department} ${e.position}" data-id="${e.id}" class="${isManager(e) ? 'manager-row' : ''}">
-                  <td data-label="الرقم"><b>${e.empId}</b></td>
-                  <td data-label="الاسم">${e.name}</td>
-                  <td data-label="الوظيفة">${e.position}</td>
-                  <td data-label="القسم"><span class="badge badge-info">${e.department}</span></td>
-                  <td data-label="الراتب" class="text-primary"><b>${e.salary.toLocaleString('ar-EG')}</b></td>
-                  <td data-label="البدلات">${(e.allowances||0).toLocaleString('ar-EG')}</td>
-                  <td data-label="الإجمالي" class="text-success"><b>${(e.salary+(e.allowances||0)).toLocaleString('ar-EG')}</b></td>
-                  <td data-label="المدير" class="text-muted">${e.managerName||'الإدارة العليا'}</td>
-                  <td data-label="تاريخ التعيين" class="text-muted">${e.hireDate}</td>
-                  ${isAdmin ? '<td data-label="إجراءات"><button class="btn btn-sm btn-primary" onclick="Modules._editEmployee('+e.id+')" title="تعديل">'+Icons.render("edit")+'</button> <button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployee('+e.id+')" title="حذف">'+Icons.render("trash")+'</button></td>' : ''}
-                </tr>`).join('')}
-            </tbody>
-            <tfoot>
-              <tr style="font-weight:bold;background:var(--bg)">
-                <td colspan="4">الإجمالي</td>
-                <td>${totalSalary.toLocaleString('ar-EG')}</td>
-                <td>${totalAllowances.toLocaleString('ar-EG')}</td>
-                <td class="text-success">${grandTotal.toLocaleString('ar-EG')} ر.ي</td>
-                <td colspan="${isAdmin ? 3 : 2}"></td>
-              </tr>
-            </tfoot>
-          </table>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3>${Icons.render("sitemap")} عرض حسب الإدارة - كل قسم يظهر مديره ثم موظفيه</h3>
+          <h3>${Icons.render("users")} سجل الموظفين - مرتب حسب التسلسل الإداري (المدير أولاً ثم الموظفون)</h3>
           <p style="color:var(--text-muted);margin-bottom:15px">اضغط على اسم القسم لعرض/إخفاء الموظفين</p>
           <div id="deptAccordion">
             ${departments.map((dept, idx) => {
               const mgr = getDeptManager(dept);
               const workers = getDeptWorkers(dept);
-              const deptTotal = getDeptEmployees(dept).reduce((s, e) => s + (e.salary+(e.allowances||0)), 0);
+              const deptTotal = getDisplayDeptEmployees(dept).reduce((s, e) => s + (e.salary+(e.allowances||0)), 0);
               return `
                 <div class="dept-accordion" data-dept="${dept}">
                   <div class="dept-header" onclick="Modules._toggleDept('${dept}')">
                     <div style="display:flex;align-items:center;gap:10px;flex:1;flex-wrap:wrap">
                       ${Icons.render("chevronDown")}
                       <b style="font-size:16px">${dept}</b>
-                      <span class="badge badge-info">${getDeptEmployees(dept).length} موظف</span>
+                      <span class="badge badge-info">${getDisplayDeptEmployees(dept).length} موظف</span>
                       <span class="badge badge-success">${deptTotal.toLocaleString('ar-EG')} ر.ي</span>
                     </div>
                   </div>
@@ -1626,6 +1615,7 @@ window.Modules.users = function(container) {
     json: () => Exports.exportJSON({ users: db.users }, "users_data"),
     print: () => window.print()
   });
+
 
   function render() {
     const editingUser = _editingUserId ? db.users.find(u => u.id === _editingUserId) : null;
@@ -1892,6 +1882,7 @@ window.Modules.permissions = function(container) {
     { id: 'procurement', label: 'مدير المشتريات' },
     { id: 'worker',      label: 'موظف' }
   ];
+
 
   function render() {
     container.innerHTML = `
@@ -2714,6 +2705,7 @@ window.Modules.orgchart = function(container) {
     deptEmployees[d.name] = employees.filter(e => e.department === d.name);
   });
 
+
   function render() {
     container.innerHTML = `
       <div class="alert alert-info">
@@ -3114,6 +3106,7 @@ window.Modules.orgtree = function(container) {
   const positions = layoutTree();
   
   // رسم الشجرة
+
   function render() {
     const filtered = state.filter
       ? tree.nodes.filter(n => {
@@ -3567,6 +3560,7 @@ window.Modules.settings = function(container) {
     print: () => window.print()
   });
 
+
   function render() {
     container.innerHTML = `
       <div class="alert alert-danger">
@@ -3782,6 +3776,7 @@ window.Modules.purchaseRequest = function(container) {
     const [label, cls] = m[status] || ['غير معروف', 'info'];
     return `<span class="badge badge-${cls}">${label}</span>`;
   }
+
 
   function render() {
     const userRequests = db.purchaseRequests.filter(r => r.fromUser === APP.getUser().empId);
