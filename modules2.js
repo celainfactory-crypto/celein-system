@@ -1266,35 +1266,42 @@ window.Modules.procurement = function(container) {
 /* ============ شؤون الموظفين ============ */
 window.Modules.hr = function(container) {
   const db = APP.getDB();
+  const isAdmin = APP.getCurrentUser() && APP.getCurrentUser().role === 'admin';
+  const departments = [...new Set(db.employeesLog.map(e => e.department))].sort();
+  const totalSalary = db.employeesLog.reduce((s, e) => s + (Number(e.salary) || 0), 0);
+  const totalAllowances = db.employeesLog.reduce((s, e) => s + (Number(e.allowances) || 0), 0);
+  const grandTotal = totalSalary + totalAllowances;
+
   Exports.register("hr", {
     label: "شؤون الموظفين",
     pdf: () => {
-      const headers = ['الرقم الوظيفي', 'الاسم', 'المسمى', 'القسم', 'الراتب', 'تاريخ التعيين'];
-      const rows = db.employeesLog.map(e => [e.empId, e.name, e.role, e.dept, e.baseSalary.toLocaleString('ar-EG') + ' ر.ي', e.joinDate]);
+      const headers = ['الرقم الوظيفي', 'الاسم', 'الوظيفة', 'القسم', 'الراتب', 'البدلات', 'الإجمالي', 'تاريخ التعيين'];
+      const rows = db.employeesLog.map(e => [e.empId, e.name, e.position, e.department, e.salary.toLocaleString('ar-EG') + ' ر.ي', e.allowances.toLocaleString('ar-EG') + ' ر.ي', (e.salary + e.allowances).toLocaleString('ar-EG') + ' ر.ي', e.hireDate]);
+      const sumHeaders = ['القسم', 'عدد الموظفين', 'إجمالي الرواتب', 'إجمالي البدلات'];
       const byDept = {};
       db.employeesLog.forEach(e => {
-        if (!byDept[e.dept]) byDept[e.dept] = { count: 0, total: 0 };
-        byDept[e.dept].count++;
-        byDept[e.dept].total += e.baseSalary;
+        if (!byDept[e.department]) byDept[e.department] = { count: 0, sal: 0, allow: 0 };
+        byDept[e.department].count++;
+        byDept[e.department].sal += e.salary;
+        byDept[e.department].allow += e.allowances || 0;
       });
-      const sumHeaders = ['القسم', 'عدد الموظفين', 'إجمالي الرواتب'];
-      const sumRows = Object.keys(byDept).map(d => [d, byDept[d].count, byDept[d].total.toLocaleString('ar-EG') + ' ر.ي']);
-      const sumFooter = ['الإجمالي', db.employeesLog.length, db.employeesLog.reduce((s,e)=>s+e.baseSalary,0).toLocaleString('ar-EG') + ' ر.ي'];
-      const html = Exports.rowsToHTMLTable(headers, rows, { title: 'سجل الموظفين' }) +
-                   Exports.rowsToHTMLTable(sumHeaders, sumRows, { title: 'ملخص الرواتب حسب القسم', footerRow: [sumFooter] });
-      Exports.exportPDF("شؤون الموظفين", html, "hr");
+      const sumRows = Object.keys(byDept).map(d => [d, byDept[d].count, byDept[d].sal.toLocaleString('ar-EG') + ' ر.ي', byDept[d].allow.toLocaleString('ar-EG') + ' ر.ي']);
+      const sumFooter = ['الإجمالي', db.employeesLog.length, totalSalary.toLocaleString('ar-EG') + ' ر.ي', totalAllowances.toLocaleString('ar-EG') + ' ر.ي'];
+      const html = Exports.rowsToHTMLTable(headers, rows, { title: 'سجل الموظفين - مصنع سيلين' }) +
+                   Exports.rowsToHTMLTable(sumHeaders, sumRows, { title: 'ملخص حسب القسم', footerRow: [sumFooter] });
+      Exports.exportPDF("شؤون الموظفين - مصنع سيلين", html, "hr");
     },
     excel: () => {
-      const headers = ['الرقم الوظيفي', 'الاسم', 'المسمى', 'القسم', 'الراتب', 'تاريخ التعيين'];
-      const rows = db.employeesLog.map(e => [e.empId, e.name, e.role, e.dept, e.baseSalary, e.joinDate]);
+      const headers = ['الرقم الوظيفي', 'الاسم', 'الوظيفة', 'القسم', 'الراتب', 'البدلات', 'الإجمالي', 'تاريخ التعيين'];
+      const rows = db.employeesLog.map(e => [e.empId, e.name, e.position, e.department, e.salary, e.allowances, e.salary + e.allowances, e.hireDate]);
       Exports.exportExcel(Exports.rowsToHTMLTable(headers, rows, { title: 'سجل الموظفين' }), "hr");
     },
     csv: () => {
-      const headers = ['الرقم الوظيفي', 'الاسم', 'المسمى', 'القسم', 'الراتب', 'تاريخ التعيين'];
-      const rows = db.employeesLog.map(e => [e.empId, e.name, e.role, e.dept, e.baseSalary, e.joinDate]);
+      const headers = ['الرقم الوظيفي', 'الاسم', 'الوظيفة', 'القسم', 'الراتب', 'البدلات', 'تاريخ التعيين'];
+      const rows = db.employeesLog.map(e => [e.empId, e.name, e.position, e.department, e.salary, e.allowances, e.hireDate]);
       Exports.exportCSV(Exports.rowsToCSV(headers, rows), "hr");
     },
-    json: () => Exports.exportJSON({ employeesLog: db.employeesLog }, "hr_data"),
+    json: () => Exports.exportJSON({ employeesLog: db.employeesLog, totals: { salary: totalSalary, allowances: totalAllowances } }, "hr_data"),
     print: () => window.print()
   });
 
@@ -1302,137 +1309,286 @@ window.Modules.hr = function(container) {
     container.innerHTML = `
       <div class="alert alert-info">
         <span>${Icons.render("users")}</span>
-        <span>الدخول بالرقم الوظيفي. ${db.employeesLog.length} موظف مسجل.</span>
+        <span><b>${db.employeesLog.length}</b> موظف مسجل | إجمالي الرواتب: <b>${totalSalary.toLocaleString('ar-EG')}</b> ر.ي | البدلات: <b>${totalAllowances.toLocaleString('ar-EG')}</b> ر.ي | الإجمالي: <b>${grandTotal.toLocaleString('ar-EG')}</b> ر.ي شهرياً</span>
       </div>
 
+      ${isAdmin ? `
       <div class="card">
-        <h3>${Icons.render("plus")} إضافة موظف</h3>
-        <form class="form-grid" id="empForm">
+        <h3>${Icons.render("plus")} إضافة موظف جديد</h3>
+        <form class="form-grid" id="empForm" onsubmit="event.preventDefault(); Modules._addEmployee();">
           <div class="form-group">
-            <label>الرقم الوظيفي</label>
-            <input type="text" id="e_empId" placeholder="EMP-007" required />
-          </div>
-          <div class="form-group">
-            <label>الاسم الكامل</label>
+            <label>الاسم الكامل *</label>
             <input type="text" id="e_name" required />
           </div>
           <div class="form-group">
-            <label>المسمى الوظيفي</label>
-            <input type="text" id="e_role" required />
+            <label>الوظيفة *</label>
+            <input type="text" id="e_position" required />
           </div>
           <div class="form-group">
-            <label>القسم</label>
-            <select id="e_dept">
-              <option>الإدارة</option><option>الإنتاج</option><option>المحاسبة</option>
-              <option>المبيعات</option><option>المختبر</option><option>المشتريات</option>
-              <option>الموارد البشرية</option>
-            </select>
+            <label>القسم *</label>
+            <input type="text" id="e_department" list="deptList" required />
+            <datalist id="deptList">
+              ${departments.map(d => `<option value="${d}">`).join('')}
+            </datalist>
           </div>
           <div class="form-group">
-            <label>الراتب الأساسي</label>
-            <input type="number" id="e_salary" required />
+            <label>الراتب (ر.ي) *</label>
+            <input type="number" id="e_salary" min="0" required />
           </div>
           <div class="form-group">
-            <label>تاريخ التعيين</label>
-            <input type="date" id="e_joinDate" required />
+            <label>البدلات (ر.ي)</label>
+            <input type="number" id="e_allowances" min="0" value="0" />
+          </div>
+          <div class="form-group">
+            <label>تاريخ التعيين *</label>
+            <input type="date" id="e_hireDate" required />
           </div>
         </form>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="Modules._addEmployee()">${Icons.render("plus")} إضافة</button>
+          <button class="btn btn-primary" onclick="Modules._addEmployee()">${Icons.render("plus")} إضافة وحفظ</button>
         </div>
       </div>
+      ` : `
+      <div class="alert alert-warning">
+        <span>${Icons.render("lock")}</span>
+        <span>صلاحية التعديل محصورة بالمدير العام فقط. يمكنك العرض فقط.</span>
+      </div>
+      `}
 
       <div class="card">
-        <div class="header-row">
-          <h3>${Icons.render("users")} سجل الموظفين</h3>
-          <div class="search-bar" style="margin:0">
-            <input type="text" id="empSearch" placeholder="بحث بالاسم أو الرقم الوظيفي..." oninput="Modules._filterEmployees()" />
+        <div class="header-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <h3>${Icons.render("users")} سجل الموظفين (${db.employeesLog.length})</h3>
+          <div class="search-bar" style="margin:0;flex:1;max-width:300px">
+            <input type="text" id="empSearch" placeholder="بحث بالاسم أو الرقم أو القسم..." oninput="Modules._filterEmployees()" />
           </div>
         </div>
-        <table>
+        <div style="overflow-x:auto">
+        <table class="data-table">
           <thead>
             <tr>
-              <th>الرقم الوظيفي</th>
+              <th>الرقم</th>
               <th>الاسم</th>
-              <th>المسمى</th>
+              <th>الوظيفة</th>
               <th>القسم</th>
               <th>الراتب</th>
+              <th>البدلات</th>
+              <th>الإجمالي</th>
               <th>تاريخ التعيين</th>
-              <th>إجراء</th>
+              ${isAdmin ? '<th>إجراءات</th>' : ''}
             </tr>
           </thead>
           <tbody id="empTbody">
             ${db.employeesLog.map((e, idx) => `
-              <tr data-search="${e.empId} ${e.name} ${e.dept} ${e.role}">
-                <td><b>${e.empId}</b></td>
-                <td>${e.name}</td>
-                <td>${e.role}</td>
-                <td><span class="badge badge-info">${e.dept}</span></td>
-                <td class="text-primary">${e.baseSalary.toLocaleString('ar-EG')} ر.ي</td>
-                <td class="text-muted">${e.joinDate}</td>
-                <td><button class="btn btn-danger btn-sm" onclick="Modules._deleteEmployee(${idx})">${Icons.render("trash")}</button></td>
+              <tr data-search="${e.empId} ${e.name} ${e.department} ${e.position}" data-id="${e.id}">
+                <td data-label="الرقم"><b>${e.empId}</b></td>
+                <td data-label="الاسم">${e.name}</td>
+                <td data-label="الوظيفة">${e.position}</td>
+                <td data-label="القسم"><span class="badge badge-info">${e.department}</span></td>
+                <td data-label="الراتب" class="text-primary"><b>${e.salary.toLocaleString('ar-EG')}</b></td>
+                <td data-label="البدلات">${(e.allowances || 0).toLocaleString('ar-EG')}</td>
+                <td data-label="الإجمالي" class="text-success"><b>${(e.salary + (e.allowances || 0)).toLocaleString('ar-EG')}</b></td>
+                <td data-label="تاريخ التعيين" class="text-muted">${e.hireDate}</td>
+                ${isAdmin ? `<td data-label="إجراءات">
+                  <button class="btn btn-sm btn-primary" onclick="Modules._editEmployee(${e.id})" title="تعديل">${Icons.render("edit")}</button>
+                  <button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployee(${e.id})" title="حذف">${Icons.render("trash")}</button>
+                </td>` : ''}
               </tr>
             `).join('')}
           </tbody>
+          <tfoot>
+            <tr style="font-weight:bold;background:var(--bg)">
+              <td colspan="4">الإجمالي</td>
+              <td>${totalSalary.toLocaleString('ar-EG')}</td>
+              <td>${totalAllowances.toLocaleString('ar-EG')}</td>
+              <td class="text-success">${grandTotal.toLocaleString('ar-EG')} ر.ي</td>
+              <td colspan="${isAdmin ? 2 : 1}"></td>
+            </tr>
+          </tfoot>
         </table>
+        </div>
       </div>
 
       <div class="card">
-        <h3>${Icons.render("chart")} ملخص الرواتب حسب القسم</h3>
-        ${(() => {
-          const byDept = {};
-          db.employeesLog.forEach(e => {
-            if (!byDept[e.dept]) byDept[e.dept] = { count: 0, total: 0 };
-            byDept[e.dept].count++;
-            byDept[e.dept].total += e.baseSalary;
-          });
-          return `<table>
-            <thead><tr><th>القسم</th><th>عدد الموظفين</th><th>إجمالي الرواتب</th></tr></thead>
-            <tbody>
-              ${Object.keys(byDept).map(d => `<tr>
-                <td><b>${d}</b></td>
-                <td>${byDept[d].count}</td>
-                <td class="text-primary">${byDept[d].total.toLocaleString('ar-EG')} ر.ي</td>
-              </tr>`).join('')}
-            </tbody>
-            <tfoot><tr><td>الإجمالي</td><td>${db.employeesLog.length}</td>
-              <td class="text-primary">${db.employeesLog.reduce((s,e) => s + e.baseSalary, 0).toLocaleString('ar-EG')} ر.ي</td>
-            </tr></tfoot>
-          </table>`;
-        })()}
+        <h3>${Icons.render("chart")} ملخص حسب القسم</h3>
+        <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr><th>القسم</th><th>عدد الموظفين</th><th>إجمالي الرواتب</th><th>إجمالي البدلات</th><th>الإجمالي</th></tr></thead>
+          <tbody>
+            ${Object.keys(byDept()).map(d => `<tr>
+              <td><b>${d}</b></td>
+              <td>${byDept()[d].count}</td>
+              <td>${byDept()[d].sal.toLocaleString('ar-EG')} ر.ي</td>
+              <td>${byDept()[d].allow.toLocaleString('ar-EG')} ر.ي</td>
+              <td class="text-success"><b>${(byDept()[d].sal + byDept()[d].allow).toLocaleString('ar-EG')} ر.ي</b></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+      <!-- Edit Modal -->
+      <div id="editEmpModal" class="modal-overlay" style="display:none">
+        <div class="modal-card" style="max-width:600px">
+          <div class="modal-header">
+            <h3>${Icons.render("edit")} تعديل بيانات الموظف</h3>
+            <button class="btn btn-sm" onclick="document.getElementById('editEmpModal').style.display='none'">${Icons.render("x")}</button>
+          </div>
+          <div class="modal-body">
+            <form id="editEmpForm" onsubmit="event.preventDefault(); Modules._saveEmployee();">
+              <input type="hidden" id="edit_id" />
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>الرقم الوظيفي</label>
+                  <input type="text" id="edit_empId" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+                </div>
+                <div class="form-group">
+                  <label>الاسم *</label>
+                  <input type="text" id="edit_name" required />
+                </div>
+                <div class="form-group">
+                  <label>الوظيفة *</label>
+                  <input type="text" id="edit_position" required />
+                </div>
+                <div class="form-group">
+                  <label>القسم *</label>
+                  <input type="text" id="edit_department" list="deptList" required />
+                </div>
+                <div class="form-group">
+                  <label>الراتب (ر.ي) *</label>
+                  <input type="number" id="edit_salary" min="0" required />
+                </div>
+                <div class="form-group">
+                  <label>البدلات (ر.ي)</label>
+                  <input type="number" id="edit_allowances" min="0" />
+                </div>
+                <div class="form-group">
+                  <label>تاريخ التعيين *</label>
+                  <input type="date" id="edit_hireDate" required />
+                </div>
+              </div>
+              <div class="alert alert-success" id="editSaveStatus" style="display:none;margin-top:10px">
+                <span>${Icons.render("check")}</span>
+                <span>تم الحفظ تلقائياً</span>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="document.getElementById('editEmpModal').style.display='none'">إغلاق</button>
+            <button class="btn btn-primary" onclick="Modules._saveEmployee()">${Icons.render("check")} حفظ التعديلات</button>
+          </div>
+        </div>
       </div>
     `;
   }
 
+  function byDept() {
+    const d = {};
+    db.employeesLog.forEach(e => {
+      if (!d[e.department]) d[e.department] = { count: 0, sal: 0, allow: 0 };
+      d[e.department].count++;
+      d[e.department].sal += Number(e.salary) || 0;
+      d[e.department].allow += Number(e.allowances) || 0;
+    });
+    return d;
+  }
+
+  // Add new employee
   Modules._addEmployee = function() {
+    if (!isAdmin) { alert('⛔ صلاحية التعديل للمدير فقط'); return; }
+    const name = document.getElementById('e_name').value.trim();
+    const position = document.getElementById('e_position').value.trim();
+    const department = document.getElementById('e_department').value.trim();
+    const salary = +document.getElementById('e_salary').value;
+    const allowances = +document.getElementById('e_allowances').value || 0;
+    const hireDate = document.getElementById('e_hireDate').value;
+    if (!name || !position || !department || !salary || !hireDate) {
+      alert('⚠️ املأ كل الحقول المطلوبة');
+      return;
+    }
     const db = APP.getDB();
+    const newId = db.employeesLog.length ? Math.max(...db.employeesLog.map(e => e.id || 0)) + 1 : 1;
+    const empId = 'ID' + String(newId).padStart(3, '0');
     db.employeesLog.push({
-      empId: document.getElementById('e_empId').value,
-      name: document.getElementById('e_name').value,
-      role: document.getElementById('e_role').value,
-      dept: document.getElementById('e_dept').value,
-      baseSalary: +document.getElementById('e_salary').value,
-      joinDate: document.getElementById('e_joinDate').value
+      id: newId, empId, pdfId: String(newId),
+      name, position, department, salary, allowances, hireDate,
+      status: 'active'
     });
     APP.saveDB(db);
-    alert('{Icons.render("check")} تم إضافة الموظف');
+    document.getElementById('empForm').reset();
     render();
   };
 
-  Modules._deleteEmployee = function(idx) {
-    if (!confirm('حذف الموظف؟')) return;
+  // Open edit modal
+  Modules._editEmployee = function(id) {
+    if (!isAdmin) { alert('⛔ صلاحية التعديل للمدير فقط'); return; }
     const db = APP.getDB();
-    db.employeesLog.splice(idx, 1);
+    const emp = db.employeesLog.find(e => e.id === id);
+    if (!emp) { alert('الموظف غير موجود'); return; }
+    document.getElementById('edit_id').value = emp.id;
+    document.getElementById('edit_empId').value = emp.empId;
+    document.getElementById('edit_name').value = emp.name;
+    document.getElementById('edit_position').value = emp.position;
+    document.getElementById('edit_department').value = emp.department;
+    document.getElementById('edit_salary').value = emp.salary;
+    document.getElementById('edit_allowances').value = emp.allowances || 0;
+    document.getElementById('edit_hireDate').value = convertDate(emp.hireDate);
+    document.getElementById('editSaveStatus').style.display = 'none';
+    document.getElementById('editEmpModal').style.display = 'flex';
+  };
+
+  // Auto-save on input change
+  Modules._saveEmployee = function() {
+    if (!isAdmin) { alert('⛔ صلاحية التعديل للمدير فقط'); return; }
+    const id = +document.getElementById('edit_id').value;
+    const db = APP.getDB();
+    const idx = db.employeesLog.findIndex(e => e.id === id);
+    if (idx === -1) { alert('الموظف غير موجود'); return; }
+    db.employeesLog[idx] = {
+      ...db.employeesLog[idx],
+      name: document.getElementById('edit_name').value.trim(),
+      position: document.getElementById('edit_position').value.trim(),
+      department: document.getElementById('edit_department').value.trim(),
+      salary: +document.getElementById('edit_salary').value,
+      allowances: +document.getElementById('edit_allowances').value || 0,
+      hireDate: document.getElementById('edit_hireDate').value
+    };
+    APP.saveDB(db);
+    const status = document.getElementById('editSaveStatus');
+    status.style.display = 'flex';
+    setTimeout(() => status.style.display = 'none', 2000);
+    render();
+  };
+
+  // Delete employee
+  Modules._deleteEmployee = function(id) {
+    if (!isAdmin) { alert('⛔ صلاحية الحذف للمدير فقط'); return; }
+    const db = APP.getDB();
+    const emp = db.employeesLog.find(e => e.id === id);
+    if (!emp) return;
+    if (!confirm(`حذف الموظف "${emp.name}" (${emp.empId})؟`)) return;
+    db.employeesLog = db.employeesLog.filter(e => e.id !== id);
     APP.saveDB(db);
     render();
   };
 
+  // Search/filter
   Modules._filterEmployees = function() {
-    const q = document.getElementById('empSearch').value.toLowerCase();
+    const q = (document.getElementById('empSearch')?.value || '').toLowerCase();
     document.querySelectorAll('#empTbody tr').forEach(tr => {
-      tr.style.display = tr.dataset.search.toLowerCase().includes(q) ? '' : 'none';
+      tr.style.display = (tr.dataset.search || '').toLowerCase().includes(q) ? '' : 'none';
     });
   };
+
+  // Convert DD/MM/YYYY to YYYY-MM-DD for input[type=date]
+  function convertDate(d) {
+    if (!d) return '';
+    if (d.includes('-')) return d;
+    const parts = d.split('/');
+    if (parts.length === 3) {
+      return parts[2] + '-' + parts[1].padStart(2, '0') + '-' + parts[0].padStart(2, '0');
+    }
+    return d;
+  }
 
   render();
 };

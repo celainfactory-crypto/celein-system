@@ -113,6 +113,10 @@ window.APP = (function () {
     showLogin();
   }
 
+  function getCurrentUser() {
+    return currentUser;
+  }
+
   // --- Toggle Sidebar (Mobile) ---
   function toggleSidebar() {
     const sidebar = document.querySelector('.sidebar');
