@@ -1405,103 +1405,93 @@ window.Modules.hr = function(container) {
 
         <div class="card">
           <h3>${Icons.render("users")} سجل الموظفين</h3>
-          <div class="header-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-            <div class="search-bar" style="margin:0;flex:1;max-width:320px">
-              <input type="text" id="empRegistrySearch" placeholder="بحث بالاسم أو الرقم أو القسم..." oninput="Modules._filterRegistry()" />
-            </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-              <span class="badge badge-info">إجمالي: ${db.employeesLog.length}</span>
-              <span class="badge badge-success">نشط: ${db.employeesLog.filter(e => !e.status || e.status === 'active').length}</span>
-              <span class="badge badge-warning">موقوف: ${db.employeesLog.filter(e => e.status === 'suspended').length}</span>
-              <span class="badge badge-danger">مفصول: ${db.employeesLog.filter(e => e.status === 'terminated').length}</span>
-            </div>
+          <div class="search-bar" style="margin-bottom:14px;max-width:320px">
+            <input type="text" id="deptSearch" placeholder="بحث عن إدارة..." oninput="Modules._filterDepts()" />
           </div>
-          <div style="overflow-x:auto">
-          <table class="data-table" id="registryTable">
-            <thead>
-              <tr>
-                <th>الرقم الوظيفي</th>
-                <th>الاسم</th>
-                <th>المسمى الوظيفي</th>
-                <th>المدير المباشر</th>
-                <th>تاريخ التعيين</th>
-                <th>الراتب</th>
-                <th>البدلات</th>
-                <th>الإجمالي</th>
-                <th>الحالة</th>
-                <th>إجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${(() => {
-                // ترتيب هرمي: GM → 7 مدراء → موظفيهم
-                const order = ['الإدارة العليا', 'الموارد البشرية', 'الإنتاج', 'المبيعات', 'المختبر', 'المخازن', 'الخدمات', 'العلاقات العامة', 'الحسابات', 'المشتريات', 'المالية', 'الأمن'];
+          <div id="departmentsList">
+            ${(() => {
+              // الأقسام بالترتيب الإداري
+              const deptConfig = [
+                {key: 'الإدارة العليا', label: 'الإدارة العليا', depts: ['الإدارة']},
+                {key: 'الموارد البشرية', label: 'الموارد البشرية', depts: ['الموارد البشرية']},
+                {key: 'الإنتاج', label: 'الإنتاج', depts: ['الإنتاج']},
+                {key: 'المبيعات', label: 'المبيعات', depts: ['المبيعات']},
+                {key: 'المختبر', label: 'المختبر', depts: ['المختبر']},
+                {key: 'المخازن', label: 'المخازن', depts: ['المخازن', 'مخازن البيضاء']},
+                {key: 'الخدمات', label: 'الخدمات', depts: ['الخدمات']},
+                {key: 'العلاقات العامة', label: 'العلاقات العامة', depts: ['العلاقات العامة']},
+                {key: 'الحسابات', label: 'الحسابات', depts: ['الحسابات']},
+                {key: 'المشتريات', label: 'المشتريات', depts: ['المشتريات']},
+                {key: 'المالية', label: 'المالية', depts: ['المالية']},
+                {key: 'الأمن', label: 'الأمن', depts: ['الأمن']}
+              ];
+              
+              function empCard(emp, isMgr) {
+                const status = emp.status || 'active';
+                let statusBadge = '';
+                if (status === 'active') statusBadge = '<span class="badge badge-success">موظف</span>';
+                else if (status === 'suspended') statusBadge = '<span class="badge badge-warning">موقوف</span>';
+                else if (status === 'terminated') statusBadge = '<span class="badge badge-danger">مفصول</span>';
                 
-                function row(emp) {
-                  const status = emp.status || 'active';
-                  let statusBadge = '';
-                  if (status === 'active') statusBadge = '<span class="badge badge-success">موظف</span>';
-                  else if (status === 'suspended') statusBadge = '<span class="badge badge-warning">موقوف</span>';
-                  else if (status === 'terminated') {
-                    const tDate = (emp.terminationStatus && emp.terminationStatus.date) || '-';
-                    statusBadge = '<span class="badge badge-danger">مفصول</span><br><span class="text-muted" style="font-size:11px">تاريخ الفصل: '+tDate+'</span>';
-                  }
-                  return '<tr data-search="'+(emp.empId+' '+emp.name+' '+emp.department+' '+emp.position).toLowerCase()+'">'
-                    + '<td><b>'+emp.empId+'</b></td>'
-                    + '<td><b>'+emp.name+'</b></td>'
-                    + '<td>'+emp.position+'</td>'
-                    + '<td class="text-muted">'+(emp.managerName || 'الإدارة العليا')+'</td>'
-                    + '<td class="text-muted">'+emp.hireDate+'</td>'
-                    + '<td class="text-primary"><b>'+emp.salary.toLocaleString('ar-EG')+'</b></td>'
-                    + '<td>'+(emp.allowances || 0).toLocaleString('ar-EG')+'</td>'
-                    + '<td class="text-success"><b>'+(emp.salary + (emp.allowances || 0)).toLocaleString('ar-EG')+'</b></td>'
-                    + '<td>'+statusBadge+'</td>'
-                    + '<td style="white-space:nowrap">'
-                    +   (isAdmin
-                          ? '<button class="btn btn-sm" onclick="Modules._editEmployee('+emp.id+')" title="تعديل البيانات">'+Icons.render("edit")+'</button> '
-                            + '<button class="btn btn-sm btn-warning" onclick="Modules._changeStatus('+emp.id+')" title="تغيير الحالة">'+Icons.render("refresh")+'</button> '
-                            + '<button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployee('+emp.id+')" title="حذف">'+Icons.render("trash")+'</button>'
-                          : '<span class="text-muted" style="font-size:12px">عرض فقط</span>')
-                    + '</td>'
-                    + '</tr>';
+                return '<tr class="'+(isMgr ? 'manager-row' : '')+'">'
+                  + '<td><b>'+emp.empId+'</b></td>'
+                  + '<td><b>'+emp.name+'</b>'+(isMgr ? ' <span class="badge badge-primary" style="font-size:10px">مدير</span>' : '')+'</td>'
+                  + '<td>'+emp.position+'</td>'
+                  + '<td class="text-muted">'+emp.hireDate+'</td>'
+                  + '<td class="text-primary"><b>'+emp.salary.toLocaleString('ar-EG')+'</b></td>'
+                  + '<td>'+(emp.allowances || 0).toLocaleString('ar-EG')+'</td>'
+                  + '<td class="text-success"><b>'+(emp.salary + (emp.allowances || 0)).toLocaleString('ar-EG')+'</b></td>'
+                  + '<td>'+statusBadge+'</td>'
+                  + '<td style="white-space:nowrap">'
+                  +   (isAdmin
+                        ? '<button class="btn btn-sm" onclick="Modules._editEmployee('+emp.id+')" title="تعديل">'+Icons.render("edit")+'</button> '
+                          + '<button class="btn btn-sm btn-warning" onclick="Modules._changeStatus('+emp.id+')" title="تغيير الحالة">'+Icons.render("refresh")+'</button> '
+                          + '<button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployee('+emp.id+')" title="حذف">'+Icons.render("trash")+'</button>'
+                        : '<span class="text-muted" style="font-size:11px">عرض</span>')
+                  + '</td>'
+                  + '</tr>';
+              }
+              
+              let html = '';
+              deptConfig.forEach((cfg, idx) => {
+                let emps = db.employeesLog.filter(e => cfg.depts.includes(e.department));
+                if (emps.length === 0) return;
+                
+                const mgr = emps.find(e => /مدير|مشرف|كيميائي/.test(e.position));
+                const workers = emps.filter(e => e !== mgr);
+                const totalSal = emps.reduce((s, e) => s + (e.salary + (e.allowances || 0)), 0);
+                
+                html += '<div class="dept-section" data-dept="'+cfg.key+'" style="margin-bottom:12px;border-radius:10px;overflow:hidden;border:1px solid var(--border)">';
+                html += '<div class="dept-section-header" onclick="Modules._toggleDeptSection('+idx+')" style="background:var(--bg-darker);padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all 0.2s">';
+                html += '<span class="dept-arrow" id="dept-arrow-'+idx+'" style="transition:transform 0.3s;font-size:18px">▼</span>';
+                html += '<b style="font-size:15px;color:var(--primary);flex:1">'+cfg.label+'</b>';
+                html += '<span class="badge badge-info">'+emps.length+' موظف</span>';
+                html += '<span class="badge badge-success">'+totalSal.toLocaleString('ar-EG')+' ر.ي</span>';
+                html += '</div>';
+                
+                html += '<div class="dept-section-body" id="dept-body-'+idx+'" style="display:none;padding:14px 18px;background:var(--bg)">';
+                
+                // المدير أولاً
+                if (mgr) {
+                  html += '<div style="margin-bottom:14px;padding:12px 14px;background:linear-gradient(135deg, var(--primary), var(--primary-dark, #2a3d6f));color:white;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">';
+                  html += Icons.render("user") + ' <b>'+mgr.name+'</b> <span style="opacity:0.9;font-size:13px">('+mgr.position+')</span>';
+                  html += '<span style="margin-right:auto;font-weight:bold">'+mgr.salary.toLocaleString('ar-EG')+' ر.ي</span>';
+                  html += '</div>';
                 }
                 
-                let html = '';
-                order.forEach(dept => {
-                  // إذا كان "الإدارة العليا"، اجلب الموظف الذي department = 'الإدارة'
-                  let emps;
-                  if (dept === 'الإدارة العليا') {
-                    emps = db.employeesLog.filter(e => e.department === 'الإدارة');
-                  } else if (dept === 'المخازن') {
-                    emps = db.employeesLog.filter(e => e.department === 'المخازن' || e.department === 'مخازن البيضاء');
-                  } else {
-                    emps = db.employeesLog.filter(e => e.department === dept);
-                  }
-                  if (emps.length === 0) return;
-                  
-                  // المدير أولاً ثم الباقي
-                  const mgr = emps.find(e => /مدير|مشرف|كيميائي/.test(e.position));
-                  const sorted = [];
-                  if (mgr) sorted.push(mgr);
-                  emps.filter(e => e !== mgr).forEach(e => sorted.push(e));
-                  
-                  sorted.forEach(e => {
-                    // إضافة تنسيق مختلف للمدير
-                    const isMgr = e === mgr;
-                    const rowHtml = row(e);
-                    if (isMgr) {
-                      // لف الصف في تنسيق المدير
-                      html += rowHtml.replace('<tr data-search', '<tr class="manager-row" data-search');
-                    } else {
-                      html += rowHtml;
-                    }
-                  });
-                });
+                // جدول الموظفين
+                html += '<div style="overflow-x:auto"><table class="data-table" style="margin:0;font-size:13px">';
+                html += '<thead><tr><th>الرقم</th><th>الاسم</th><th>المسمى الوظيفي</th><th>التعيين</th><th>الراتب</th><th>البدلات</th><th>الإجمالي</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody>';
                 
-                return html;
-              })()}
-            </tbody>
-          </table>
+                if (mgr) html += empCard(mgr, true);
+                workers.forEach(w => { html += empCard(w, false); });
+                
+                html += '</tbody></table></div>';
+                html += '</div></div>';
+              });
+              
+              return html;
+            })()}
           </div>
         </div>
       </div>
@@ -1619,6 +1609,23 @@ window.Modules.hr = function(container) {
     db.employeesLog = db.employeesLog.filter(e => e.id !== id);
     APP.saveDB(db);
     render();
+  };
+
+  Modules._filterDepts = function() {
+    const q = (document.getElementById('deptSearch')?.value || '').toLowerCase();
+    document.querySelectorAll('.dept-section').forEach(sec => {
+      const matches = sec.dataset.dept.toLowerCase().includes(q) || sec.textContent.toLowerCase().includes(q);
+      sec.style.display = matches ? '' : 'none';
+    });
+  };
+
+  Modules._toggleDeptSection = function(idx) {
+    const body = document.getElementById('dept-body-'+idx);
+    const arrow = document.getElementById('dept-arrow-'+idx);
+    if (!body) return;
+    const isOpen = body.style.display !== 'none';
+    body.style.display = isOpen ? 'none' : 'block';
+    if (arrow) arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
   };
 
   Modules._filterRegistry = function() {
