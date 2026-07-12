@@ -3437,7 +3437,7 @@ window.Modules.orgtree = function(container) {
     const wrap = document.getElementById('orgtreeCanvasWrap');
     if (!wrap) return;
     const rect = wrap.getBoundingClientRect();
-    
+
     // حساب حدود الشجرة
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     Object.values(positions).forEach(p => {
@@ -3446,14 +3446,18 @@ window.Modules.orgtree = function(container) {
       minY = Math.min(minY, p.y - 30);
       maxY = Math.max(maxY, p.y + 50);
     });
-    
+
     const w = maxX - minX;
     const h = maxY - minY;
-    const scaleX = (rect.width - 100) / w;
-    const scaleY = (rect.height - 100) / h;
-    state.zoom = Math.min(scaleX, scaleY, 1.5);
-    state.panX = -((minX + maxX) / 2);
-    state.panY = -((minY + maxY) / 2) + 50;
+    if (w <= 0 || h <= 0) return;
+    const scaleX = (rect.width - 60) / w;
+    const scaleY = (rect.height - 60) / h;
+    state.zoom = Math.max(0.3, Math.min(scaleX, scaleY, 1.5));
+    // توسيط الشجرة في وسط الـ canvas (وليس في الزاوية العليا اليسرى)
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    state.panX = rect.width / 2 - cx * state.zoom;
+    state.panY = rect.height / 2 - cy * state.zoom;
     applyTransform();
   };
   

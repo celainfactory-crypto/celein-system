@@ -5,7 +5,7 @@
    ============================================================ */
 
 window.APP = (function () {
-  window.APP_VERSION = 'v20.2';
+  window.APP_VERSION = 'v20.3';
   let currentUser = null;
   let currentModule = "dashboard";
   let db = null;
@@ -413,6 +413,8 @@ window.APP = (function () {
     `;
     renderNav();
     navigate("dashboard");
+    // Re-trigger update check so the banner survives the body.innerHTML reset
+    setTimeout(() => performUpdateCheck(), 100);
   }
 
   // --- قائمة التنقل ---
