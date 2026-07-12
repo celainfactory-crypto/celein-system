@@ -337,7 +337,7 @@ window.APP = (function () {
   function saveDB(d) { DB.save(d); db = d; }
   function getUser() { return currentUser; }
 
-  return { init, navigate, logout, doLogin, getDB, saveDB, getUser, showExportMenu, doExport };
+  return { init, navigate, logout, doLogin, getDB, saveDB, getUser, getCurrentUser, showExportMenu, doExport, toggleSidebar, togglePasswordGlobal };
 })();
 
 window.addEventListener("DOMContentLoaded", () => APP.init());
