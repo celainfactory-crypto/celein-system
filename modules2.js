@@ -1847,6 +1847,298 @@ window.Modules.users = function(container) {
   render();
 };
 
+/* ============ إدارة الصلاحيات ============ */
+window.Modules.permissions = function(container) {
+  const db = APP.getDB();
+  const viewer = APP.getCurrentUser();
+  if (!viewer || (viewer.role !== 'admin' && viewer.role !== 'hr_manager')) {
+    container.innerHTML = `<div class="alert alert-danger"><span>${Icons.render("lock")}</span><span>⛔ ليس لديك صلاحية الوصول لهذه الصفحة</span></div>`;
+    return;
+  }
+
+  const allPages = [
+    { id: 'dashboard',       label: 'لوحة التحكم' },
+    { id: 'production',      label: 'الإنتاج' },
+    { id: 'purchaseRequest', label: 'طلبات الشراء' },
+    { id: 'costs',           label: 'التكاليف' },
+    { id: 'pricing',         label: 'الأسعار' },
+    { id: 'inventory',       label: 'المخزون' },
+    { id: 'vouchers',        label: 'سندات الصرف' },
+    { id: 'sales',           label: 'المبيعات' },
+    { id: 'agents',          label: 'الوكلاء' },
+    { id: 'lab',             label: 'المختبر' },
+    { id: 'procurement',     label: 'المشتريات' },
+    { id: 'hr',              label: 'الموارد البشرية' },
+    { id: 'reports',         label: 'التقارير' },
+    { id: 'users',           label: 'إدارة المستخدمين' },
+    { id: 'permissions',     label: 'إدارة الصلاحيات' },
+    { id: 'settings',        label: 'الإعدادات' },
+    { id: 'profile',         label: 'الملف الشخصي' }
+  ];
+
+  const allRoles = [
+    { id: 'admin',       label: 'المدير العام' },
+    { id: 'hr_manager',  label: 'مدير الموارد البشرية' },
+    { id: 'production',  label: 'مدير الإنتاج' },
+    { id: 'accountant',  label: 'محاسب' },
+    { id: 'sales',       label: 'مندوب مبيعات' },
+    { id: 'lab',         label: 'فني مختبر' },
+    { id: 'procurement', label: 'مدير المشتريات' },
+    { id: 'worker',      label: 'موظف' }
+  ];
+
+  function render() {
+    container.innerHTML = `
+      <div class="alert alert-info">
+        <span>${Icons.render("key")}</span>
+        <span><b>إدارة الصلاحيات</b> — يمكنك منح أو إلغاء صلاحيات محددة لأي مستخدم. المدير العام له وصول كامل دائماً.</span>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("grid")} مصفوفة الصلاحيات الافتراضية</h3>
+        <p class="text-muted">الصلاحيات الممنوحة تلقائياً حسب الدور. يمكن إضافة صلاحيات مخصصة لكل مستخدم في الأسفل.</p>
+        <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>الصفحة</th>
+              ${allRoles.map(r => `<th style="text-align:center;font-size:11px">${r.label}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${allPages.map(p => `
+              <tr>
+                <td data-label="الصفحة"><b>${p.label}</b></td>
+                ${allRoles.map(r => {
+                  const allowed = (DB.PERMISSIONS.pages[p.id] || []).includes(r.id);
+                  return `<td data-label="${r.label}" style="text-align:center">${allowed ? '<span style="color:var(--success);font-size:18px">✓</span>' : '<span style="color:var(--text-muted);font-size:18px">–</span>'}</td>`;
+                }).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="header-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <h3>${Icons.render("users")} المستخدمون وصلاحياتهم المخصصة</h3>
+        </div>
+        <p class="text-muted">الصلاحيات المخصصة تتجاوز الصلاحيات الافتراضية. اختر مستخدماً لتعديل صلاحياته.</p>
+        <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>المستخدم</th>
+              <th>الدور</th>
+              <th>القسم</th>
+              <th>صلاحيات مخصصة</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${db.users.map(u => `
+              <tr>
+                <td data-label="المستخدم"><b>${u.name}</b><br><small>${u.username} | ${u.empId}</small></td>
+                <td data-label="الدور"><span class="badge badge-info">${APP._roleLabel ? APP._roleLabel(u.role) : u.role}</span></td>
+                <td data-label="القسم">${u.department || '—'}</td>
+                <td data-label="صلاحيات مخصصة">${(u.customPermissions || []).length ? u.customPermissions.map(p => `<span class="badge badge-success" style="margin:2px">${allPages.find(ap => ap.id === p)?.label || p}</span>`).join('') : '<span class="text-muted">لا توجد</span>'}</td>
+                <td data-label="إجراءات">
+                  <button class="btn btn-sm btn-primary" onclick="Modules._editPermissions(${u.id})">${Icons.render("edit")} تعديل الصلاحيات</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+      <div id="permissionsModal" class="modal-overlay" style="display:none">
+        <div class="modal-card" style="max-width:700px">
+          <div class="modal-header">
+            <h3>${Icons.render("key")} تعديل صلاحيات المستخدم</h3>
+            <button class="btn btn-sm" onclick="document.getElementById('permissionsModal').style.display='none'">${Icons.render("x")}</button>
+          </div>
+          <div class="modal-body">
+            <div id="permModalContent"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  Modules._editPermissions = function(userId) {
+    const user = db.users.find(u => u.id === userId);
+    if (!user) return;
+    const defaults = DB.PERMISSIONS.pages;
+    const current = user.customPermissions || [];
+    const content = document.getElementById('permModalContent');
+    content.innerHTML = `
+      <div class="alert alert-info">
+        <span>${Icons.render("user")}</span>
+        <span><b>${user.name}</b> — ${APP._roleLabel ? APP._roleLabel(user.role) : user.role} (${user.department || '—'})</span>
+      </div>
+      <p class="text-muted">الصلاحيات الممنوحة افتراضياً: ${(defaults[user.role === 'admin' ? 'dashboard' : 'dashboard'] || []).length} صفحة. أضف صلاحيات إضافية إذا لزم الأمر.</p>
+      <h4>الصلاحيات المخصصة (إضافية على الافتراضية):</h4>
+      <div id="permList">
+        ${allPages.map(p => {
+          const isDefault = (defaults[p.id] || []).includes(user.role);
+          const hasCustom = current.includes(p.id);
+          return `
+            <label style="display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--bg-darker)">
+              <input type="checkbox" data-page="${p.id}" ${hasCustom ? 'checked' : ''} ${isDefault ? 'disabled' : ''} />
+              <span><b>${p.label}</b> ${isDefault ? '<span class="badge badge-info" style="font-size:10px">افتراضي</span>' : ''} ${hasCustom ? '<span class="badge badge-success" style="font-size:10px">مخصص</span>' : ''}</span>
+            </label>
+          `;
+        }).join('')}
+      </div>
+      <div class="btn-row" style="margin-top:20px">
+        <button class="btn btn-primary" onclick="Modules._savePermissions(${user.id})">${Icons.render("check")} حفظ الصلاحيات</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('permissionsModal').style.display='none'">إلغاء</button>
+      </div>
+    `;
+    document.getElementById('permissionsModal').style.display = 'flex';
+  };
+
+  Modules._savePermissions = function(userId) {
+    const user = db.users.find(u => u.id === userId);
+    if (!user) return;
+    const checkboxes = document.querySelectorAll('#permList input[type=checkbox]');
+    const custom = [];
+    checkboxes.forEach(cb => { if (cb.checked) custom.push(cb.dataset.page); });
+    user.customPermissions = custom;
+    APP.saveDB(db);
+    document.getElementById('permissionsModal').style.display = 'none';
+    render();
+  };
+
+  render();
+};
+
+/* ============ الملف الشخصي ============ */
+window.Modules.profile = function(container) {
+  const db = APP.getDB();
+  const user = APP.getCurrentUser();
+  if (!user) {
+    container.innerHTML = `<div class="alert alert-danger">لم يتم التعرف على المستخدم</div>`;
+    return;
+  }
+
+  // بيانات الموظف المرتبطة
+  const emp = db.employeesLog.find(e => e.id === user.employeeId) || {};
+  const roleLabel = (DB.PERMISSIONS.roleLabels || {})[user.role] || user.role;
+  const accessMode = DB.getAccessMode(user, 'profile');
+  const allowedPages = Object.entries(DB.PERMISSIONS.pages)
+    .filter(([pid, roles]) => roles.includes(user.role) || (user.customPermissions || []).includes(pid))
+    .map(([pid]) => allPagesLabels[pid] || pid);
+
+  const allPagesLabels = {
+    dashboard: 'لوحة التحكم', production: 'الإنتاج', purchaseRequest: 'طلبات الشراء',
+    costs: 'التكاليف', pricing: 'الأسعار', inventory: 'المخزون', vouchers: 'سندات الصرف',
+    sales: 'المبيعات', agents: 'الوكلاء', lab: 'المختبر', procurement: 'المشتريات',
+    hr: 'الموارد البشرية', reports: 'التقارير', users: 'إدارة المستخدمين',
+    permissions: 'إدارة الصلاحيات', settings: 'الإعدادات', profile: 'الملف الشخصي'
+  };
+
+  container.innerHTML = `
+    <div class="alert alert-info">
+      <span>${Icons.render("user")}</span>
+      <span>مرحباً <b>${user.name}</b> — هذه معلوماتك الشخصية في النظام.</span>
+    </div>
+
+    <div class="card">
+      <h3>${Icons.render("user")} المعلومات الأساسية</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>الرقم الوظيفي</label>
+          <input type="text" value="${user.empId || '—'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>اسم المستخدم</label>
+          <input type="text" value="${user.username}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>الاسم الكامل</label>
+          <input type="text" value="${user.name}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>الصلاحية</label>
+          <input type="text" value="${roleLabel}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>القسم</label>
+          <input type="text" value="${user.department || '—'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>الحالة</label>
+          <input type="text" value="${user.active ? '✅ نشط' : '❌ موقوف'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+      </div>
+    </div>
+
+    ${emp.id ? `
+    <div class="card">
+      <h3>${Icons.render("users")} بيانات الموظف</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>الرقم الوظيفي (HR)</label>
+          <input type="text" value="${emp.empId}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>الوظيفة</label>
+          <input type="text" value="${emp.position || '—'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>القسم</label>
+          <input type="text" value="${emp.department || '—'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>تاريخ التعيين</label>
+          <input type="text" value="${emp.hireDate || '—'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>الراتب الأساسي</label>
+          <input type="text" value="${(emp.salary || 0).toLocaleString('ar-EG')} ر.ي" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>البدلات</label>
+          <input type="text" value="${(emp.allowances || 0).toLocaleString('ar-EG')} ر.ي" readonly style="background:var(--bg-darker);cursor:not-allowed" />
+        </div>
+        <div class="form-group">
+          <label>إجمالي الراتب</label>
+          <input type="text" value="${((emp.salary || 0) + (emp.allowances || 0)).toLocaleString('ar-EG')} ر.ي" readonly style="background:var(--bg-darker);cursor:not-allowed;color:var(--success);font-weight:bold" />
+        </div>
+      </div>
+    </div>
+    ` : `
+    <div class="alert alert-warning">
+      <span>${Icons.render("alert")}</span>
+      <span>لم يتم ربط هذا الحساب ببيانات موظف في سجل الموارد البشرية. تواصل مع مدير الموارد البشرية.</span>
+    </div>
+    `}
+
+    <div class="card">
+      <h3>${Icons.render("key")} الصلاحيات والصفحات المتاحة لك</h3>
+      <p class="text-muted">بناءً على دورك <b>${roleLabel}</b>، يمكنك الوصول إلى:</p>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
+        ${allowedPages.map(p => `<span class="badge badge-info">${p}</span>`).join('')}
+      </div>
+      ${user.customPermissions && user.customPermissions.length ? `
+        <h4 style="margin-top:15px">صلاحيات مخصصة إضافية:</h4>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${user.customPermissions.map(p => `<span class="badge badge-success">${allPagesLabels[p] || p}</span>`).join('')}
+        </div>
+      ` : ''}
+    </div>
+
+    <div class="card">
+      <h3>${Icons.render("info")} معلومات الحساب</h3>
+      <p class="text-muted">آخر دخول: ${new Date().toLocaleString('ar-EG')}</p>
+      <p class="text-muted">وضع الوصول الحالي: <b>${accessMode === 'full' ? 'تعديل كامل' : 'عرض فقط'}</b></p>
+    </div>
+  `;
+};
+
 /* ============ الإعدادات ============ */
 window.Modules.settings = function(container) {
   const db = APP.getDB();

@@ -6,7 +6,7 @@
    ============================================================ */
 
 window.DB = (function () {
-  const KEY = "celein_db_v6";
+  const KEY = "celein_db_v7";
   const SESSION_KEY = "celein_session_v1";
 
   // تهيئة قاعدة البيانات من البذور
@@ -43,6 +43,126 @@ window.DB = (function () {
 
   function clearSession() {
     localStorage.removeItem(SESSION_KEY);
+  }
+
+  // ============================================================
+  // نظام الصلاحيات (RBAC)
+  // ============================================================
+  const PERMISSIONS = {
+    // كل صفحة: قائمة الأدوار المسموح لها
+    pages: {
+      dashboard:       ['admin', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker'],
+      production:      ['admin', 'hr_manager', 'production', 'accountant'],
+      purchaseRequest: ['admin', 'hr_manager', 'production', 'procurement', 'accountant'],
+      costs:           ['admin', 'hr_manager', 'production', 'accountant'],
+      pricing:         ['admin', 'hr_manager', 'accountant', 'sales'],
+      inventory:       ['admin', 'hr_manager', 'production', 'sales', 'accountant', 'procurement'],
+      vouchers:        ['admin', 'hr_manager', 'sales', 'accountant', 'production'],
+      sales:           ['admin', 'hr_manager', 'sales', 'accountant'],
+      agents:          ['admin', 'hr_manager', 'sales', 'accountant'],
+      lab:             ['admin', 'hr_manager', 'lab', 'production'],
+      procurement:     ['admin', 'hr_manager', 'procurement', 'accountant'],
+      hr:              ['admin', 'hr_manager', 'production', 'accountant', 'procurement'],
+      reports:         ['admin', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement'],
+      users:           ['admin', 'hr_manager'],
+      permissions:     ['admin', 'hr_manager'],
+      settings:        ['admin'],
+      profile:         ['admin', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker']
+    },
+    // كل صفحة: وضع العرض (full = تعديل، view = عرض فقط)
+    modes: {
+      dashboard:       { admin: 'full', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full', worker: 'view' },
+      production:      { admin: 'full', hr_manager: 'view', production: 'full', accountant: 'view' },
+      purchaseRequest: { admin: 'full', hr_manager: 'full', production: 'full', procurement: 'full', accountant: 'full' },
+      costs:           { admin: 'full', hr_manager: 'view', production: 'view', accountant: 'full' },
+      pricing:         { admin: 'full', hr_manager: 'view', accountant: 'full', sales: 'view' },
+      inventory:       { admin: 'full', hr_manager: 'view', production: 'full', sales: 'full', accountant: 'view', procurement: 'view' },
+      vouchers:        { admin: 'full', hr_manager: 'view', sales: 'full', accountant: 'full', production: 'view' },
+      sales:           { admin: 'full', hr_manager: 'view', sales: 'full', accountant: 'full' },
+      agents:          { admin: 'full', hr_manager: 'view', sales: 'full', accountant: 'view' },
+      lab:             { admin: 'full', hr_manager: 'view', lab: 'full', production: 'view' },
+      procurement:     { admin: 'full', hr_manager: 'view', procurement: 'full', accountant: 'view' },
+      hr:              { admin: 'full', hr_manager: 'full', production: 'view', accountant: 'view', procurement: 'view' },
+      reports:         { admin: 'full', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full' },
+      users:           { admin: 'full', hr_manager: 'full' },
+      permissions:     { admin: 'full', hr_manager: 'full' },
+      settings:        { admin: 'full' },
+      profile:         { admin: 'full', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full', worker: 'full' }
+    },
+    // أقسام يمكن لمدير القسم رؤية بياناتها فقط
+    departmentScoped: {
+      production:  ['production'],
+      sales:       ['sales'],
+      lab:         ['lab'],
+      procurement: ['procurement'],
+      hr:          ['hr_manager']
+    },
+    // معلومات تسميات الأدوار
+    roleLabels: {
+      admin:       'المدير العام',
+      hr_manager:  'مدير الموارد البشرية',
+      production:  'مدير الإنتاج',
+      accountant:  'محاسب',
+      sales:       'مندوب مبيعات',
+      lab:         'فني مختبر',
+      procurement: 'مدير المشتريات',
+      worker:      'موظف'
+    }
+  };
+
+  // هل للمستخدم صلاحية الدخول لهذه الصفحة؟
+  function canAccess(user, pageId) {
+    if (!user) return false;
+    // المدير العام يدخل كل شيء
+    if (user.role === 'admin') return true;
+    // تحقق من الصلاحيات المخصصة
+    if (user.customPermissions && user.customPermissions.includes(pageId)) return true;
+    // تحقق من الدور
+    const allowed = PERMISSIONS.pages[pageId] || [];
+    return allowed.includes(user.role);
+  }
+
+  // هل المستخدم في وضع التعديل الكامل أم عرض فقط؟
+  function getAccessMode(user, pageId) {
+    if (!user) return 'view';
+    if (user.role === 'admin') return 'full';
+    if (user.customPermissions && user.customPermissions.includes(pageId + ':full')) return 'full';
+    const mode = PERMISSIONS.modes[pageId];
+    if (!mode) return 'view';
+    return mode[user.role] || 'view';
+  }
+
+  // هل الصفحة مقتصرة على قسم المستخدم؟
+  function scopeToDepartment(user, pageId) {
+    if (!user) return null;
+    if (user.role === 'admin' || user.role === 'hr_manager' || user.role === 'accountant') return null;
+    const scoped = PERMISSIONS.departmentScoped[pageId] || [];
+    if (scoped.includes(user.role)) {
+      return user.department;
+    }
+    return null;
+  }
+
+  // فلترة قائمة المستخدمين بحسب القسم
+  function getAccessibleUsers(viewer, allUsers) {
+    if (!viewer) return [];
+    if (viewer.role === 'admin' || viewer.role === 'hr_manager') return allUsers;
+    // المديرين الآخرين يرون فقط المستخدمين في قسمهم
+    return allUsers.filter(u => u.department === viewer.department);
+  }
+
+  // هل يمكن لمستخدم رؤية موظف معين؟
+  function canViewEmployee(viewer, employee) {
+    if (!viewer || !employee) return false;
+    if (viewer.role === 'admin' || viewer.role === 'hr_manager') return true;
+    if (viewer.role === 'accountant') return true;
+    // المستخدم نفسه
+    if (viewer.employeeId === employee.id) return true;
+    // مدير القسم
+    if (PERMISSIONS.departmentScoped.hr.includes(viewer.role)) {
+      return viewer.department === employee.department;
+    }
+    return false;
   }
 
   // --- معادلات التكلفة (مطابقة لـ التكلفه.xlsx) ---
@@ -284,6 +404,8 @@ window.DB = (function () {
     rawMaterialsPerCarton, costPerCarton,
     breakEven, inventory, dashboardKPI,
     salesRepSummary, profitLoss,
+    // === نظام الصلاحيات (RBAC) ===
+    PERMISSIONS, canAccess, getAccessMode, scopeToDepartment, getAccessibleUsers, canViewEmployee,
     // === دوال مساعدة لعرض الأرقام والعملات ===
     fmt: function(num, decimals) {
       // تنسيق رقم بفاصلة عشرية + فواصل آلاف (نمط عربي)

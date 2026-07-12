@@ -197,7 +197,7 @@ window.APP = (function () {
                 <b>${currentUser.name}</b><br>
                 <span>${roleLabel(currentUser.role)} | ${currentUser.empId}</span>
               </div>
-              <div class="avatar">${currentUser.name.charAt(0)}</div>
+              <div class="avatar" onclick="APP.navigate('profile')" style="cursor:pointer" title="ملفي الشخصي">${currentUser.name.charAt(0)}</div>
               <button class="logout-btn" onclick="APP.logout()">${Icons.render('logout')} خروج</button>
             </div>
           </header>
@@ -216,12 +216,14 @@ window.APP = (function () {
   // --- قائمة التنقل ---
   function roleLabel(role) {
     const m = {
-      admin: "مدير النظام",
-      production: "مدير الإنتاج",
-      accountant: "المحاسب",
-      sales: "إدارة المبيعات والمخازن",
-      lab: "المختبر والمحطة",
-      procurement: "المشتريات وشؤون الموظفين"
+      admin:       "المدير العام",
+      hr_manager:  "مدير الموارد البشرية",
+      production:  "مدير الإنتاج",
+      accountant:  "محاسب",
+      sales:       "مندوب مبيعات",
+      lab:         "فني مختبر",
+      procurement: "مدير المشتريات",
+      worker:      "موظف"
     };
     return m[role] || role;
   }
@@ -229,20 +231,21 @@ window.APP = (function () {
   function renderNav() {
     const role = currentUser.role;
     const allModules = [
-      { id: "dashboard",     group: "الرئيسية",          icon: "dashboard",     label: "لوحة التحكم",          roles: ["admin","production","accountant","sales","lab","procurement"] },
-      { id: "production",    group: "العمليات",          icon: "factory",       label: "الإنتاج والتوالف",      roles: ["admin","production","accountant","sales"] },
-      { id: "purchaseRequest",group:"العمليات",          icon: "cart",          label: "طلب شراء",                roles: ["admin","production","procurement","accountant"] },
-      { id: "costs",         group: "العمليات",          icon: "money",         label: "التكاليف الفعلية",      roles: ["admin","accountant","production"] },
-      { id: "pricing",       group: "العمليات",          icon: "priceTag",      label: "الأسعار والوكلاء",       roles: ["admin","accountant","sales"] },
-      { id: "inventory",     group: "المخزون",           icon: "box",           label: "إدارة المخزون",          roles: ["admin","production","sales","accountant"] },
-      { id: "vouchers",      group: "المخزون",           icon: "clipboard",     label: "سندات الصرف",            roles: ["admin","sales","accountant","production"] },
-      { id: "sales",         group: "المبيعات",          icon: "truck",         label: "المناديب والمبيعات",     roles: ["admin","sales","accountant"] },
-      { id: "agents",        group: "المبيعات",          icon: "handshake",     label: "الوكلاء",                roles: ["admin","sales","accountant"] },
-      { id: "lab",           group: "المختبر والمحطة",    icon: "flask",         label: "سجل المختبر",            roles: ["admin","lab","production"] },
-      { id: "procurement",   group: "المشتريات",          icon: "cart",          label: "المشتريات والموردين",    roles: ["admin","procurement","accountant","production"] },
-      { id: "hr",            group: "الموارد البشرية",   icon: "users",         label: "الموارد البشرية",          roles: ["admin","procurement","accountant"] },
-      { id: "reports",       group: "التقارير",          icon: "report",        label: "التقارير الشاملة",       roles: ["admin","accountant","sales","production"] },
-      { id: "users",         group: "الإدارة",          icon: "shield",        label: "إدارة المستخدمين",       roles: ["admin"] },
+      { id: "dashboard",     group: "الرئيسية",          icon: "dashboard",     label: "لوحة التحكم",          roles: ["admin","hr_manager","production","accountant","sales","lab","procurement","worker"] },
+      { id: "production",    group: "العمليات",          icon: "factory",       label: "الإنتاج والتوالف",      roles: ["admin","hr_manager","production","accountant"] },
+      { id: "purchaseRequest",group:"العمليات",          icon: "cart",          label: "طلب شراء",                roles: ["admin","hr_manager","production","procurement","accountant"] },
+      { id: "costs",         group: "العمليات",          icon: "money",         label: "التكاليف الفعلية",      roles: ["admin","hr_manager","accountant","production"] },
+      { id: "pricing",       group: "العمليات",          icon: "priceTag",      label: "الأسعار والوكلاء",       roles: ["admin","hr_manager","accountant","sales"] },
+      { id: "inventory",     group: "المخزون",           icon: "box",           label: "إدارة المخزون",          roles: ["admin","hr_manager","production","sales","accountant","procurement"] },
+      { id: "vouchers",      group: "المخزون",           icon: "clipboard",     label: "سندات الصرف",            roles: ["admin","hr_manager","sales","accountant","production"] },
+      { id: "sales",         group: "المبيعات",          icon: "truck",         label: "المناديب والمبيعات",     roles: ["admin","hr_manager","sales","accountant"] },
+      { id: "agents",        group: "المبيعات",          icon: "handshake",     label: "الوكلاء",                roles: ["admin","hr_manager","sales","accountant"] },
+      { id: "lab",           group: "المختبر والمحطة",    icon: "flask",         label: "سجل المختبر",            roles: ["admin","hr_manager","lab","production"] },
+      { id: "procurement",   group: "المشتريات",          icon: "cart",          label: "المشتريات والموردين",    roles: ["admin","hr_manager","procurement","accountant"] },
+      { id: "hr",            group: "الموارد البشرية",   icon: "users",         label: "الموارد البشرية",          roles: ["admin","hr_manager","production","accountant","procurement"] },
+      { id: "reports",       group: "التقارير",          icon: "report",        label: "التقارير الشاملة",       roles: ["admin","hr_manager","accountant","sales","production","lab","procurement"] },
+      { id: "users",         group: "الإدارة",          icon: "shield",        label: "إدارة المستخدمين",       roles: ["admin","hr_manager"] },
+      { id: "permissions",   group: "الإدارة",          icon: "key",           label: "إدارة الصلاحيات",         roles: ["admin","hr_manager"] },
       { id: "settings",      group: "الإدارة",          icon: "settings",      label: "الإعدادات والتخصيص",      roles: ["admin"] }
     ];
 
@@ -290,6 +293,11 @@ window.APP = (function () {
   }
 
   function navigate(moduleId) {
+    // التحقق من الصلاحيات قبل التنقل
+    if (currentUser && !DB.canAccess(currentUser, moduleId)) {
+      alert('⛔ ليس لديك صلاحية الوصول إلى هذه الصفحة. سيتم توجيهك إلى لوحة التحكم.');
+      moduleId = 'dashboard';
+    }
     currentModule = moduleId;
     document.querySelectorAll(".nav-item").forEach(el => el.classList.toggle("active", el.dataset.id === moduleId));
     const titles = {
@@ -304,10 +312,12 @@ window.APP = (function () {
       lab: "سجل المختبر واستهلاك البئر",
       procurement: "المشتريات وفواتير الموردين",
       purchaseRequest: "طلب شراء - إلى إدارة المشتريات",
-      hr: "شؤون الموظفين والرواتب",
+      hr: "الموارد البشرية",
       reports: "التقارير الشاملة والتصدير",
       users: "إدارة المستخدمين والصلاحيات",
-      settings: "إعدادات النظام والتخصيص"
+      permissions: "إدارة الصلاحيات والمنح",
+      settings: "إعدادات النظام والتخصيص",
+      profile: "ملفي الشخصي"
     };
     document.getElementById("pageTitle").textContent = titles[moduleId] || moduleId;
     // Close sidebar on mobile after navigation

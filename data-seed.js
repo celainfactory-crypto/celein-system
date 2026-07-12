@@ -17,14 +17,16 @@ window.SEED = {
     decimals: 2
   },
 
-  // المستخدمون (6 أدوار) - هذه صلاحيات دخول النظام، ليست بيانات موظفين
+  // المستخدمون (8 أدوار) - هذه صلاحيات دخول النظام، ليست بيانات موظفين
   users: [
-    { id: 1, empId: "ADM-001", username: "admin",      password: "admin123", name: "مختار عبدالله الحييد",          role: "admin",       active: true },
-    { id: 2, empId: "PRD-001", username: "production", password: "prod123",  name: "مدير الإنتاج",                  role: "production",  active: true },
-    { id: 3, empId: "ACC-001", username: "accountant", password: "acc123",   name: "المحاسب",                        role: "accountant",  active: true },
-    { id: 4, empId: "SAL-001", username: "sales",      password: "sal123",   name: "مدير المبيعات والمخازن",        role: "sales",       active: true },
-    { id: 5, empId: "LAB-001", username: "lab",        password: "lab123",   name: "المختبر / المحطة",               role: "lab",         active: true },
-    { id: 6, empId: "PRH-001", username: "procurement",password: "prc123",   name: "المشتريات وشؤون الموظفين",       role: "procurement", active: true }
+    { id: 1, empId: "ADM-001", username: "admin",      password: "admin123", name: "مختار عبدالله الحييد",          role: "admin",       department: "الإدارة",         employeeId: 36, customPermissions: [], active: true },
+    { id: 2, empId: "HRM-001", username: "hr",         password: "hr123",   name: "سالم علي محسن الشتيبي",          role: "hr_manager",  department: "الموارد البشرية",   employeeId: 1,  customPermissions: [], active: true },
+    { id: 3, empId: "PRD-001", username: "production", password: "prod123",  name: "بشار شكري محمد القدسي",        role: "production",  department: "الإنتاج",          employeeId: 15, customPermissions: [], active: true },
+    { id: 4, empId: "ACC-001", username: "accountant", password: "acc123",   name: "أنور سليم محمد الخولاني",      role: "accountant",  department: "الحسابات",         employeeId: 21, customPermissions: [], active: true },
+    { id: 5, empId: "SAL-001", username: "sales",      password: "sal123",   name: "محمد الجنيدي هاشم عبده",        role: "sales",       department: "المبيعات",         employeeId: 18, customPermissions: [], active: true },
+    { id: 6, empId: "LAB-001", username: "lab",        password: "lab123",   name: "عيسى محمد عبدالرحمن سعيد",      role: "lab",         department: "المختبر",          employeeId: 9,  customPermissions: [], active: true },
+    { id: 7, empId: "PRH-001", username: "procurement",password: "prc123",   name: "صالح علي أحمد الوحيشي",        role: "procurement", department: "المشتريات",        employeeId: 17, customPermissions: [], active: true },
+    { id: 8, empId: "WRK-001", username: "worker",     password: "wrk123",   name: "يوسف حسين حسن العبيدي",        role: "worker",      department: "الإنتاج",          employeeId: 2,  customPermissions: [], active: true }
   ],
 
   // المنتجات (3 أحجام × 2 نوع تغليف) - مستنتجة من هيكلية التكلفه.xlsx
