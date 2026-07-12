@@ -217,6 +217,8 @@ window.APP = (function () {
   function roleLabel(role) {
     const m = {
       admin:       "المدير العام",
+      executive:   "المدير التنفيذي",
+      chairman:    "رئيس مجلس الإدارة",
       hr_manager:  "مدير الموارد البشرية",
       production:  "مدير الإنتاج",
       accountant:  "محاسب",
@@ -231,7 +233,7 @@ window.APP = (function () {
   function renderNav() {
     const role = currentUser.role;
     const allModules = [
-      { id: "dashboard",     group: "الرئيسية",          icon: "dashboard",     label: "لوحة التحكم",          roles: ["admin","hr_manager","production","accountant","sales","lab","procurement","worker"] },
+      { id: "dashboard",     group: "الرئيسية",          icon: "dashboard",     label: "لوحة التحكم",          roles: ["admin","executive","chairman","accountant"] },
       { id: "production",    group: "العمليات",          icon: "factory",       label: "الإنتاج والتوالف",      roles: ["admin","hr_manager","production","accountant"] },
       { id: "purchaseRequest",group:"العمليات",          icon: "cart",          label: "طلب شراء",                roles: ["admin","hr_manager","production","procurement","accountant"] },
       { id: "costs",         group: "العمليات",          icon: "money",         label: "التكاليف الفعلية",      roles: ["admin","hr_manager","accountant","production"] },
@@ -243,7 +245,7 @@ window.APP = (function () {
       { id: "lab",           group: "المختبر والمحطة",    icon: "flask",         label: "سجل المختبر",            roles: ["admin","hr_manager","lab","production"] },
       { id: "procurement",   group: "المشتريات",          icon: "cart",          label: "المشتريات والموردين",    roles: ["admin","hr_manager","procurement","accountant"] },
       { id: "hr",            group: "الموارد البشرية",   icon: "users",         label: "الموارد البشرية",          roles: ["admin","hr_manager","production","accountant","procurement"] },
-      { id: "reports",       group: "التقارير",          icon: "report",        label: "التقارير الشاملة",       roles: ["admin","hr_manager","accountant","sales","production","lab","procurement"] },
+      { id: "reports",       group: "التقارير",          icon: "report",        label: "التقارير الشاملة",       roles: ["admin","executive","chairman","hr_manager","accountant","sales","production","lab","procurement"] },
       { id: "users",         group: "الإدارة",          icon: "shield",        label: "إدارة المستخدمين",       roles: ["admin","hr_manager"] },
       { id: "permissions",   group: "الإدارة",          icon: "key",           label: "إدارة الصلاحيات",         roles: ["admin","hr_manager"] },
       { id: "settings",      group: "الإدارة",          icon: "settings",      label: "الإعدادات والتخصيص",      roles: ["admin"] }

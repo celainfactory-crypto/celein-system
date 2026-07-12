@@ -26,7 +26,10 @@ window.SEED = {
     { id: 5, empId: "SAL-001", username: "sales",      password: "sal123",   name: "محمد الجنيدي هاشم عبده",        role: "sales",       department: "المبيعات",         employeeId: 18, customPermissions: [], active: true },
     { id: 6, empId: "LAB-001", username: "lab",        password: "lab123",   name: "عيسى محمد عبدالرحمن سعيد",      role: "lab",         department: "المختبر",          employeeId: 9,  customPermissions: [], active: true },
     { id: 7, empId: "PRH-001", username: "procurement",password: "prc123",   name: "صالح علي أحمد الوحيشي",        role: "procurement", department: "المشتريات",        employeeId: 17, customPermissions: [], active: true },
-    { id: 8, empId: "WRK-001", username: "worker",     password: "wrk123",   name: "يوسف حسين حسن العبيدي",        role: "worker",      department: "الإنتاج",          employeeId: 2,  customPermissions: [], active: true }
+    { id: 8, empId: "WRK-001", username: "worker",     password: "wrk123",   name: "يوسف حسين حسن العبيدي",        role: "worker",      department: "الإنتاج",          employeeId: 2,  customPermissions: [], active: true },
+    { id: 9, empId: "EXC-001", username: "executive",  password: "exc123",   name: "علي أحمد ديان العطري",          role: "executive",   department: "الإدارة العليا",     employeeId: null, customPermissions: [], active: true },
+    { id: 10, empId: "CHM-001", username: "chairman",  password: "chm123",   name: "حسين أحمد السعيدي",             role: "chairman",    department: "مجلس الإدارة",      employeeId: null, customPermissions: [], active: true },
+    { id: 11, empId: "ACC-002", username: "accountant2", password: "acc123", name: "أحمد محمد الحجي عبده",          role: "accountant",  department: "الحسابات",         employeeId: 27, customPermissions: [], active: true }
   ],
 
   // المنتجات (3 أحجام × 2 نوع تغليف) - مستنتجة من هيكلية التكلفه.xlsx

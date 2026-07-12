@@ -6,7 +6,7 @@
    ============================================================ */
 
 window.DB = (function () {
-  const KEY = "celein_db_v7";
+  const KEY = "celein_db_v8";
   const SESSION_KEY = "celein_session_v1";
 
   // تهيئة قاعدة البيانات من البذور
@@ -51,7 +51,7 @@ window.DB = (function () {
   const PERMISSIONS = {
     // كل صفحة: قائمة الأدوار المسموح لها
     pages: {
-      dashboard:       ['admin', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker'],
+      dashboard:       ['admin', 'executive', 'chairman', 'accountant'],
       production:      ['admin', 'hr_manager', 'production', 'accountant'],
       purchaseRequest: ['admin', 'hr_manager', 'production', 'procurement', 'accountant'],
       costs:           ['admin', 'hr_manager', 'production', 'accountant'],
@@ -63,15 +63,15 @@ window.DB = (function () {
       lab:             ['admin', 'hr_manager', 'lab', 'production'],
       procurement:     ['admin', 'hr_manager', 'procurement', 'accountant'],
       hr:              ['admin', 'hr_manager', 'production', 'accountant', 'procurement'],
-      reports:         ['admin', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement'],
+      reports:         ['admin', 'executive', 'chairman', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement'],
       users:           ['admin', 'hr_manager'],
       permissions:     ['admin', 'hr_manager'],
       settings:        ['admin'],
-      profile:         ['admin', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker']
+      profile:         ['admin', 'executive', 'chairman', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker']
     },
     // كل صفحة: وضع العرض (full = تعديل، view = عرض فقط)
     modes: {
-      dashboard:       { admin: 'full', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full', worker: 'view' },
+      dashboard:       { admin: 'full', executive: 'view', chairman: 'view', accountant: 'full', hr_manager: 'view', production: 'view', sales: 'view', lab: 'view', procurement: 'view', worker: 'view' },
       production:      { admin: 'full', hr_manager: 'view', production: 'full', accountant: 'view' },
       purchaseRequest: { admin: 'full', hr_manager: 'full', production: 'full', procurement: 'full', accountant: 'full' },
       costs:           { admin: 'full', hr_manager: 'view', production: 'view', accountant: 'full' },
@@ -83,11 +83,11 @@ window.DB = (function () {
       lab:             { admin: 'full', hr_manager: 'view', lab: 'full', production: 'view' },
       procurement:     { admin: 'full', hr_manager: 'view', procurement: 'full', accountant: 'view' },
       hr:              { admin: 'full', hr_manager: 'full', production: 'view', accountant: 'view', procurement: 'view' },
-      reports:         { admin: 'full', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full' },
+      reports:         { admin: 'full', executive: 'view', chairman: 'view', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full' },
       users:           { admin: 'full', hr_manager: 'full' },
       permissions:     { admin: 'full', hr_manager: 'full' },
       settings:        { admin: 'full' },
-      profile:         { admin: 'full', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full', worker: 'full' }
+      profile:         { admin: 'full', executive: 'full', chairman: 'full', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full', worker: 'full' }
     },
     // أقسام يمكن لمدير القسم رؤية بياناتها فقط
     departmentScoped: {
@@ -100,6 +100,8 @@ window.DB = (function () {
     // معلومات تسميات الأدوار
     roleLabels: {
       admin:       'المدير العام',
+      executive:   'المدير التنفيذي',
+      chairman:    'رئيس مجلس الإدارة',
       hr_manager:  'مدير الموارد البشرية',
       production:  'مدير الإنتاج',
       accountant:  'محاسب',
