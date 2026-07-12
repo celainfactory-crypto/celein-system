@@ -450,7 +450,7 @@ window.APP = (function () {
       { id: "procurement",   group: "المشتريات",          icon: "cart",          label: "المشتريات والموردين",    roles: ["admin","procurement","accountant"] },
       { id: "hr",            group: "الموارد البشرية",   icon: "users",         label: "الموارد البشرية",          roles: ["admin","hr_manager"] },
       { id: "reports",       group: "التقارير",          icon: "report",        label: "التقارير الشاملة",       roles: ["admin","executive","chairman","accountant","production","lab","procurement"] },
-      { id: "users",         group: "الإدارة",          icon: "shield",        label: "إدارة المستخدمين",       roles: ["admin","hr_manager"] },
+
       { id: "permissions",   group: "الإدارة",          icon: "key",           label: "إدارة الصلاحيات",         roles: ["admin","hr_manager"] },
       { id: "terminated",    group: "الإدارة",          icon: "x",             label: "الموظفون المنتهية عقودهم", roles: ["admin"] },
       { id: "orgchart",      group: "الإدارة",          icon: "sitemap",       label: "الهيكل التنظيمي",         roles: ["admin","chairman","accountant"] },
