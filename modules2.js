@@ -1479,9 +1479,6 @@ window.Modules.hr = function(container) {
             })()}
           </div>
         </div>
-      </div>}).join('')}
-          </div>
-        </div>
       </div>
 
       <div id="editEmpModal" class="modal-overlay" style="display:none">
