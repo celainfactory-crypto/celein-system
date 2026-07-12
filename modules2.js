@@ -1352,11 +1352,7 @@ window.Modules.hr = function(container) {
             <div class="hr-submenu-label">سجل الموظفين</div>
             <div class="hr-submenu-desc">${db.employeesLog.length} موظف في ${departments.length} قسم</div>
           </div>
-          <div class="hr-submenu-card" onclick="APP.navigate('users')">
-            <div class="hr-submenu-icon">${Icons.render("shield")}</div>
-            <div class="hr-submenu-label">إدارة المستخدمين</div>
-            <div class="hr-submenu-desc">${db.users.length} حساب نشط</div>
-          </div>
+
           <div class="hr-submenu-card" onclick="APP.navigate('orgtree')">
             <div class="hr-submenu-icon">${Icons.render("gitBranch")}</div>
             <div class="hr-submenu-label">الشجرة التفاعلية</div>
@@ -2791,7 +2787,7 @@ window.Modules.orgchart = function(container) {
     { name: 'المبيعات', icon: 'truck', color: '#d8463a', manager: 'هاشم عبدالله محمد الجنيدي', managerId: 73 },
     { name: 'المختبر', icon: 'flask', color: '#9c27b0', manager: 'عيسى محمد عبدالرحمن سعيد', managerId: 54 },
     { name: 'المخازن', icon: 'box', color: '#2d9d5c', manager: 'حبيب توفيق مكرد القدسي', managerId: 76 },
-    { name: 'الخدمات', icon: 'shield', color: '#e89c2b', manager: 'ناصر محمد العزاني عبده', managerId: 86 },
+    { name: 'الخدمات', icon: 'shield', color: '#e89c2b', manager: 'عبدالله ناصر محمد العزاني', managerId: 86 },
     { name: 'الحسابات', icon: 'money', color: '#5a6b8c', manager: 'أنور سليم محمد الخولاني', managerId: 83 },
     { name: 'المشتريات', icon: 'cart', color: '#00897b', manager: 'صالح علي أحمد الوحيشي', managerId: 72 }
   ];
