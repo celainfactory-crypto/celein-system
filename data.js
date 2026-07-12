@@ -55,42 +55,49 @@ window.DB = (function () {
   // ============================================================
   const PERMISSIONS = {
     // كل صفحة: قائمة الأدوار المسموح لها
+    // الإصلاح (Agent 4 — 2026-07-12): تقييد sales + hr_manager + executive حسب المواصفة
+    // sales: مناديب + مبيعات فقط (إزالة pricing/inventory/vouchers/reports)
+    // hr_manager: HR + Users + Permissions فقط (إزالة orgchart/orgtree)
+    // executive: dashboard + reports + profile فقط (إزالة orgchart/orgtree)
+    // worker: إضافة dashboard (مفقود)
     pages: {
-      dashboard:       ['admin', 'executive', 'chairman', 'accountant'],
+      dashboard:       ['admin', 'executive', 'chairman', 'accountant', 'worker'],
       production:      ['admin', 'production', 'accountant'],
       purchaseRequest: ['admin', 'production', 'procurement', 'accountant'],
-      costs:           ['admin', 'accountant'],
-      pricing:         ['admin', 'accountant', 'sales'],
-      inventory:       ['admin', 'production', 'sales', 'accountant', 'procurement'],
-      vouchers:        ['admin', 'sales', 'accountant', 'production'],
+      costs:           ['admin', 'accountant', 'production'],
+      pricing:         ['admin', 'accountant'],
+      inventory:       ['admin', 'production', 'accountant', 'procurement'],
+      vouchers:        ['admin', 'accountant', 'production'],
       sales:           ['admin', 'sales', 'accountant'],
       agents:          ['admin', 'sales', 'accountant'],
       lab:             ['admin', 'lab', 'production'],
       procurement:     ['admin', 'procurement', 'accountant'],
       hr:              ['admin', 'hr_manager'],
-      reports:         ['admin', 'executive', 'chairman', 'accountant', 'sales', 'production', 'lab', 'procurement'],
+      reports:         ['admin', 'executive', 'chairman', 'accountant', 'production', 'lab', 'procurement'],
       users:           ['admin', 'hr_manager'],
       permissions:     ['admin', 'hr_manager'],
       settings:        ['admin'],
-      orgchart:        ['admin', 'executive', 'chairman', 'accountant', 'hr_manager'],
-      orgtree:         ['admin', 'executive', 'chairman', 'accountant', 'hr_manager'],
+      terminated:      ['admin'],
+      orgchart:        ['admin', 'chairman', 'accountant'],
+      orgtree:         ['admin', 'chairman', 'accountant'],
       profile:         ['admin', 'executive', 'chairman', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker']
     },
     // كل صفحة: وضع العرض (full = تعديل، view = عرض فقط)
+    // الإصلاح (Agent 4 — 2026-07-12): sales لم يعد يصل لـ pricing/inventory/vouchers/reports
     modes: {
       dashboard:       { admin: 'full', executive: 'view', chairman: 'view', accountant: 'full', hr_manager: 'view', production: 'view', sales: 'view', lab: 'view', procurement: 'view', worker: 'view' },
       production:      { admin: 'full', production: 'full', accountant: 'view' },
       purchaseRequest: { admin: 'full', production: 'full', procurement: 'full', accountant: 'full' },
-      costs:           { admin: 'full', accountant: 'full' },
-      pricing:         { admin: 'full', accountant: 'full', sales: 'view' },
-      inventory:       { admin: 'full', production: 'full', sales: 'full', accountant: 'view', procurement: 'view' },
-      vouchers:        { admin: 'full', sales: 'full', accountant: 'full', production: 'view' },
+      costs:           { admin: 'full', accountant: 'full', production: 'view' },
+      pricing:         { admin: 'full', accountant: 'full' },
+      inventory:       { admin: 'full', production: 'full', accountant: 'view', procurement: 'view' },
+      vouchers:        { admin: 'full', accountant: 'full', production: 'view' },
       sales:           { admin: 'full', sales: 'full', accountant: 'full' },
       agents:          { admin: 'full', sales: 'full', accountant: 'view' },
       lab:             { admin: 'full', lab: 'full', production: 'view' },
       procurement:     { admin: 'full', procurement: 'full', accountant: 'view' },
       hr:              { admin: 'full', hr_manager: 'full' },
-      reports:         { admin: 'full', executive: 'view', chairman: 'view', accountant: 'full', sales: 'full', production: 'full', lab: 'full', procurement: 'full' },
+      reports:         { admin: 'full', executive: 'view', chairman: 'view', accountant: 'full', production: 'full', lab: 'full', procurement: 'full' },
       users:           { admin: 'full', hr_manager: 'full' },
       permissions:     { admin: 'full', hr_manager: 'full' },
       settings:        { admin: 'full' },

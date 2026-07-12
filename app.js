@@ -5,7 +5,7 @@
    ============================================================ */
 
 window.APP = (function () {
-  window.APP_VERSION = 'v18.7';
+  window.APP_VERSION = 'v20.2';
   let currentUser = null;
   let currentModule = "dashboard";
   let db = null;
@@ -335,6 +335,7 @@ window.APP = (function () {
     document.getElementById("exportMenu").style.display = "none";
     const exporters = Exports.getExporters(currentModule);
     if (!exporters) {
+      // Should not happen: navigate() hides the export bar for pages without exporters
       alert("تنبيه: لا توجد دالة تصدير مسجلة لهذه الصفحة");
       return;
     }
@@ -349,6 +350,14 @@ window.APP = (function () {
       alert("خطأ خطأ في التصدير: " + err.message);
       console.error(err);
     }
+  }
+
+  // Helper: show/hide the export bar based on whether the current module has exporters
+  function syncExportBar() {
+    const bar = document.getElementById('exportBar');
+    if (!bar) return;
+    const hasExporters = !!Exports.getExporters(currentModule);
+    bar.style.display = hasExporters ? '' : 'none';
   }
 
   // --- الهيكل الرئيسي للتطبيق ---
@@ -426,24 +435,24 @@ window.APP = (function () {
   function renderNav() {
     const role = currentUser.role;
     const allModules = [
-      { id: "dashboard",     group: "الرئيسية",          icon: "dashboard",     label: "لوحة التحكم",          roles: ["admin","executive","chairman","accountant"] },
+      { id: "dashboard",     group: "الرئيسية",          icon: "dashboard",     label: "لوحة التحكم",          roles: ["admin","executive","chairman","accountant","worker"] },
       { id: "production",    group: "العمليات",          icon: "factory",       label: "الإنتاج والتوالف",      roles: ["admin","production","accountant"] },
       { id: "purchaseRequest",group:"العمليات",          icon: "cart",          label: "طلب شراء",                roles: ["admin","production","procurement","accountant"] },
       { id: "costs",         group: "العمليات",          icon: "money",         label: "التكاليف الفعلية",      roles: ["admin","accountant","production"] },
-      { id: "pricing",       group: "العمليات",          icon: "priceTag",      label: "الأسعار والوكلاء",       roles: ["admin","accountant","sales"] },
-      { id: "inventory",     group: "المخزون",           icon: "box",           label: "إدارة المخزون",          roles: ["admin","production","sales","accountant","procurement"] },
-      { id: "vouchers",      group: "المخزون",           icon: "clipboard",     label: "سندات الصرف",            roles: ["admin","sales","accountant","production"] },
+      { id: "pricing",       group: "العمليات",          icon: "priceTag",      label: "الأسعار والوكلاء",       roles: ["admin","accountant"] },
+      { id: "inventory",     group: "المخزون",           icon: "box",           label: "إدارة المخزون",          roles: ["admin","production","accountant","procurement"] },
+      { id: "vouchers",      group: "المخزون",           icon: "clipboard",     label: "سندات الصرف",            roles: ["admin","accountant","production"] },
       { id: "sales",         group: "المبيعات",          icon: "truck",         label: "المناديب والمبيعات",     roles: ["admin","sales","accountant"] },
       { id: "agents",        group: "المبيعات",          icon: "handshake",     label: "الوكلاء",                roles: ["admin","sales","accountant"] },
       { id: "lab",           group: "المختبر والمحطة",    icon: "flask",         label: "سجل المختبر",            roles: ["admin","lab","production"] },
       { id: "procurement",   group: "المشتريات",          icon: "cart",          label: "المشتريات والموردين",    roles: ["admin","procurement","accountant"] },
       { id: "hr",            group: "الموارد البشرية",   icon: "users",         label: "الموارد البشرية",          roles: ["admin","hr_manager"] },
-      { id: "reports",       group: "التقارير",          icon: "report",        label: "التقارير الشاملة",       roles: ["admin","executive","chairman","accountant","sales","production","lab","procurement"] },
+      { id: "reports",       group: "التقارير",          icon: "report",        label: "التقارير الشاملة",       roles: ["admin","executive","chairman","accountant","production","lab","procurement"] },
       { id: "users",         group: "الإدارة",          icon: "shield",        label: "إدارة المستخدمين",       roles: ["admin","hr_manager"] },
       { id: "permissions",   group: "الإدارة",          icon: "key",           label: "إدارة الصلاحيات",         roles: ["admin","hr_manager"] },
-      { id: "terminated",    group: "الإدارة",          icon: "x",             label: "الموظفون المنتهية عقودهم", roles: ["admin","hr_manager"] },
-      { id: "orgchart",      group: "الإدارة",          icon: "sitemap",       label: "الهيكل التنظيمي",         roles: ["admin","executive","chairman","accountant","hr_manager"] },
-      { id: "orgtree",       group: "الإدارة",          icon: "gitBranch",     label: "الشجرة التفاعلية",        roles: ["admin","executive","chairman","accountant","hr_manager"] },
+      { id: "terminated",    group: "الإدارة",          icon: "x",             label: "الموظفون المنتهية عقودهم", roles: ["admin"] },
+      { id: "orgchart",      group: "الإدارة",          icon: "sitemap",       label: "الهيكل التنظيمي",         roles: ["admin","chairman","accountant"] },
+      { id: "orgtree",       group: "الإدارة",          icon: "gitBranch",     label: "الشجرة التفاعلية",        roles: ["admin","chairman","accountant"] },
       { id: "settings",      group: "الإدارة",          icon: "settings",      label: "الإعدادات والتخصيص",      roles: ["admin"] }
     ];
 
@@ -514,10 +523,15 @@ window.APP = (function () {
       reports: "التقارير الشاملة والتصدير",
       users: "إدارة المستخدمين والصلاحيات",
       permissions: "إدارة الصلاحيات والمنح",
+      orgchart: "الهيكل التنظيمي",
+      orgtree: "الشجرة التفاعلية",
+      terminated: "الموظفون المنتهية عقودهم",
       settings: "إعدادات النظام والتخصيص",
       profile: "ملفي الشخصي"
     };
     document.getElementById("pageTitle").textContent = titles[moduleId] || moduleId;
+    // إخفاء/إظهار زر التصدير بحسب توفر دالة التصدير لهذه الصفحة
+    syncExportBar();
     // Close sidebar on mobile after navigation
     if (window.innerWidth <= 900) {
       const sb = document.querySelector('.sidebar');
@@ -538,6 +552,8 @@ window.APP = (function () {
         content.innerHTML = `<div class="card"><div class="alert alert-danger">خطأ في تحميل الوحدة: ${e.message}</div></div>`;
         console.error(e);
       }
+      // بعد تسجيل الـ exporter داخل الوحدة (إن وُجد)، نعيد ضبط ظهور الزر
+      syncExportBar();
     }, 50);
   }
 
@@ -545,7 +561,7 @@ window.APP = (function () {
   function saveDB(d) { DB.save(d); db = d; }
   function getUser() { return currentUser; }
 
-  return { init, navigate, logout, doLogin, getDB, saveDB, getUser, getCurrentUser, showExportMenu, doExport, toggleSidebar, togglePasswordGlobal, installPWA, showManualInstallGuide };
+  return { init, navigate, logout, doLogin, getDB, saveDB, getUser, getCurrentUser, showExportMenu, doExport, toggleSidebar, togglePasswordGlobal, installPWA, showManualInstallGuide, syncExportBar };
 })();
 
 window.addEventListener("DOMContentLoaded", () => APP.init());

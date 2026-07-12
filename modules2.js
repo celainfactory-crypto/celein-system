@@ -2012,6 +2012,74 @@ window.Modules.permissions = function(container) {
     render();
   };
 
+  // === تصدير مصفوفة الصلاحيات ===
+  Exports.register("permissions", {
+    label: "إدارة الصلاحيات",
+    pdf: () => {
+      const html = `
+        <h2>مصفوفة الصلاحيات الافتراضية</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>الصفحة</th>
+              ${allRoles.map(r => `<th>${r.label}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${allPages.map(p => `
+              <tr>
+                <td><b>${p.label}</b></td>
+                ${allRoles.map(r => {
+                  const allowed = (DB.PERMISSIONS.pages[p.id] || []).includes(r.id);
+                  return `<td>${allowed ? '✓' : '–'}</td>`;
+                }).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <h2>الصلاحيات المخصصة للمستخدمين</h2>
+        <table>
+          <thead><tr><th>المستخدم</th><th>الدور</th><th>القسم</th><th>صلاحيات مخصصة</th></tr></thead>
+          <tbody>
+            ${db.users.map(u => `
+              <tr>
+                <td>${u.name}</td>
+                <td>${u.role}</td>
+                <td>${u.department || '—'}</td>
+                <td>${(u.customPermissions || []).join(', ') || 'لا توجد'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+      Exports.exportPDF('مصفوفة الصلاحيات والمنح', html, 'permissions');
+    },
+    excel: () => {
+      const headers = ['المستخدم', 'اسم الدخول', 'الدور', 'القسم', 'الصلاحيات المخصصة'];
+      const rows = db.users.map(u => [
+        u.name,
+        u.username,
+        u.role,
+        u.department || '—',
+        (u.customPermissions || []).join(', ') || '—'
+      ]);
+      Exports.exportExcel(Exports.rowsToHTMLTable(headers, rows, { title: 'الصلاحيات المخصصة' }), 'permissions');
+    },
+    csv: () => {
+      const headers = ['المستخدم', 'اسم الدخول', 'الدور', 'القسم', 'الصلاحيات المخصصة'];
+      const rows = db.users.map(u => [
+        u.name,
+        u.username,
+        u.role,
+        u.department || '—',
+        (u.customPermissions || []).join(', ') || '—'
+      ]);
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), 'permissions');
+    },
+    json: () => Exports.exportJSON({ permissions: DB.PERMISSIONS, users: db.users }, 'permissions_data'),
+    print: () => window.print()
+  });
+
   render();
 };
 
@@ -2538,6 +2606,73 @@ Modules._reinstateEmployee = function(empId) {
   window.Modules.terminated(document.getElementById('content'));
 };
 
+/* === تصدير الموظفين المنتهية عقودهم === */
+(function registerTerminatedExporter() {
+  function buildTerminatedData() {
+    const db = APP.getDB();
+    const employees = db.employeesLog || [];
+    const terminated = employees.filter(e => e.status === 'terminated' || e.terminationStatus);
+    return { employees, terminated };
+  }
+  Exports.register('terminated', {
+    label: 'الموظفون المنتهية عقودهم',
+    pdf: () => {
+      const { terminated } = buildTerminatedData();
+      const html = `
+        <h2>الموظفون المنتهية عقودهم</h2>
+        <p>إجمالي: <b>${terminated.length}</b> موظف</p>
+        <table>
+          <thead><tr><th>الرقم الوظيفي</th><th>الاسم</th><th>القسم</th><th>الوظيفة</th><th>الحالة</th><th>سبب إنهاء العقد</th></tr></thead>
+          <tbody>
+            ${terminated.map(e => `
+              <tr>
+                <td>ID${String(e.empId).padStart(3, '0')}</td>
+                <td>${e.name}</td>
+                <td>${e.department || '—'}</td>
+                <td>${e.position || '—'}</td>
+                <td>${(e.terminationStatus && e.terminationStatus.type) || '—'}</td>
+                <td>${(e.terminationStatus && e.terminationStatus.reason) || '—'}</td>
+              </tr>
+            `).join('') || '<tr><td colspan="6" style="text-align:center;color:#888">لا يوجد موظفون منتهية عقودهم</td></tr>'}
+          </tbody>
+        </table>
+      `;
+      Exports.exportPDF('الموظفون المنتهية عقودهم', html, 'terminated');
+    },
+    excel: () => {
+      const { terminated } = buildTerminatedData();
+      const headers = ['الرقم الوظيفي', 'الاسم', 'القسم', 'الوظيفة', 'الحالة', 'سبب إنهاء العقد'];
+      const rows = terminated.map(e => [
+        `ID${String(e.empId).padStart(3, '0')}`,
+        e.name,
+        e.department || '—',
+        e.position || '—',
+        (e.terminationStatus && e.terminationStatus.type) || '—',
+        (e.terminationStatus && e.terminationStatus.reason) || '—'
+      ]);
+      Exports.exportExcel(Exports.rowsToHTMLTable(headers, rows, { title: 'الموظفون المنتهية عقودهم' }), 'terminated');
+    },
+    csv: () => {
+      const { terminated } = buildTerminatedData();
+      const headers = ['الرقم الوظيفي', 'الاسم', 'القسم', 'الوظيفة', 'الحالة', 'سبب إنهاء العقد'];
+      const rows = terminated.map(e => [
+        `ID${String(e.empId).padStart(3, '0')}`,
+        e.name,
+        e.department || '—',
+        e.position || '—',
+        (e.terminationStatus && e.terminationStatus.type) || '—',
+        (e.terminationStatus && e.terminationStatus.reason) || '—'
+      ]);
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), 'terminated');
+    },
+    json: () => {
+      const { terminated } = buildTerminatedData();
+      Exports.exportJSON({ terminated }, 'terminated_data');
+    },
+    print: () => window.print()
+  });
+})();
+
 /* ============ الهيكل التنظيمي ============ */
 window.Modules.orgchart = function(container) {
   const db = APP.getDB();
@@ -2804,24 +2939,36 @@ window.Modules.orgtree = function(container) {
 
   // بناء الشجرة من البيانات الفعلية
   function buildTree() {
-    // الإدارة العليا (3)
-    const top = employees.filter(e => ['admin','executive','chairman'].includes((e.username||'').toLowerCase()));
+    // الإدارة العليا (3): من جدول المستخدمين (admin/executive/chairman)
+    const users = db.users || [];
+    const topRoles = ['admin', 'executive', 'chairman'];
+    const topUserRecords = users.filter(u => topRoles.includes((u.role || '').toLowerCase()));
+    // ربط كل حساب إداري عالي بسجل الموظف المقابل (employeeId)
+    const top = topUserRecords.map(u => {
+      const emp = u.employeeId ? employees.find(e => e.id === u.employeeId) : null;
+      return emp ? { ...emp, _topRole: u.role, _topName: u.name, _topUsername: u.username }
+                 : { id: 'u_' + u.id, name: u.name, position: u.role, empId: u.empId,
+                     department: u.department, salary: 0, _topRole: u.role, _topName: u.name, _topUsername: u.username };
+    });
     
     // المدراء
     const managerRoles = ['مدير', 'مشرف', 'كيميائي', 'أمين', 'محاسب'];
     const managers = employees.filter(e => e.position && managerRoles.some(r => e.position.includes(r)) && e.position !== 'مدير شؤون الموظفين');
     
     // الموظفون العاديون
-    const regulars = employees.filter(e => !managers.includes(e) && !top.includes(e));
+    const regulars = employees.filter(e => !managers.includes(e) && !top.some(t => t.id === e.id));
     
     // بناء عقد الشجرة
     const nodes = [];
     const links = [];
     
     // العقد الجذرية
+    const topNodeIds = [];
     top.forEach((p, i) => {
+      const nodeId = 'top_' + (typeof p.id === 'number' ? p.id : p._topUsername || i);
+      topNodeIds.push(nodeId);
       nodes.push({
-        id: 'top_' + p.id,
+        id: nodeId,
         name: p.name,
         role: p.position,
         empId: p.empId,
@@ -2849,11 +2996,14 @@ window.Modules.orgtree = function(container) {
       };
       nodes.push(node);
       
-      // ربط بأعلى مستوى إداري
-      links.push({ source: 'top_1', target: node.id });
+      // ربط بأعلى مستوى إداري (الموزع على عقد top بالتناوب)
+      if (topNodeIds.length) {
+        const parentId = topNodeIds[managers.indexOf(m) % topNodeIds.length];
+        links.push({ source: parentId, target: node.id });
+      }
       
-      // ربط الموظفين بالمدراء
-      const teamMembers = regulars.filter(e => e.managerId == m.empId);
+      // ربط الموظفين بالمدراء — managerId هو رقم الموظف الداخلي، و m.id كذلك
+      const teamMembers = regulars.filter(e => Number(e.managerId) === Number(m.id));
       teamMembers.forEach(tm => {
         const child = {
           id: 'emp_' + tm.id,
@@ -3340,8 +3490,10 @@ window.Modules.orgtree = function(container) {
       </table>
     `;
   };
-  
+
   render();
+  // ضبط الشجرة على الشاشة بعد أول رسم
+  setTimeout(() => Modules._orgtreeFit && Modules._orgtreeFit(), 50);
 };
 
 /* ============ الإعدادات ============ */

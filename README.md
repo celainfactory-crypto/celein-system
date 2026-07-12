@@ -486,6 +486,8 @@ production:   https://celain.ink
 
 | الإصدار | الوصف |
 |---------|-------|
+| v20.1 | إصلاح الميزات: عناوين الصفحات الناقصة + أزرار التصدير للصلاحيات والمنتهية عقودهم + ضبط الشجرة التفاعلية على الشاشة |
+| v20.0 | تحديث أسماء 6 موظفين + نشر على sandbox جديد |
 | v19.4 | إضافة `celain-direct.html` (يحمّل من jsDelivr مباشرة) |
 | v19.3 | Netlify redirects: `data-seed.js` → jsDelivr |
 | v19.2 | Service Worker Proxy: يحول طلبات Netlify إلى jsDelivr |
