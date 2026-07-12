@@ -1405,64 +1405,62 @@ window.Modules.hr = function(container) {
 
         <div class="card">
           <h3>${Icons.render("users")} سجل الموظفين</h3>
-          <div id="employeeRegistry">
-            ${(() => {
-              function empRow(emp) {
-                return '<tr>'
-                  + '<td><b>'+emp.empId+'</b></td>'
-                  + '<td>'+emp.name+'</td>'
-                  + '<td>'+emp.position+'</td>'
-                  + '<td><span class="badge badge-info">'+emp.department+'</span></td>'
-                  + '<td class="text-primary"><b>'+(emp.salary+(emp.allowances||0)).toLocaleString('ar-EG')+'</b></td>'
-                  + '<td class="text-muted">'+emp.hireDate+'</td>'
-                  + (isAdmin ? '<td><button class="btn btn-sm" onclick="Modules._editEmployee('+emp.id+')">'+Icons.render("edit")+'</button> <button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployee('+emp.id+')">'+Icons.render("trash")+'</button></td>' : '')
+          <div class="header-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+            <div class="search-bar" style="margin:0;flex:1;max-width:320px">
+              <input type="text" id="empRegistrySearch" placeholder="بحث بالاسم أو الرقم أو القسم..." oninput="Modules._filterRegistry()" />
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <span class="badge badge-info">إجمالي: ${db.employeesLog.length}</span>
+              <span class="badge badge-success">نشط: ${db.employeesLog.filter(e => e.status === 'active' || !e.status).length}</span>
+              <span class="badge badge-warning">موقوف: ${db.employeesLog.filter(e => e.status === 'suspended').length}</span>
+              <span class="badge badge-danger">مفصول: ${db.employeesLog.filter(e => e.status === 'terminated').length}</span>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+          <table class="data-table" id="registryTable">
+            <thead>
+              <tr>
+                <th>الرقم الوظيفي</th>
+                <th>الاسم</th>
+                <th>المسمى الوظيفي</th>
+                <th>المدير المباشر</th>
+                <th>تاريخ التعيين</th>
+                <th>الراتب</th>
+                <th>البدلات</th>
+                <th>الحالة</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${db.employeesLog.map(e => {
+                const status = e.status || 'active';
+                let statusBadge = '';
+                if (status === 'active') statusBadge = '<span class="badge badge-success">موظف</span>';
+                else if (status === 'suspended') statusBadge = '<span class="badge badge-warning">موقوف</span>';
+                else if (status === 'terminated') {
+                  const tDate = e.terminationStatus?.date || '-';
+                  statusBadge = '<span class="badge badge-danger">مفصول</span> <span class="text-muted" style="font-size:11px">'+tDate+'</span>';
+                }
+                return '<tr data-search="'+(e.empId+' '+e.name+' '+e.department+' '+e.position).toLowerCase()+'">'
+                  + '<td><b>'+e.empId+'</b></td>'
+                  + '<td><b>'+e.name+'</b></td>'
+                  + '<td>'+e.position+'</td>'
+                  + '<td class="text-muted">'+(e.managerName || 'الإدارة العليا')+'</td>'
+                  + '<td class="text-muted">'+e.hireDate+'</td>'
+                  + '<td class="text-primary"><b>'+e.salary.toLocaleString('ar-EG')+'</b></td>'
+                  + '<td>'+(e.allowances || 0).toLocaleString('ar-EG')+'</td>'
+                  + '<td>'+statusBadge+'</td>'
+                  + '<td>'
+                  +   (isAdmin
+                        ? '<button class="btn btn-sm" onclick="Modules._editEmployee('+e.id+')" title="تعديل">'+Icons.render("edit")+'</button> '
+                          + '<button class="btn btn-sm btn-secondary" onclick="Modules._toggleStatus('+e.id+')" title="تغيير الحالة">'+Icons.render("refresh")+'</button> '
+                          + '<button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployee('+e.id+')" title="حذف">'+Icons.render("trash")+'</button>'
+                        : '')
+                  + '</td>'
                   + '</tr>';
-              }
-              
-              function section(title, manager, workers) {
-                let html = '<div style="margin-bottom:14px;padding:10px 14px;background:var(--bg-darker);border-radius:10px;border-right:3px solid var(--primary)">';
-                html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">';
-                html += '<b style="color:var(--primary);font-size:14px">'+title+'</b>';
-                if (manager) {
-                  html += '<span class="badge badge-info">المدير: '+manager.name+'</span>';
-                }
-                html += '<span class="badge badge-info" style="margin-right:auto">'+workers.length+' موظف</span>';
-                html += '</div>';
-                if (workers.length > 0) {
-                  html += '<div style="overflow-x:auto"><table class="data-table" style="margin:0;font-size:13px"><thead><tr><th>الرقم</th><th>الاسم</th><th>الوظيفة</th><th>القسم</th><th>الراتب+البدلات</th><th>التعيين</th>'+(isAdmin ? '<th>إجراءات</th>' : '')+'</tr></thead><tbody>';
-                  workers.forEach(w => { html += empRow(w); });
-                  html += '</tbody></table></div>';
-                }
-                html += '</div>';
-                return html;
-              }
-              
-              let html = '';
-              const sections = [
-                ['الإدارة العليا', ['الإدارة']],
-                ['الموارد البشرية', ['الموارد البشرية']],
-                ['الإنتاج', ['الإنتاج']],
-                ['المبيعات', ['المبيعات']],
-                ['المختبر', ['المختبر']],
-                ['المخازن', ['المخازن', 'مخازن البيضاء']],
-                ['الخدمات', ['الخدمات']],
-                ['العلاقات العامة', ['العلاقات العامة']],
-                ['الحسابات', ['الحسابات']],
-                ['المشتريات', ['المشتريات']],
-                ['المالية', ['المالية']],
-                ['الأمن', ['الأمن']]
-              ];
-              
-              sections.forEach(([title, depts]) => {
-                const emps = db.employeesLog.filter(e => depts.includes(e.department));
-                if (emps.length === 0) return;
-                const mgr = emps.find(e => /مدير|مشرف|كيميائي/.test(e.position));
-                const workers = emps.filter(e => e !== mgr);
-                html += section(title, mgr, workers);
-              });
-              
-              return html;
-            })()}
+              }).join('')}
+            </tbody>
+          </table>
           </div>
         </div>
       </div>
@@ -1578,6 +1576,37 @@ window.Modules.hr = function(container) {
     if (!emp) return;
     if (!confirm('حذف الموظف "'+emp.name+'" ('+emp.empId+')؟')) return;
     db.employeesLog = db.employeesLog.filter(e => e.id !== id);
+    APP.saveDB(db);
+    render();
+  };
+
+  Modules._filterRegistry = function() {
+    const q = (document.getElementById('empRegistrySearch')?.value || '').toLowerCase();
+    document.querySelectorAll('#registryTable tbody tr').forEach(tr => {
+      tr.style.display = (tr.dataset.search || '').toLowerCase().includes(q) ? '' : 'none';
+    });
+  };
+
+  Modules._toggleStatus = function(id) {
+    if (!isAdmin) { alert('⛔ صلاحية التعديل للمدير فقط'); return; }
+    const db = APP.getDB();
+    const emp = db.employeesLog.find(e => e.id === id);
+    if (!emp) return;
+    
+    const current = emp.status || 'active';
+    let next, nextLabel;
+    if (current === 'active') { next = 'suspended'; nextLabel = 'موقوف'; }
+    else if (current === 'suspended') { next = 'terminated'; nextLabel = 'مفصول'; }
+    else { next = 'active'; nextLabel = 'موظف'; }
+    
+    if (!confirm('تغيير حالة الموظف "'+emp.name+'" إلى "'+nextLabel+'"؟')) return;
+    
+    emp.status = next;
+    if (next === 'terminated') {
+      emp.terminationStatus = { date: new Date().toISOString().split('T')[0], reason: 'قرار إداري' };
+    } else {
+      emp.terminationStatus = null;
+    }
     APP.saveDB(db);
     render();
   };
