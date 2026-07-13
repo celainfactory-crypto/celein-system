@@ -5770,3 +5770,165 @@ window.Modules.incomingRequests = function(container) {
 
   render();
 };
+
+// ===== لوحة التحكم الشخصية =====
+window.Modules.myDashboard = function(container) {
+  const user = APP.getCurrentUser();
+  if (!user) return;
+  SelfService.initDB();
+  const db = APP.getDB();
+  const myReqs = SelfService.getMyRequests();
+  const notifs = (db.notifications || []).filter(n => n.for === user.empId || n.for === user.username);
+  const unread = notifs.filter(n => !n.read).length;
+  const emp = db.employeesLog.find(e => e.empId === user.empId) || {};
+
+  // حساب الراتب الشهري
+  const salary = parseFloat(emp.salary || 0);
+  const allowances = parseFloat(emp.allowances || 0);
+  const housing = parseFloat(emp.housingAllowance || 0);
+  const total = salary + allowances + housing;
+
+  const pendingReqs = myReqs.filter(r => !['approved','rejected','completed','cancelled'].includes(r.status)).length;
+  const approvedReqs = myReqs.filter(r => r.status === 'approved' || r.status === 'completed').length;
+
+  container.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-label">إجمالي طلباتي</div>
+        <div class="stat-value">${myReqs.length}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">بانتظار الموافقة</div>
+        <div class="stat-value" style="color:var(--warning)">${pendingReqs}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">معتمدة</div>
+        <div class="stat-value" style="color:var(--success)">${approvedReqs}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">إشعارات غير مقروءة</div>
+        <div class="stat-value" style="color:var(--primary)">${unread}</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="card">
+        <h3>${Icons.render("user")} بياناتي</h3>
+        <table style="width:100%;font-size:13px">
+          <tr><td class="text-muted" width="120">الاسم</td><td><b>${emp.name || '-'}</b></td></tr>
+          <tr><td class="text-muted">رقم البطاقة</td><td>${emp.displayId || '-'} (${emp.empId || '-'})</td></tr>
+          <tr><td class="text-muted">القسم</td><td>${emp.department || '-'}</td></tr>
+          <tr><td class="text-muted">المسمى الوظيفي</td><td>${emp.position || '-'}</td></tr>
+          <tr><td class="text-muted">تاريخ التعيين</td><td>${emp.hireDate || '-'}</td></tr>
+          <tr><td class="text-muted">رقم الهاتف</td><td>${emp.phone || '-'}</td></tr>
+        </table>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn btn-sm" onclick="APP.navigate('profile')">${Icons.render("edit")} تعديل بياناتي</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("fileText")} رواتبي الشهرية</h3>
+        <table style="width:100%;font-size:13px">
+          <tr><td class="text-muted" width="120">الراتب الأساسي</td><td class="text-primary"><b>${salary.toLocaleString('ar-EG')} ر.ي</b></td></tr>
+          <tr><td class="text-muted">البدلات</td><td>${allowances.toLocaleString('ar-EG')} ر.ي</td></tr>
+          <tr><td class="text-muted">بدل السكن</td><td>${housing.toLocaleString('ar-EG')} ر.ي</td></tr>
+          <tr style="border-top:2px solid var(--border)">
+            <td class="text-muted"><b>الإجمالي</b></td>
+            <td class="text-primary" style="font-size:16px"><b>${total.toLocaleString('ar-EG')} ر.ي</b></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>${Icons.render("bell")} آخر الإشعارات</h3>
+      ${notifs.length === 0 ? '<p class="text-muted" style="padding:10px 0">لا توجد إشعارات</p>' : `
+        <table class="data-table">
+          <thead><tr><th>العنوان</th><th>الرسالة</th><th>التاريخ</th><th></th></tr></thead>
+          <tbody>
+            ${notifs.slice(-10).reverse().map(n => `
+              <tr style="${n.read ? 'opacity:0.5' : ''}">
+                <td><b>${n.title}</b></td>
+                <td>${n.message}</td>
+                <td class="text-muted" style="font-size:12px">${new Date(n.createdAt).toLocaleDateString('ar-EG')}</td>
+                <td>${n.read ? '' : '<span class="badge badge-info">جديد</span>'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `}
+    </div>
+  `;
+};
+
+// ===== كشف الراتب الشهري =====
+window.Modules.salarySlip = function(container) {
+  const user = APP.getCurrentUser();
+  if (!user) return;
+  SelfService.initDB();
+  const db = APP.getDB();
+  const emp = db.employeesLog.find(e => e.empId === user.empId) || {};
+  const now = new Date();
+  const months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const monthName = months[now.getMonth()];
+  const year = now.getFullYear();
+
+  const salary = parseFloat(emp.salary || 0);
+  const allowances = parseFloat(emp.allowances || 0);
+  const housing = parseFloat(emp.housingAllowance || 0);
+  const deductions = 0;
+  const net = salary + allowances + housing;
+
+  Exports.register("salarySlip", {
+    label: "كشف الراتب",
+    pdf: () => window.print(),
+    excel: () => {},
+    json: () => {},
+    csv: () => {},
+    print: () => window.print()
+  });
+
+  container.innerHTML = `
+    <div class="card">
+      <div style="text-align:center;border-bottom:2px solid var(--border);padding-bottom:14px;margin-bottom:14px">
+        <h2 style="margin:0">${Icons.render("fileText")} مصنع سيلين للمياه المعدنية والمرطبات</h2>
+        <h3 style="margin:8px 0 4px 0;color:var(--primary)">كشف الراتب الشهري</h3>
+        <p style="margin:0" class="text-muted">${monthName} ${year}</p>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <h4 style="margin:0 0 10px 0;border-bottom:1px solid var(--border);padding-bottom:6px">بيانات الموظف</h4>
+          <table style="width:100%;font-size:13px">
+            <tr><td class="text-muted">الاسم</td><td><b>${emp.name || '-'}</b></td></tr>
+            <tr><td class="text-muted">رقم الموظف</td><td>${emp.displayId || '-'}</td></tr>
+            <tr><td class="text-muted">القسم</td><td>${emp.department || '-'}</td></tr>
+            <tr><td class="text-muted">المسمى الوظيفي</td><td>${emp.position || '-'}</td></tr>
+            <tr><td class="text-muted">تاريخ التعيين</td><td>${emp.hireDate || '-'}</td></tr>
+          </table>
+        </div>
+        <div>
+          <h4 style="margin:0 0 10px 0;border-bottom:1px solid var(--border);padding-bottom:6px">الاستحقاقات</h4>
+          <table style="width:100%;font-size:13px">
+            <tr><td class="text-muted">الراتب الأساسي</td><td class="text-left" style="text-align:left">${salary.toLocaleString('ar-EG')}</td></tr>
+            <tr><td class="text-muted">البدلات</td><td class="text-left" style="text-align:left">${allowances.toLocaleString('ar-EG')}</td></tr>
+            <tr><td class="text-muted">بدل السكن</td><td class="text-left" style="text-align:left">${housing.toLocaleString('ar-EG')}</td></tr>
+            <tr style="border-top:2px solid var(--border)"><td><b>الإجمالي</b></td><td class="text-primary" style="text-align:left"><b>${net.toLocaleString('ar-EG')}</b></td></tr>
+          </table>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:20px;padding-top:14px;border-top:2px solid var(--border)">
+        <p style="margin:0;font-size:18px"><b>صافي الراتب: ${net.toLocaleString('ar-EG')} ر.ي</b></p>
+        <p style="margin:4px 0 0 0" class="text-muted">فقط ${toArabicWords(net)} ريال يمني</p>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-primary" onclick="window.print()">${Icons.render("printer")} طباعة</button>
+    </div>
+  `;
+
+  function toArabicWords(num) {
+    const units = ['','واحد','اثنان','ثلاثة','أربعة','خمسة','ستة','سبعة','ثمانية','تسعة','عشرة'];
+    return Math.floor(num).toString().replace(/\d/g, d => units[parseInt(d)]).replace(/,/g,' و') || 'صفر';
+  }
+};
