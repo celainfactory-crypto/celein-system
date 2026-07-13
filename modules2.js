@@ -2183,247 +2183,6 @@ window.Modules.permissions = function(container) {
 window.Modules.profile = function(container) {
   const db = APP.getDB();
   const user = APP.getCurrentUser();
-  if (!user) {
-    container.innerHTML = `<div class="alert alert-danger">لم يتم التعرف على المستخدم</div>`;
-    return;
-  }
-
-  // بيانات الموظف المرتبطة
-  const emp = db.employeesLog.find(e => e.id === user.employeeId) || {};
-  const roleLabel = (DB.PERMISSIONS.roleLabels || {})[user.role] || user.role;
-  const accessMode = DB.getAccessMode(user, 'profile');
-  const allowedPages = Object.entries(DB.PERMISSIONS.pages)
-    .filter(([pid, roles]) => roles.includes(user.role) || (user.customPermissions || []).includes(pid))
-    .map(([pid]) => allPagesLabels[pid] || pid);
-
-  const allPagesLabels = {
-    dashboard: 'لوحة التحكم', production: 'الإنتاج', purchaseRequest: 'طلبات الشراء',
-    costs: 'التكاليف', pricing: 'الأسعار', inventory: 'المخزون', vouchers: 'سندات الصرف',
-    sales: 'المبيعات', agents: 'الوكلاء', lab: 'المختبر', procurement: 'المشتريات',
-    hr: 'الموارد البشرية', reports: 'التقارير', users: 'إدارة المستخدمين',
-    permissions: 'إدارة الصلاحيات', settings: 'الإعدادات', profile: 'الملف الشخصي'
-  };
-
-  container.innerHTML = `
-    <div class="alert alert-info">
-      <span>${Icons.render("user")}</span>
-      <span>مرحباً <b>${user.name}</b> — هذه معلوماتك الشخصية في النظام.</span>
-    </div>
-
-    <div class="card">
-      <h3>${Icons.render("user")} المعلومات الأساسية</h3>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>الرقم الوظيفي</label>
-          <input type="text" value="${user.empId || '—'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
-        </div>
-        <div class="form-group">
-          <label>اسم المستخدم</label>
-          <input type="text" value="${user.username}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
-        </div>
-        <div class="form-group">
-          <label>الاسم الكامل</label>
-          <input type="text" value="${user.name}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
-        </div>
-        <div class="form-group">
-          <label>الصلاحية</label>
-          <input type="text" value="${roleLabel}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
-        </div>
-        <div class="form-group">
-          <label>القسم</label>
-          <input type="text" value="${user.department || '—'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
-        </div>
-        <div class="form-group">
-          <label>الحالة</label>
-          <input type="text" value="${user.active ? '✅ نشط' : '❌ موقوف'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
-        </div>
-      </div>
-    </div>
-
-    ${emp.id ? `
-    <div class="card">
-      <h3>${Icons.render("users")} بيانات الموظف</h3>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>الرقم الوظيفي (HR)</label>
-          <input type="text" value="${emp.empId}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
-        </div>
-        <div class="form-group">
-          <label>الوظيفة</label>
-          <input type="text" value="${emp.position || '—'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
-        </div>
-        <div class="form-group">
-          <label>القسم</label>
-          <input type="text" value="${emp.department || '—'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
-        </div>
-        <div class="form-group">
-          <label>تاريخ التعيين</label>
-          <input type="text" value="${emp.hireDate || '—'}" readonly style="background:var(--bg-darker);cursor:not-allowed" />
-        </div>
-        <div class="form-group">
-          <label>الراتب الأساسي</label>
-          <input type="text" value="${(emp.salary || 0).toLocaleString('ar-EG')} ر.ي" readonly style="background:var(--bg-darker);cursor:not-allowed" />
-        </div>
-        <div class="form-group">
-          <label>البدلات</label>
-          <input type="text" value="${(emp.allowances || 0).toLocaleString('ar-EG')} ر.ي" readonly style="background:var(--bg-darker);cursor:not-allowed" />
-        </div>
-        <div class="form-group">
-          <label>إجمالي الراتب</label>
-          <input type="text" value="${((emp.salary || 0) + (emp.allowances || 0)).toLocaleString('ar-EG')} ر.ي" readonly style="background:var(--bg-darker);cursor:not-allowed;color:var(--success);font-weight:bold" />
-        </div>
-      </div>
-    </div>
-    ` : `
-    <div class="alert alert-warning">
-      <span>${Icons.render("alert")}</span>
-      <span>لم يتم ربط هذا الحساب ببيانات موظف في سجل الموارد البشرية. تواصل مع مدير الموارد البشرية.</span>
-    </div>
-    `}
-
-    <div class="card">
-      <h3>${Icons.render("key")} الصلاحيات والصفحات المتاحة لك</h3>
-      <p class="text-muted">بناءً على دورك <b>${roleLabel}</b>، يمكنك الوصول إلى:</p>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
-        ${allowedPages.map(p => `<span class="badge badge-info">${p}</span>`).join('')}
-      </div>
-      ${user.customPermissions && user.customPermissions.length ? `
-        <h4 style="margin-top:15px">صلاحيات مخصصة إضافية:</h4>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${user.customPermissions.map(p => `<span class="badge badge-success">${allPagesLabels[p] || p}</span>`).join('')}
-        </div>
-      ` : ''}
-    </div>
-
-    <div class="card">
-      <h3>${Icons.render("info")} معلومات الحساب</h3>
-      <p class="text-muted">آخر دخول: ${new Date().toLocaleString('ar-EG')}</p>
-      <p class="text-muted">وضع الوصول الحالي: <b>${accessMode === 'full' ? 'تعديل كامل' : 'عرض فقط'}</b></p>
-    </div>
-  `;
-};
-
-
-
-  // ===== قسم الطلبات والموافقات في الملف الشخصي =====
-  SelfService.initDB();
-  const myReqs = SelfService.getMyRequests();
-  const notifs = (db.notifications || []).filter(n => n.for === user.empId || n.for === user.username);
-  const unread = notifs.filter(n => !n.read).length;
-  const pending = myReqs.filter(r => ['pending_manager','pending_admin','pending_dept','pending_gm'].includes(r.status)).length;
-  const approved = myReqs.filter(r => r.status === 'approved' || r.status === 'completed').length;
-  const rejected = myReqs.filter(r => r.status === 'rejected' || r.status === 'cancelled').length;
-
-  container.innerHTML += '<div class="card" style="margin-top:14px"><h3>'+Icons.render("inbox")+' طلباتي</h3>';
-  container.innerHTML += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">';
-  container.innerHTML += '<span class="badge badge-info">الإجمالي: '+myReqs.length+'</span>';
-  container.innerHTML += '<span class="badge badge-warning">بانتظار: '+pending+'</span>';
-  container.innerHTML += '<span class="badge badge-success">معتمدة: '+approved+'</span>';
-  container.innerHTML += '<span class="badge badge-secondary">مرفوضة: '+rejected+'</span>';
-  container.innerHTML += '<span class="badge badge-info">إشعارات: '+unread+' غير مقروءة</span></div>';
-
-  if (myReqs.length === 0) {
-    container.innerHTML += '<p class="text-muted" style="text-align:center;padding:20px">لم تقدم أي طلبات حتى الآن.</p>';
-    container.innerHTML += '<div style="text-align:center"><button class="btn btn-primary" onclick="APP.navigate(\'newRequest\')">'+Icons.render("plus")+' قدم طلبك الأول</button></div>';
-  } else {
-    container.innerHTML += '<table class="data-table"><thead><tr><th>رقم</th><th>النوع</th><th>الفئة</th><th>العنوان</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th><th></th></tr></thead><tbody>';
-    myReqs.forEach(r => {
-      const typeConfig = SelfService.REQUEST_TYPES.find(t => t.id === r.type) || {};
-      container.innerHTML += '<tr><td><code style="font-size:11px">'+r.id.substring(0,12)+'</code></td>';
-      container.innerHTML += '<td><span class="badge badge-info">'+(typeConfig.label || r.type)+'</span></td>';
-      container.innerHTML += '<td>'+(r.subTypeLabel || '-')+'</td>';
-      container.innerHTML += '<td>'+r.title+'</td>';
-      container.innerHTML += '<td class="text-muted" style="font-size:12px">'+new Date(r.createdAt).toLocaleDateString('ar-EG')+'</td>';
-      container.innerHTML += '<td class="text-primary"><b>'+(r.amount ? r.amount.toLocaleString('ar-EG')+' ر.ي' : '-')+'</b></td>';
-      container.innerHTML += '<td><span class="badge '+SelfService.STATUS_COLORS[r.status]+'">'+SelfService.STATUS_LABELS[r.status]+'</span></td>';
-      container.innerHTML += '<td><button class="btn btn-sm" onclick="Modules._viewRequest(\''+r.id+'\')">'+Icons.render("eye")+'</button></td></tr>';
-    });
-    container.innerHTML += '</tbody></table>';
-    container.innerHTML += '<div style="text-align:center;margin-top:12px">';
-    container.innerHTML += '<button class="btn btn-primary" onclick="APP.navigate(\'newRequest\')">'+Icons.render("plus")+' طلب جديد</button>';
-    container.innerHTML += '<button class="btn btn-secondary" onclick="APP.navigate(\'myRequests\')">'+Icons.render("inbox")+' عرض الكل</button></div>';
-  }
-  container.innerHTML += '</div>';
-
-  // قسم الإشعارات
-  container.innerHTML += '<div class="card" style="margin-top:14px"><h3>'+Icons.render("bell")+' الإشعارات</h3>';
-  if (notifs.length === 0) {
-    container.innerHTML += '<p class="text-muted" style="padding:10px 0">لا توجد إشعارات</p>';
-  } else {
-    container.innerHTML += '<table class="data-table"><thead><tr><th>العنوان</th><th>الرسالة</th><th>التاريخ</th><th></th></tr></thead><tbody>';
-    notifs.slice(-10).reverse().forEach(n => {
-      container.innerHTML += '<tr style="'+(n.read ? 'opacity:0.5' : '')+'">';
-      container.innerHTML += '<td><b>'+n.title+'</b></td><td>'+n.message+'</td>';
-      container.innerHTML += '<td class="text-muted" style="font-size:12px">'+new Date(n.createdAt).toLocaleDateString('ar-EG')+'</td>';
-      container.innerHTML += '<td>'+(n.read ? '' : '<span class="badge badge-info">جديد</span>')+'</td></tr>';
-    });
-    container.innerHTML += '</tbody></table>';
-  }
-  container.innerHTML += '</div>';
-
-/* ============ تغيير كلمة المرور ============ */
-Modules._changePassword = function() {
-  const user = APP.getCurrentUser();
-  if (!user) return;
-  const current = prompt('كلمة المرور الحالية:');
-  if (!current) return;
-  if (current !== user.password) { alert('⛔ كلمة المرور الحالية غير صحيحة'); return; }
-  const newPass = prompt('كلمة المرور الجديدة (4 أحرف على الأقل):');
-  if (!newPass || newPass.length < 4) { alert('⚠️ كلمة المرور قصيرة جداً'); return; }
-  const confirm = prompt('أكد كلمة المرور الجديدة:');
-  if (confirm !== newPass) { alert('⛔ كلمة المرور غير متطابقة'); return; }
-  const db = APP.getDB();
-  const u = db.users.find(x => x.id === user.id);
-  if (!u) return;
-  u.password = newPass;
-  APP.saveDB(db);
-  DB.setSession({...u, password: newPass});
-  alert('✅ تم تغيير كلمة المرور بنجاح');
-};
-
-/* ============ رفع الصور والوثائق (base64) ============ */
-Modules._handleFileUpload = function(input, type, employeeId) {
-  const file = input.files[0];
-  if (!file) return;
-  if (file.size > 5 * 1024 * 1024) { alert('⚠️ حجم الملف يتجاوز 5MB'); return; }
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const data = e.target.result;
-    const db = APP.getDB();
-    const emp = db.employeesLog.find(x => x.id === employeeId);
-    if (!emp) return;
-    if (type === 'photo') emp.photo = data;
-    else if (type === 'idCardPhoto') emp.idCardPhoto = data;
-    else if (type === 'cv') emp.cv = data;
-    else if (type === 'certificate') {
-      if (!emp.certificates) emp.certificates = [];
-      emp.certificates.push({ name: file.name, data: data, uploadDate: new Date().toISOString() });
-    }
-    APP.saveDB(db);
-    alert('✅ تم رفع الملف بنجاح');
-    if (window.Modules.profile) window.Modules.profile(document.getElementById('content'));
-  };
-  reader.readAsDataURL(file);
-  input.value = '';
-};
-
-Modules._deleteEmployeeDocument = function(employeeId, type, index) {
-  const db = APP.getDB();
-  const emp = db.employeesLog.find(x => x.id === employeeId);
-  if (!emp) return;
-  if (!confirm('حذف هذا الملف؟')) return;
-  if (type === 'photo') emp.photo = null;
-  else if (type === 'idCardPhoto') emp.idCardPhoto = null;
-  else if (type === 'cv') emp.cv = null;
-  else if (type === 'certificate') emp.certificates.splice(index, 1);
-  APP.saveDB(db);
-  if (window.Modules.profile) window.Modules.profile(document.getElementById('content'));
-};
-
-/* ============ تحديث صفحة الملف الشخصي الشاملة ============ */
-window.Modules.profile = function(container) {
-  const db = APP.getDB();
-  const user = APP.getCurrentUser();
   if (!user) { container.innerHTML = '<div class="alert alert-danger">خطأ</div>'; return; }
 
   // الموظف المرتبط
@@ -2634,6 +2393,70 @@ window.Modules.profile = function(container) {
         ${allowedPages.map(p => `<span class="badge badge-info">${allPagesLabels[p] || p}</span>`).join('')}
       </div>
     </div>
+
+  // ===== قسم الطلبات والموافقات في الملف الشخصي =====
+  SelfService.initDB();
+  const myReqs = SelfService.getMyRequests();
+  const notifs = (db.notifications || []).filter(n => n.for === user.empId || n.for === user.username);
+  const unread = notifs.filter(n => !n.read).length;
+  const pending = myReqs.filter(r => ['pending_manager','pending_admin','pending_dept','pending_gm'].includes(r.status)).length;
+  const approved = myReqs.filter(r => r.status === 'approved' || r.status === 'completed').length;
+  const rejected = myReqs.filter(r => r.status === 'rejected' || r.status === 'cancelled').length;
+
+  container.innerHTML += '<div class="card" style="margin-top:14px">';
+  container.innerHTML += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">';
+  container.innerHTML += '<h3 style="margin:0">' + Icons.render("inbox") + ' طلباتي</h3>';
+  container.innerHTML += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  container.innerHTML += '<span class="badge badge-info">الإجمالي: ' + myReqs.length + '</span>';
+  container.innerHTML += '<span class="badge badge-warning">بانتظار: ' + pending + '</span>';
+  container.innerHTML += '<span class="badge badge-success">معتمدة: ' + approved + '</span>';
+  container.innerHTML += '<span class="badge badge-secondary">مرفوضة: ' + rejected + '</span>';
+  container.innerHTML += '<span class="badge badge-info">إشعارات: ' + unread + ' غير مقروءة</span>';
+  container.innerHTML += '</div></div>';
+
+  if (myReqs.length === 0) {
+    container.innerHTML += '<p class="text-muted" style="text-align:center;padding:20px">لم تقدم أي طلبات حتى الآن.</p>';
+    container.innerHTML += '<div style="text-align:center;margin-bottom:14px"><button class="btn btn-primary" onclick="APP.navigate(\'newRequest\')">' + Icons.render("plus") + ' قدم طلبك الأول</button></div>';
+  } else {
+    container.innerHTML += '<table class="data-table"><thead><tr><th>رقم</th><th>النوع</th><th>الفئة</th><th>العنوان</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th><th></th></tr></thead><tbody>';
+    myReqs.forEach(r => {
+      const typeConfig = SelfService.REQUEST_TYPES.find(t => t.id === r.type) || {};
+      container.innerHTML += '<tr>';
+      container.innerHTML += '<td><code style="font-size:11px">' + r.id.substring(0,12) + '</code></td>';
+      container.innerHTML += '<td><span class="badge badge-info">' + (typeConfig.label || r.type) + '</span></td>';
+      container.innerHTML += '<td>' + (r.subTypeLabel || '-') + '</td>';
+      container.innerHTML += '<td>' + r.title + '</td>';
+      container.innerHTML += '<td class="text-muted" style="font-size:12px">' + new Date(r.createdAt).toLocaleDateString('ar-EG') + '</td>';
+      container.innerHTML += '<td class="text-primary"><b>' + (r.amount ? r.amount.toLocaleString('ar-EG') + ' ر.ي' : '-') + '</b></td>';
+      container.innerHTML += '<td><span class="badge ' + SelfService.STATUS_COLORS[r.status] + '">' + SelfService.STATUS_LABELS[r.status] + '</span></td>';
+      container.innerHTML += '<td><button class="btn btn-sm" onclick="Modules._viewRequest(\'' + r.id + '\')">' + Icons.render("eye") + '</button></td>';
+      container.innerHTML += '</tr>';
+    });
+    container.innerHTML += '</tbody></table>';
+    container.innerHTML += '<div style="text-align:center;margin-top:12px">';
+    container.innerHTML += '<button class="btn btn-primary" onclick="APP.navigate(\'newRequest\')">' + Icons.render("plus") + ' طلب جديد</button>';
+    container.innerHTML += '<button class="btn btn-secondary" onclick="APP.navigate(\'myRequests\')">' + Icons.render("inbox") + ' عرض الكل</button>';
+    container.innerHTML += '</div>';
+  }
+  container.innerHTML += '</div>';
+
+  container.innerHTML += '<div class="card" style="margin-top:14px"><h3>' + Icons.render("bell") + ' الإشعارات</h3>';
+  if (notifs.length === 0) {
+    container.innerHTML += '<p class="text-muted" style="padding:10px 0">لا توجد إشعارات</p>';
+  } else {
+    container.innerHTML += '<table class="data-table"><thead><tr><th>العنوان</th><th>الرسالة</th><th>التاريخ</th><th></th></tr></thead><tbody>';
+    notifs.slice(-10).reverse().forEach(n => {
+      container.innerHTML += '<tr style="' + (n.read ? 'opacity:0.5' : '') + '">';
+      container.innerHTML += '<td><b>' + n.title + '</b></td><td>' + n.message + '</td>';
+      container.innerHTML += '<td class="text-muted" style="font-size:12px">' + new Date(n.createdAt).toLocaleDateString('ar-EG') + '</td>';
+      container.innerHTML += '<td>' + (n.read ? '' : '<span class="badge badge-info">جديد</span>') + '</td>';
+      container.innerHTML += '</tr>';
+    });
+    container.innerHTML += '</tbody></table>';
+  }
+  container.innerHTML += '</div>';
+};
+
   `;
 };
 
