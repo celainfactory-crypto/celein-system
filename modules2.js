@@ -2360,7 +2360,6 @@ window.Modules.profile = function(container) {
     container.innerHTML += '</tbody></table>';
   }
   container.innerHTML += '</div>';
-};
 
 /* ============ تغيير كلمة المرور ============ */
 Modules._changePassword = function() {
