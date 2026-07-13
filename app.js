@@ -437,7 +437,9 @@ window.APP = (function () {
   function renderNav() {
     const role = currentUser.role;
     const allModules = [
-      { id: "dashboard",     group: "الرئيسية",          icon: "dashboard",     label: "لوحة التحكم",          roles: ["admin","executive","chairman","accountant","worker"] },
+      { id: "myDashboard",  group: "خدمتي الذاتية",    icon: "layout",        label: "لوحة التحكم",           roles: ["admin","hr_manager","production","accountant","sales","lab","procurement","worker"] },
+      { id: "salarySlip",   group: "خدمتي الذاتية",    icon: "fileText",      label: "كشف الراتب",             roles: ["admin","hr_manager","production","accountant","sales","lab","procurement","worker"] },
+      { id: "dashboard",    group: "الرئيسية",          icon: "dashboard",     label: "لوحة التحكم الإدارية",    roles: ["admin","executive","chairman","accountant"] },
       { id: "production",    group: "العمليات",          icon: "factory",       label: "الإنتاج والتوالف",      roles: ["admin","production","accountant"] },
       { id: "purchaseRequest",group:"العمليات",          icon: "cart",          label: "طلب شراء",                roles: ["admin","production","procurement","accountant"] },
       { id: "costs",         group: "العمليات",          icon: "money",         label: "التكاليف الفعلية",      roles: ["admin","accountant","production"] },
