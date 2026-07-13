@@ -5349,10 +5349,7 @@ window.Modules.myRequests = function(container) {
 
   function render() {
     container.innerHTML = `
-      <div class="alert alert-info">
-        <span>${Icons.render("inbox")}</span>
-        <span>مرحباً <b>${user.name}</b> — هذه جميع طلباتك. اضغط على أي طلب لعرض تفاصيله.</span>
-      </div>
+      <div class="text-muted" style="padding:8px 0 16px 0;font-size:13px">جميع طلباتك. اضغط على أي طلب لعرض تفاصيله.</div>
       
       <div class="card">
         <div class="header-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px">
@@ -5517,10 +5514,7 @@ window.Modules.newRequest = function(container) {
 
   function render() {
     container.innerHTML = `
-      <div class="alert alert-info">
-        <span>${Icons.render("plus")}</span>
-        <span>اختر نوع الطلب ثم عبّئ النموذج. سيتم تحويل الطلب تلقائياً إلى المرحلة المناسبة.</span>
-      </div>
+      <div class="text-muted" style="padding:8px 0 16px 0;font-size:13px">اختر نوع الطلب، ثم الفئة الفرعية، ثم عبّئ التفاصيل.</div>
 
       <div class="card">
         <h3>${Icons.render("plus")} اختيار نوع الطلب</h3>
@@ -5529,7 +5523,7 @@ window.Modules.newRequest = function(container) {
             <div class="request-type-card" onclick="Modules._selectRequestType('${t.id}')">
               <div class="request-type-icon">${Icons.render(t.icon)}</div>
               <div class="request-type-label">${t.label}</div>
-              <div class="request-type-dept">${t.dept}</div>
+              <div class="request-type-dept">${t.dept} • ${t.subTypes.length} فئة</div>
               ${t.specialFlow ? '<div class="request-type-badge">مسار خاص</div>' : ''}
             </div>
           `).join('')}
@@ -5545,120 +5539,133 @@ window.Modules.newRequest = function(container) {
     if (!type) return;
     const form = document.getElementById('newRequestForm');
     
-    let extraFields = '';
-    if (type.id === 'leave') {
-      extraFields = `
-        <div class="form-group"><label>تاريخ بداية الإجازة *</label><input type="date" id="req_startDate" required /></div>
-        <div class="form-group"><label>تاريخ نهاية الإجازة *</label><input type="date" id="req_endDate" required /></div>
-        <div class="form-group"><label>سبب الإجازة</label><textarea id="req_reason" rows="3" placeholder="اذكر سبب الإجازة..."></textarea></div>
-      `;
-    } else if (type.id === 'purchase' || type.id === 'advance') {
-      extraFields = `
-        <div class="form-group"><label>المبلغ المطلوب (ر.ي) *</label><input type="number" id="req_amount" min="0" required /></div>
-        <div class="form-group"><label>التفاصيل</label><textarea id="req_reason" rows="3" placeholder="ما الذي تريد شراءه أو السلفة لِمَ..."></textarea></div>
-      `;
-    } else if (type.id === 'maintenance') {
-      extraFields = `
-        <div class="form-group"><label>المدة المتوقعة للتنفيذ</label><input type="text" id="req_duration" placeholder="مثل: 3 أيام" /></div>
-        <div class="form-group"><label>وصف العطل / الصيانة المطلوبة *</label><textarea id="req_reason" rows="3" required></textarea></div>
-      `;
-    } else if (type.id === 'certificate') {
-      extraFields = `
-        <div class="form-group"><label>نوع الشهادة *</label>
-          <select id="req_certType">
-            <option value="work">شهادة عمل</option>
-            <option value="salary">شهادة راتب</option>
-            <option value="experience">شهادة خبرة</option>
-          </select>
-        </div>
-        <div class="form-group"><label>الغرض منها</label><textarea id="req_reason" rows="3"></textarea></div>
-      `;
-    } else if (type.id === 'data_update') {
-      extraFields = `
-        <div class="form-group"><label>البيان المراد تحديثه *</label>
-          <select id="req_dataType">
-            <option value="phone">رقم الهاتف</option>
-            <option value="address">العنوان</option>
-            <option value="email">البريد الإلكتروني</option>
-            <option value="emergency">رقم الطوارئ</option>
-          </select>
-        </div>
-        <div class="form-group"><label>القيمة الجديدة *</label><input type="text" id="req_dataValue" required /></div>
-      `;
-    } else {
-      extraFields = `<div class="form-group"><label>تفاصيل الطلب *</label><textarea id="req_reason" rows="3" required></textarea></div>`;
-    }
-
     form.style.display = 'block';
     form.innerHTML = `
       <div class="card">
-        <h3>${Icons.render(type.icon)} نموذج: ${type.label}</h3>
+        <h3>${Icons.render(type.icon)} ${type.label}</h3>
         <p class="text-muted" style="margin-bottom:14px">
           ${type.specialFlow 
             ? '<span class="badge badge-warning">مسار خاص</span> سيرفع الطلب إلى <b>'+type.dept+'</b> مباشرة، ثم إلى <b>المدير العام</b> للاعتماد بحسب التكلفة والجدول الزمني.' 
             : 'سيرفع الطلب إلى <b>المدير المباشر</b>، ثم <b>الإدارة (HR)</b>، ثم <b>المدير العام</b>.'}
         </p>
-        <form class="form-grid" id="reqForm" onsubmit="event.preventDefault(); Modules._submitRequest('${type.id}');">
-          <div class="form-group" style="grid-column: span 2">
-            <label>عنوان الطلب *</label>
-            <input type="text" id="req_title" required placeholder="ملخص قصير للطلب" value="${type.label}" />
-          </div>
-          ${extraFields}
-        </form>
-        <div class="btn-row">
-          <button class="btn btn-secondary" onclick="document.getElementById('newRequestForm').style.display='none'">${Icons.render("x")} إلغاء</button>
-          <button class="btn btn-primary" onclick="Modules._submitRequest('${type.id}')">${Icons.render("send")} تقديم الطلب</button>
+        
+        <div class="form-group">
+          <label>الفئة الفرعية *</label>
+          <select id="req_subType" required onchange="Modules._onSubTypeChange('${typeId}')">
+            <option value="">-- اختر الفئة --</option>
+            ${type.subTypes.map(st => `<option value="${st.id}">${st.label}</option>`).join('')}
+          </select>
         </div>
+        
+        <div id="subTypeForm"></div>
       </div>
     `;
     form.scrollIntoView({behavior: 'smooth'});
   };
 
-  Modules._submitRequest = function(typeId) {
-    const title = document.getElementById('req_title')?.value.trim();
-    if (!title) { alert('الرجاء إدخال عنوان الطلب'); return; }
+  // عند تغيير الفئة الفرعية - عرض الحقول المناسبة
+  Modules._onSubTypeChange = function(typeId) {
+    const subTypeId = document.getElementById('req_subType').value;
+    if (!subTypeId) {
+      document.getElementById('subTypeForm').innerHTML = '';
+      return;
+    }
+    const type = SelfService.REQUEST_TYPES.find(t => t.id === typeId);
+    const subType = type.subTypes.find(st => st.id === subTypeId);
+    if (!subType) return;
+    
+    const form = document.getElementById('subTypeForm');
+    let html = '<form class="form-grid" id="reqForm" onsubmit="event.preventDefault(); Modules._submitRequest(\''+typeId+'\', \''+subTypeId+'\');">';
+    
+    // العنوان
+    html += `<div class="form-group" style="grid-column: span 2"><label>عنوان الطلب *</label><input type="text" id="req_title" required value="${subType.label}" /></div>`;
+    
+    // حقول التواريخ
+    if (subType.requireDates) {
+      html += `<div class="form-group"><label>تاريخ البداية *</label><input type="date" id="req_startDate" required /></div>`;
+      html += `<div class="form-group"><label>تاريخ النهاية *</label><input type="date" id="req_endDate" required /></div>`;
+    }
+    
+    // حقل المبلغ
+    if (subType.requireAmount) {
+      html += `<div class="form-group"><label>المبلغ التقديري (ر.ي) *</label><input type="number" id="req_amount" min="0" required /></div>`;
+    }
+    
+    // الحقول الإضافية
+    if (subType.extraField) {
+      html += `<div class="form-group"><label>${subType.extraField} *</label><input type="text" id="req_extraValue" required /></div>`;
+    }
+    
+    // حقل السبب
+    if (subType.requireReason) {
+      html += `<div class="form-group" style="grid-column: span 2"><label>السبب / التفاصيل *</label><textarea id="req_reason" rows="3" required></textarea></div>`;
+    }
+    
+    // المرفقات
+    if (subType.requireAttachment) {
+      html += `<div class="form-group" style="grid-column: span 2"><label>${subType.attachmentLabel || 'مرفق'} *</label><input type="file" id="req_attachment" required /></div>`;
+    }
+    
+    // الوصف
+    html += `<div class="form-group" style="grid-column: span 2"><label>ملاحظات إضافية (اختياري)</label><textarea id="req_description" rows="2" placeholder="أي تفاصيل إضافية توضّح الطلب"></textarea></div>`;
+    
+    html += '</form>';
+    
+    html += `<div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-secondary" onclick="document.getElementById('newRequestForm').style.display='none'">${Icons.render("x")} إلغاء</button>
+      <button class="btn btn-primary" onclick="Modules._submitRequest('${typeId}', '${subTypeId}')">${Icons.render("send")} تقديم الطلب</button>
+    </div>`;
+    
+    form.innerHTML = html;
+  };
+
+  Modules._submitRequest = function(typeId, subTypeId) {
+    if (!subTypeId) { alert('الرجاء اختيار الفئة الفرعية'); return; }
     
     const data = {
-      title: title,
-      description: '',
+      title: document.getElementById('req_title')?.value.trim() || '',
+      subType: subTypeId,
+      description: document.getElementById('req_description')?.value || '',
       amount: 0,
       duration: '',
       startDate: '',
-      endDate: ''
+      endDate: '',
+      extraValue: document.getElementById('req_extraValue')?.value || ''
     };
     
-    // جمع البيانات حسب نوع الطلب
-    if (typeId === 'leave') {
-      const start = document.getElementById('req_startDate')?.value;
-      const end = document.getElementById('req_endDate')?.value;
-      const reason = document.getElementById('req_reason')?.value;
-      if (!start || !end) { alert('الرجاء إدخال تاريخ الإجازة'); return; }
-      data.startDate = start;
-      data.endDate = end;
-      data.description = reason || 'إجازة من ' + start + ' إلى ' + end;
-    } else if (typeId === 'purchase' || typeId === 'advance') {
-      const amount = parseFloat(document.getElementById('req_amount')?.value || 0);
-      if (!amount || amount <= 0) { alert('الرجاء إدخال المبلغ'); return; }
-      data.amount = amount;
-      data.description = document.getElementById('req_reason')?.value || '';
-    } else if (typeId === 'maintenance') {
-      data.duration = document.getElementById('req_duration')?.value || '';
-      data.description = document.getElementById('req_reason')?.value || '';
-      if (!data.description) { alert('الرجاء وصف العطل'); return; }
-    } else if (typeId === 'certificate') {
-      const certType = document.getElementById('req_certType')?.value;
-      data.description = 'شهادة: ' + certType + ' - ' + (document.getElementById('req_reason')?.value || '');
-    } else if (typeId === 'data_update') {
-      const dataType = document.getElementById('req_dataType')?.value;
-      const dataValue = document.getElementById('req_dataValue')?.value;
-      data.description = 'تحديث ' + dataType + ' إلى: ' + dataValue;
-    } else {
-      data.description = document.getElementById('req_reason')?.value || '';
+    if (!data.title) { alert('الرجاء إدخال عنوان الطلب'); return; }
+    
+    const type = SelfService.REQUEST_TYPES.find(t => t.id === typeId);
+    const subType = type.subTypes.find(st => st.id === subTypeId);
+    
+    if (subType.requireDates) {
+      data.startDate = document.getElementById('req_startDate')?.value || '';
+      data.endDate = document.getElementById('req_endDate')?.value || '';
+      if (!data.startDate || !data.endDate) { alert('الرجاء إدخال التواريخ'); return; }
     }
+    
+    if (subType.requireAmount) {
+      data.amount = parseFloat(document.getElementById('req_amount')?.value || 0);
+      if (data.amount <= 0) { alert('الرجاء إدخال المبلغ'); return; }
+    }
+    
+    if (subType.requireReason) {
+      const reason = document.getElementById('req_reason')?.value || '';
+      if (!reason) { alert('الرجاء إدخال السبب'); return; }
+      data.description = reason + '\n\n' + data.description;
+    }
+    
+    // توليد الوصف الكامل
+    let fullDescription = '';
+    if (subType.extraField && data.extraValue) {
+      fullDescription += subType.extraField + ': ' + data.extraValue + '\n';
+    }
+    fullDescription += data.description;
+    data.description = fullDescription;
     
     const req = SelfService.createRequest(typeId, data);
     if (req) {
-      alert('✓ تم تقديم الطلب بنجاح. رقم الطلب: ' + req.id);
+      alert('✓ تم تقديم الطلب بنجاح.\nرقم الطلب: ' + req.id + '\n\nيمكنك متابعة حالته من صفحة "طلباتي"');
       APP.navigate('myRequests');
     } else {
       alert('✗ حدث خطأ في تقديم الطلب');
@@ -5687,10 +5694,7 @@ window.Modules.incomingRequests = function(container) {
     const incoming = SelfService.getIncomingRequests();
 
     container.innerHTML = `
-      <div class="alert alert-info">
-        <span>${Icons.render("incoming")}</span>
-        <span>الطلبات الواردة إليك. اعتمد أو ارفض مع توضيح السبب.</span>
-      </div>
+      <div class="text-muted" style="padding:8px 0 16px 0;font-size:13px">الطلبات الواردة إليك. اعتمد أو ارفض مع توضيح السبب.</div>
 
       <div class="card">
         <h3>${Icons.render("incoming")} الطلبات الواردة (${incoming.length})</h3>

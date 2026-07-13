@@ -1,35 +1,129 @@
 /* ============================================================
-   سيلين - نظام الخدمة الذاتية
-   نظام ERP ذاتي الخدمة للموظفين والمدراء
+   سيلين - نظام الخدمة الذاتية (v2)
+   نظام ERP ذاتي الخدمة - نسخة محسّنة مع الفئات الفرعية
    ============================================================ */
 
 window.SelfService = {
-  // أنواع الطلبات
+  // أنواع الطلبات وفئاتها الفرعية
   REQUEST_TYPES: [
-    {id: 'leave', label: 'طلب إجازة', icon: 'calendar', dept: 'الموارد البشرية'},
-    {id: 'purchase', label: 'طلب شراء', icon: 'cart', dept: 'المشتريات', specialFlow: true},
-    {id: 'maintenance', label: 'طلب صيانة', icon: 'tool', dept: 'الصيانة', specialFlow: true},
-    {id: 'advance', label: 'طلب سلفة', icon: 'money', dept: 'المالية'},
-    {id: 'certificate', label: 'طلب شهادة', icon: 'fileText', dept: 'الموارد البشرية'},
-    {id: 'data_update', label: 'تحديث بيانات شخصية', icon: 'user', dept: 'الموارد البشرية'},
-    {id: 'other', label: 'طلب آخر', icon: 'messageCircle', dept: 'الإدارة'}
+    {
+      id: 'leave', 
+      label: 'طلب إجازة', 
+      icon: 'calendar', 
+      dept: 'الموارد البشرية',
+      subTypes: [
+        {id: 'annual', label: 'إجازة سنوية', requireDates: true, requireAttachment: false},
+        {id: 'sick', label: 'إجازة مرضية', requireDates: true, requireAttachment: true, attachmentLabel: 'تقرير طبي'},
+        {id: 'emergency', label: 'إجازة طارئة', requireDates: true, requireAttachment: false, requireReason: true},
+        {id: 'bereavement', label: 'إجازة وفاة', requireDates: true, requireAttachment: false, extraField: 'صلة القرابة'},
+        {id: 'marriage', label: 'إجازة زواج', requireDates: true, requireAttachment: true, attachmentLabel: 'عقد الزواج'},
+        {id: 'maternity', label: 'إجازة أمومة', requireDates: true, requireAttachment: true, attachmentLabel: 'شهادة طبية'},
+        {id: 'paternity', label: 'إجازة أبوة', requireDates: true, requireAttachment: true, attachmentLabel: 'شهادة ميلاد'},
+        {id: 'unpaid', label: 'إجازة بدون راتب', requireDates: true, requireAttachment: false, requireReason: true},
+        {id: 'hajj', label: 'إجازة حج', requireDates: true, requireAttachment: false},
+        {id: 'other_leave', label: 'إجازة أخرى', requireDates: true, requireAttachment: false, requireReason: true}
+      ]
+    },
+    {
+      id: 'purchase', 
+      label: 'طلب شراء', 
+      icon: 'cart', 
+      dept: 'المشتريات',
+      specialFlow: true,
+      subTypes: [
+        {id: 'production_equipment', label: 'معدات إنتاج', requireAmount: true, extraField: 'اسم المعدة'},
+        {id: 'raw_materials', label: 'مواد خام', requireAmount: true, extraField: 'اسم المادة'},
+        {id: 'packaging', label: 'مواد تغليف', requireAmount: true, extraField: 'نوع التغليف'},
+        {id: 'spare_parts', label: 'قطع غيار', requireAmount: true, extraField: 'اسم القطعة والجهاز'},
+        {id: 'stationery', label: 'قرطاسية', requireAmount: true},
+        {id: 'cleaning', label: 'مواد تنظيف', requireAmount: true},
+        {id: 'office', label: 'أثاث مكتبي', requireAmount: true},
+        {id: 'other_purchase', label: 'شراء آخر', requireAmount: true, requireReason: true}
+      ]
+    },
+    {
+      id: 'maintenance', 
+      label: 'طلب صيانة', 
+      icon: 'tool', 
+      dept: 'الصيانة',
+      specialFlow: true,
+      subTypes: [
+        {id: 'electrical', label: 'كهرباء', extraField: 'الموقع/المعدة'},
+        {id: 'plumbing', label: 'سباكة', extraField: 'الموقع'},
+        {id: 'hvac', label: 'تكييف وتبريد', extraField: 'الموقع'},
+        {id: 'production_machine', label: 'معدة إنتاج', requireAttachment: true, attachmentLabel: 'صور العطل'},
+        {id: 'vehicle', label: 'مركبة', extraField: 'رقم اللوحة'},
+        {id: 'building', label: 'مبنى / صيانة عامة', extraField: 'الموقع'},
+        {id: 'other_maintenance', label: 'صيانة أخرى', requireReason: true}
+      ]
+    },
+    {
+      id: 'advance', 
+      label: 'طلب سلفة', 
+      icon: 'money', 
+      dept: 'المالية',
+      subTypes: [
+        {id: 'personal', label: 'سلفة شخصية', requireAmount: true, requireReason: true},
+        {id: 'emergency', label: 'سلفة طارئة', requireAmount: true, requireReason: true},
+        {id: 'medical_advance', label: 'سلفة طبية', requireAmount: true, requireAttachment: true, attachmentLabel: 'تقرير طبي'},
+        {id: 'education', label: 'سلفة دراسية', requireAmount: true, requireAttachment: true, attachmentLabel: 'إثبات التسجيل'}
+      ]
+    },
+    {
+      id: 'certificate', 
+      label: 'طلب شهادة', 
+      icon: 'fileText', 
+      dept: 'الموارد البشرية',
+      subTypes: [
+        {id: 'work', label: 'شهادة عمل', extraField: 'الغرض من الشهادة'},
+        {id: 'salary', label: 'شهادة راتب', extraField: 'الغرض من الشهادة'},
+        {id: 'experience', label: 'شهادة خبرة', extraField: 'الغرض من الشهادة'},
+        {id: 'to_whom', label: 'شهادة لمن يهمه الأمر', extraField: 'الجهة المقدمة لها'}
+      ]
+    },
+    {
+      id: 'data_update', 
+      label: 'تحديث بيانات شخصية', 
+      icon: 'user', 
+      dept: 'الموارد البشرية',
+      subTypes: [
+        {id: 'phone', label: 'رقم الهاتف', extraField: 'الرقم الجديد'},
+        {id: 'address', label: 'عنوان السكن', extraField: 'العنوان الجديد'},
+        {id: 'email', label: 'البريد الإلكتروني', extraField: 'البريد الجديد'},
+        {id: 'emergency_contact', label: 'رقم الطوارئ', extraField: 'الاسم والرقم'},
+        {id: 'bank_account', label: 'الحساب البنكي', extraField: 'اسم البنك ورقم الحساب', requireAttachment: true, attachmentLabel: 'صورة من كشف الحساب'},
+        {id: 'marital_status', label: 'الحالة الاجتماعية', extraField: 'الحالة الجديدة', requireAttachment: true, attachmentLabel: 'المستند الرسمي'},
+        {id: 'national_id', label: 'رقم الهوية', extraField: 'الرقم الجديد', requireAttachment: true, attachmentLabel: 'صورة الهوية'},
+        {id: 'qualification', label: 'مؤهل علمي جديد', extraField: 'المؤهل', requireAttachment: true, attachmentLabel: 'صورة الشهادة'}
+      ]
+    },
+    {
+      id: 'other', 
+      label: 'طلب آخر', 
+      icon: 'messageCircle', 
+      dept: 'الإدارة',
+      subTypes: [
+        {id: 'suggestion', label: 'اقتراح'},
+        {id: 'complaint', label: 'شكوى'},
+        {id: 'inquiry', label: 'استفسار'},
+        {id: 'other_request', label: 'طلب آخر', requireReason: true}
+      ]
+    }
   ],
 
-  // حالات الطلب
   STATUS: {
-    DRAFT: 'draft',                       // مسودة
-    PENDING_MANAGER: 'pending_manager',   // في انتظار المدير المباشر
-    PENDING_ADMIN: 'pending_admin',       // في انتظار الإدارة
-    PENDING_DEPT: 'pending_dept',         // في انتظار القسم (للصيانة/الشراء)
-    PENDING_GM: 'pending_gm',             // في انتظار المدير العام
-    APPROVED: 'approved',                 // معتمد
-    REJECTED: 'rejected',                 // مرفوض
-    IN_PROGRESS: 'in_progress',           // قيد التنفيذ
-    COMPLETED: 'completed',               // مكتمل
-    CANCELLED: 'cancelled'                // ملغي
+    DRAFT: 'draft',
+    PENDING_MANAGER: 'pending_manager',
+    PENDING_ADMIN: 'pending_admin',
+    PENDING_DEPT: 'pending_dept',
+    PENDING_GM: 'pending_gm',
+    APPROVED: 'approved',
+    REJECTED: 'rejected',
+    IN_PROGRESS: 'in_progress',
+    COMPLETED: 'completed',
+    CANCELLED: 'cancelled'
   },
 
-  // أسماء الحالات بالعربية
   STATUS_LABELS: {
     draft: 'مسودة',
     pending_manager: 'بانتظار المدير المباشر',
@@ -40,10 +134,9 @@ window.SelfService = {
     rejected: 'مرفوض',
     in_progress: 'قيد التنفيذ',
     completed: 'مكتمل',
-    cancelled: 'ملغي'
+    cancelled: 'ملغى'
   },
 
-  // ألوان الحالات
   STATUS_COLORS: {
     draft: 'badge-info',
     pending_manager: 'badge-warning',
@@ -57,7 +150,6 @@ window.SelfService = {
     cancelled: 'badge-secondary'
   },
 
-  // تهيئة بنية الطلبات في قاعدة البيانات
   initDB: function() {
     const db = APP.getDB();
     if (!db.requests) db.requests = [];
@@ -65,21 +157,18 @@ window.SelfService = {
     APP.saveDB(db);
   },
 
-  // الحصول على اسم الموظف
   getEmployeeName: function(empId) {
     const db = APP.getDB();
     const e = db.employeesLog.find(x => x.empId === empId);
     return e ? e.name : 'غير معروف';
   },
 
-  // الحصول على قسم الموظف
   getEmployeeDepartment: function(empId) {
     const db = APP.getDB();
     const e = db.employeesLog.find(x => x.empId === empId);
     return e ? e.department : '';
   },
 
-  // الحصول على المدير المباشر للموظف
   getDirectManager: function(empId) {
     const db = APP.getDB();
     const e = db.employeesLog.find(x => x.empId === empId);
@@ -87,24 +176,27 @@ window.SelfService = {
     return db.employeesLog.find(x => x.id === e.managerId) || null;
   },
 
-  // الحصول على المدير العام
   getGM: function() {
     const db = APP.getDB();
     return db.employeesLog.find(x => x.empId === '105');
   },
 
-  // إنشاء طلب جديد
+  // الحصول على اسم النوع الفرعي
+  getSubTypeLabel: function(typeId, subTypeId) {
+    const t = this.REQUEST_TYPES.find(x => x.id === typeId);
+    if (!t) return subTypeId;
+    const st = (t.subTypes || []).find(x => x.id === subTypeId);
+    return st ? st.label : subTypeId;
+  },
+
   createRequest: function(type, data) {
     this.initDB();
     const db = APP.getDB();
     const user = APP.getCurrentUser();
     if (!user) return null;
 
-    // تحديد المرحلة الأولى
     const typeConfig = this.REQUEST_TYPES.find(t => t.id === type);
     let initialStatus = this.STATUS.PENDING_MANAGER;
-    
-    // للصيانة والشراء: المرحلة الأولى هي القسم المختص مباشرة
     if (typeConfig && typeConfig.specialFlow) {
       initialStatus = this.STATUS.PENDING_DEPT;
     }
@@ -112,33 +204,33 @@ window.SelfService = {
     const newRequest = {
       id: 'REQ-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
       type: type,
+      subType: data.subType || '',
+      subTypeLabel: this.getSubTypeLabel(type, data.subType),
       employeeId: user.empId,
       employeeName: user.name,
       department: this.getEmployeeDepartment(user.empId),
       title: data.title || (typeConfig ? typeConfig.label : 'طلب'),
       description: data.description || '',
-      amount: data.amount || 0,           // المبلغ (للشراء والسلف)
-      duration: data.duration || '',      // المدة (للصيانة)
-      startDate: data.startDate || '',    // تاريخ البداية (للإجازة)
-      endDate: data.endDate || '',        // تاريخ النهاية (للإجازة)
-      attachments: data.attachments || [],// المرفقات
+      amount: data.amount || 0,
+      duration: data.duration || '',
+      startDate: data.startDate || '',
+      endDate: data.endDate || '',
+      extraValue: data.extraValue || '',
+      attachments: data.attachments || [],
       status: initialStatus,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      history: [
-        {
-          action: 'created',
-          by: user.name,
-          byRole: user.role,
-          at: new Date().toISOString(),
-          note: 'تم تقديم الطلب'
-        }
-      ]
+      history: [{
+        action: 'created',
+        by: user.name,
+        byRole: user.role,
+        at: new Date().toISOString(),
+        note: 'تم تقديم الطلب'
+      }]
     };
 
     db.requests.push(newRequest);
-    
-    // إضافة إشعار للمدير المعني
+
     this.addNotification({
       type: 'new_request',
       requestId: newRequest.id,
@@ -153,7 +245,6 @@ window.SelfService = {
     return newRequest;
   },
 
-  // إضافة إشعار
   addNotification: function(notif) {
     this.initDB();
     const db = APP.getDB();
@@ -162,7 +253,6 @@ window.SelfService = {
     APP.saveDB(db);
   },
 
-  // اعتماد طلب في مرحلة معينة
   approveRequest: function(requestId, note) {
     this.initDB();
     const db = APP.getDB();
@@ -171,20 +261,16 @@ window.SelfService = {
 
     const user = APP.getCurrentUser();
     const oldStatus = req.status;
-
-    // الانتقال للمرحلة التالية
     const typeConfig = this.REQUEST_TYPES.find(t => t.id === req.type);
     let nextStatus;
 
     if (typeConfig && typeConfig.specialFlow) {
-      // للصيانة والشراء: القسم ← المدير العام
       if (req.status === this.STATUS.PENDING_DEPT) {
         nextStatus = this.STATUS.PENDING_GM;
       } else if (req.status === this.STATUS.PENDING_GM) {
         nextStatus = this.STATUS.APPROVED;
       }
     } else {
-      // للطلبات الأخرى: المدير ← الإدارة ← المدير العام
       if (req.status === this.STATUS.PENDING_MANAGER) {
         nextStatus = this.STATUS.PENDING_ADMIN;
       } else if (req.status === this.STATUS.PENDING_ADMIN) {
@@ -206,7 +292,6 @@ window.SelfService = {
       note: note || 'تم الاعتماد'
     });
 
-    // إشعار للموظف
     this.addNotification({
       type: 'request_approved',
       requestId: req.id,
@@ -221,7 +306,6 @@ window.SelfService = {
     return true;
   },
 
-  // رفض طلب
   rejectRequest: function(requestId, reason) {
     this.initDB();
     const db = APP.getDB();
@@ -243,7 +327,6 @@ window.SelfService = {
       note: reason || 'تم الرفض'
     });
 
-    // إشعار للموظف
     this.addNotification({
       type: 'request_rejected',
       requestId: req.id,
@@ -258,7 +341,6 @@ window.SelfService = {
     return true;
   },
 
-  // الحصول على طلبات المستخدم الحالي
   getMyRequests: function() {
     this.initDB();
     const db = APP.getDB();
@@ -268,7 +350,6 @@ window.SelfService = {
                        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   },
 
-  // الحصول على الطلبات الواردة للمدير الحالي
   getIncomingRequests: function() {
     this.initDB();
     const db = APP.getDB();
@@ -279,16 +360,12 @@ window.SelfService = {
     if (!userEmp) return [];
 
     return db.requests.filter(r => {
-      // للمدير المباشر
       if (r.status === 'pending_manager') {
         const emp = db.employeesLog.find(e => e.empId === r.employeeId);
         if (emp && emp.managerId === userEmp.id) return true;
       }
-      // للمدير العام
       if (r.status === 'pending_gm' && userEmp.empId === '105') return true;
-      // للمدير الإداري (HR)
       if (r.status === 'pending_admin' && userEmp.department === 'الموارد البشرية') return true;
-      // للقسم المختص (صيانة / مشتريات)
       if (r.status === 'pending_dept') {
         const typeConfig = this.REQUEST_TYPES.find(t => t.id === r.type);
         if (typeConfig && typeConfig.dept === userEmp.department) return true;
@@ -298,4 +375,4 @@ window.SelfService = {
   }
 };
 
-console.log('✓ Self-Service module loaded');
+console.log('✓ Self-Service v2 loaded with sub-types');
