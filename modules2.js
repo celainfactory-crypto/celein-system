@@ -2303,6 +2303,65 @@ window.Modules.profile = function(container) {
   `;
 };
 
+
+
+  // ===== قسم الطلبات والموافقات في الملف الشخصي =====
+  SelfService.initDB();
+  const myReqs = SelfService.getMyRequests();
+  const notifs = (db.notifications || []).filter(n => n.for === user.empId || n.for === user.username);
+  const unread = notifs.filter(n => !n.read).length;
+  const pending = myReqs.filter(r => ['pending_manager','pending_admin','pending_dept','pending_gm'].includes(r.status)).length;
+  const approved = myReqs.filter(r => r.status === 'approved' || r.status === 'completed').length;
+  const rejected = myReqs.filter(r => r.status === 'rejected' || r.status === 'cancelled').length;
+
+  container.innerHTML += '<div class="card" style="margin-top:14px"><h3>'+Icons.render("inbox")+' طلباتي</h3>';
+  container.innerHTML += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">';
+  container.innerHTML += '<span class="badge badge-info">الإجمالي: '+myReqs.length+'</span>';
+  container.innerHTML += '<span class="badge badge-warning">بانتظار: '+pending+'</span>';
+  container.innerHTML += '<span class="badge badge-success">معتمدة: '+approved+'</span>';
+  container.innerHTML += '<span class="badge badge-secondary">مرفوضة: '+rejected+'</span>';
+  container.innerHTML += '<span class="badge badge-info">إشعارات: '+unread+' غير مقروءة</span></div>';
+
+  if (myReqs.length === 0) {
+    container.innerHTML += '<p class="text-muted" style="text-align:center;padding:20px">لم تقدم أي طلبات حتى الآن.</p>';
+    container.innerHTML += '<div style="text-align:center"><button class="btn btn-primary" onclick="APP.navigate(\'newRequest\')">'+Icons.render("plus")+' قدم طلبك الأول</button></div>';
+  } else {
+    container.innerHTML += '<table class="data-table"><thead><tr><th>رقم</th><th>النوع</th><th>الفئة</th><th>العنوان</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th><th></th></tr></thead><tbody>';
+    myReqs.forEach(r => {
+      const typeConfig = SelfService.REQUEST_TYPES.find(t => t.id === r.type) || {};
+      container.innerHTML += '<tr><td><code style="font-size:11px">'+r.id.substring(0,12)+'</code></td>';
+      container.innerHTML += '<td><span class="badge badge-info">'+(typeConfig.label || r.type)+'</span></td>';
+      container.innerHTML += '<td>'+(r.subTypeLabel || '-')+'</td>';
+      container.innerHTML += '<td>'+r.title+'</td>';
+      container.innerHTML += '<td class="text-muted" style="font-size:12px">'+new Date(r.createdAt).toLocaleDateString('ar-EG')+'</td>';
+      container.innerHTML += '<td class="text-primary"><b>'+(r.amount ? r.amount.toLocaleString('ar-EG')+' ر.ي' : '-')+'</b></td>';
+      container.innerHTML += '<td><span class="badge '+SelfService.STATUS_COLORS[r.status]+'">'+SelfService.STATUS_LABELS[r.status]+'</span></td>';
+      container.innerHTML += '<td><button class="btn btn-sm" onclick="Modules._viewRequest(\''+r.id+'\')">'+Icons.render("eye")+'</button></td></tr>';
+    });
+    container.innerHTML += '</tbody></table>';
+    container.innerHTML += '<div style="text-align:center;margin-top:12px">';
+    container.innerHTML += '<button class="btn btn-primary" onclick="APP.navigate(\'newRequest\')">'+Icons.render("plus")+' طلب جديد</button>';
+    container.innerHTML += '<button class="btn btn-secondary" onclick="APP.navigate(\'myRequests\')">'+Icons.render("inbox")+' عرض الكل</button></div>';
+  }
+  container.innerHTML += '</div>';
+
+  // قسم الإشعارات
+  container.innerHTML += '<div class="card" style="margin-top:14px"><h3>'+Icons.render("bell")+' الإشعارات</h3>';
+  if (notifs.length === 0) {
+    container.innerHTML += '<p class="text-muted" style="padding:10px 0">لا توجد إشعارات</p>';
+  } else {
+    container.innerHTML += '<table class="data-table"><thead><tr><th>العنوان</th><th>الرسالة</th><th>التاريخ</th><th></th></tr></thead><tbody>';
+    notifs.slice(-10).reverse().forEach(n => {
+      container.innerHTML += '<tr style="'+(n.read ? 'opacity:0.5' : '')+'">';
+      container.innerHTML += '<td><b>'+n.title+'</b></td><td>'+n.message+'</td>';
+      container.innerHTML += '<td class="text-muted" style="font-size:12px">'+new Date(n.createdAt).toLocaleDateString('ar-EG')+'</td>';
+      container.innerHTML += '<td>'+(n.read ? '' : '<span class="badge badge-info">جديد</span>')+'</td></tr>';
+    });
+    container.innerHTML += '</tbody></table>';
+  }
+  container.innerHTML += '</div>';
+};
+
 /* ============ تغيير كلمة المرور ============ */
 Modules._changePassword = function() {
   const user = APP.getCurrentUser();
