@@ -5333,7 +5333,7 @@ window.Modules.myRequests = function(container) {
   SelfService.initDB();
   const db = APP.getDB();
   const user = APP.getCurrentUser();
-  if (!user) { container.innerHTML = '<div class="alert alert-danger">الرجاء تسجيل الدخول</div>'; return; }
+  if (!user) { container.innerHTML = '<div class="empty-state" style="text-align:center;padding:40px"><p style="color:var(--text-muted)">لم يتم تسجيل الدخول</p></div>'; return; }
   
   const myReqs = SelfService.getMyRequests();
   const notifs = (db.notifications || []).filter(n => n.for === user.empId || n.for === user.username).slice(-5).reverse();
@@ -5501,7 +5501,7 @@ window.Modules.myRequests = function(container) {
 window.Modules.newRequest = function(container) {
   SelfService.initDB();
   const user = APP.getCurrentUser();
-  if (!user) { container.innerHTML = '<div class="alert alert-danger">الرجاء تسجيل الدخول</div>'; return; }
+  if (!user) { container.innerHTML = '<div class="empty-state" style="text-align:center;padding:40px"><p style="color:var(--text-muted)">لم يتم تسجيل الدخول</p></div>'; return; }
 
   Exports.register("newRequest", {
     label: "طلب جديد",
@@ -5679,7 +5679,7 @@ window.Modules.newRequest = function(container) {
 window.Modules.incomingRequests = function(container) {
   SelfService.initDB();
   const user = APP.getCurrentUser();
-  if (!user) { container.innerHTML = '<div class="alert alert-danger">الرجاء تسجيل الدخول</div>'; return; }
+  if (!user) { container.innerHTML = '<div class="empty-state" style="text-align:center;padding:40px"><p style="color:var(--text-muted)">لم يتم تسجيل الدخول</p></div>'; return; }
 
   Exports.register("incomingRequests", {
     label: "الطلبات الواردة",
