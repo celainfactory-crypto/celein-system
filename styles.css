@@ -2066,3 +2066,46 @@ tr.manager-row td:first-child {
 #devTabContent {
   margin-top: 16px;
 }
+
+/* ===== Self Service Request Cards ===== */
+.request-type-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 20px 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border: 2px solid transparent;
+  box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
+  position: relative;
+}
+.request-type-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--primary);
+  box-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light);
+}
+.request-type-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  color: var(--primary);
+}
+.request-type-label {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.request-type-dept {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.request-type-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #f59e0b;
+  color: white;
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-weight: bold;
+}

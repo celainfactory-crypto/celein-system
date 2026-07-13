@@ -455,7 +455,10 @@ window.APP = (function () {
       { id: "terminated",    group: "الإدارة",          icon: "x",             label: "الموظفون المنتهية عقودهم", roles: ["admin"] },
       { id: "orgchart",      group: "الإدارة",          icon: "sitemap",       label: "الهيكل التنظيمي",         roles: ["admin","chairman","accountant"] },
       { id: "orgtree",       group: "الإدارة",          icon: "gitBranch",     label: "الشجرة التفاعلية",        roles: ["admin","chairman","accountant"] },
-      { id: "settings",      group: "الإدارة",          icon: "settings",      label: "المطور",      roles: ["admin"] }
+      { id: "myRequests",    group: "خدمتي الذاتية",    icon: "inbox",         label: "طلباتي",                  roles: ["admin","hr_manager","production","accountant","sales","lab","procurement","worker"] },
+      { id: "newRequest",    group: "خدمتي الذاتية",    icon: "plus",          label: "طلب جديد",                roles: ["admin","hr_manager","production","accountant","sales","lab","procurement","worker"] },
+      { id: "incomingRequests",group: "خدمتي الذاتية",  icon: "incoming",      label: "الطلبات الواردة",         roles: ["admin","hr_manager"] },
+      { id: "settings",      group: "الإدارة",          icon: "settings",      label: "المطور",                  roles: ["admin"] }
     ];
 
     const grouped = {};
@@ -528,7 +531,10 @@ window.APP = (function () {
       orgchart: "الهيكل التنظيمي",
       orgtree: "الشجرة التفاعلية",
       terminated: "الموظفون المنتهية عقودهم",
-      settings: "إعدادات النظام والتخصيص",
+      myRequests: "طلباتي - نظام الخدمة الذاتية",
+      newRequest: "تقديم طلب جديد",
+      incomingRequests: "الطلبات الواردة للمدير",
+      settings: "لوحة المطور",
       profile: "ملفي الشخصي"
     };
     document.getElementById("pageTitle").textContent = titles[moduleId] || moduleId;

@@ -5323,3 +5323,446 @@ window.Modules._showRequestModalHtml = function(title, html) {
   `;
   document.body.appendChild(modal);
 };
+
+/* ============================================================
+   نظام الخدمة الذاتية - نظام ERP ذاتي الخدمة
+   ============================================================ */
+
+// ===== صفحة "طلباتي" =====
+window.Modules.myRequests = function(container) {
+  SelfService.initDB();
+  const db = APP.getDB();
+  const user = APP.getCurrentUser();
+  if (!user) { container.innerHTML = '<div class="alert alert-danger">الرجاء تسجيل الدخول</div>'; return; }
+  
+  const myReqs = SelfService.getMyRequests();
+  const notifs = (db.notifications || []).filter(n => n.for === user.empId || n.for === user.username).slice(-5).reverse();
+
+  Exports.register("myRequests", {
+    label: "طلباتي",
+    pdf: () => Exports.exportPDF('طلباتي', '<h2>طلباتي</h2>' + myReqs.map(r => `<p><b>${r.id}</b>: ${r.title} - ${SelfService.STATUS_LABELS[r.status]}</p>`).join(''), 'myreqs'),
+    excel: () => Exports.exportJSON(myReqs, 'my_requests'),
+    json: () => Exports.exportJSON(myReqs, 'my_requests'),
+    csv: () => Exports.exportJSON(myReqs, 'my_requests'),
+    print: () => window.print()
+  });
+
+  function render() {
+    container.innerHTML = `
+      <div class="alert alert-info">
+        <span>${Icons.render("inbox")}</span>
+        <span>مرحباً <b>${user.name}</b> — هذه جميع طلباتك. اضغط على أي طلب لعرض تفاصيله.</span>
+      </div>
+      
+      <div class="card">
+        <div class="header-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+          <h3>${Icons.render("inbox")} طلباتي (${myReqs.length})</h3>
+          <button class="btn btn-primary" onclick="APP.navigate('newRequest')">${Icons.render("plus")} طلب جديد</button>
+        </div>
+        
+        ${notifs.length > 0 ? `
+          <div class="alert alert-info" style="margin-bottom:14px">
+            <span>${Icons.render("bell")}</span>
+            <span><b>آخر الإشعارات:</b> ${notifs.map(n => `<span class="badge badge-info">${n.title}</span>`).join(' ')}</span>
+          </div>
+        ` : ''}
+        
+        ${myReqs.length === 0 ? `
+          <div class="empty-state" style="text-align:center;padding:30px">
+            <div style="font-size:48px;color:var(--text-muted)">${Icons.render("inbox")}</div>
+            <p style="color:var(--text-muted);margin-top:12px">لا توجد طلبات حتى الآن</p>
+            <button class="btn btn-primary" onclick="APP.navigate('newRequest')" style="margin-top:12px">${Icons.render("plus")} قدّم طلبك الأول</button>
+          </div>
+        ` : `
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>رقم الطلب</th>
+                <th>النوع</th>
+                <th>العنوان</th>
+                <th>التاريخ</th>
+                <th>المبلغ</th>
+                <th>الحالة</th>
+                <th>المرحلة الحالية</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${myReqs.map(r => {
+                const typeLabel = (SelfService.REQUEST_TYPES.find(t => t.id === r.type) || {}).label || r.type;
+                return `
+                  <tr>
+                    <td><code>${r.id.substring(0, 12)}</code></td>
+                    <td><span class="badge badge-info">${typeLabel}</span></td>
+                    <td>${r.title}</td>
+                    <td class="text-muted">${new Date(r.createdAt).toLocaleDateString('ar-EG')}</td>
+                    <td class="text-primary"><b>${r.amount ? r.amount.toLocaleString('ar-EG') + ' ر.ي' : '-'}</b></td>
+                    <td><span class="badge ${SelfService.STATUS_COLORS[r.status]}">${SelfService.STATUS_LABELS[r.status]}</span></td>
+                    <td class="text-muted" style="font-size:12px">${getCurrentStepName(r)}</td>
+                    <td>
+                      <button class="btn btn-sm" onclick="Modules._viewRequest('${r.id}')" title="عرض التفاصيل">${Icons.render("eye")}</button>
+                      ${(r.status === 'draft' || r.status === 'pending_manager' || r.status === 'pending_admin' || r.status === 'pending_dept' || r.status === 'pending_gm') ? `<button class="btn btn-sm btn-danger" onclick="Modules._cancelRequest('${r.id}')" title="إلغاء">${Icons.render("x")}</button>` : ''}
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        `}
+      </div>
+      
+      <div id="requestDetailModal" class="modal-overlay" style="display:none">
+        <div class="modal-card" style="max-width:700px">
+          <div class="modal-header">
+            <h3 id="requestDetailTitle">تفاصيل الطلب</h3>
+            <button class="btn btn-sm" onclick="document.getElementById('requestDetailModal').style.display='none'">${Icons.render("x")}</button>
+          </div>
+          <div class="modal-body" id="requestDetailBody"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  function getCurrentStepName(r) {
+    const stepMap = {
+      'pending_manager': 'المدير المباشر',
+      'pending_admin': 'الإدارة (HR)',
+      'pending_dept': 'القسم المختص',
+      'pending_gm': 'المدير العام (مختار)',
+      'approved': 'مكتمل',
+      'rejected': 'مرفوض',
+      'completed': 'مكتمل',
+      'cancelled': 'ملغى',
+      'in_progress': 'قيد التنفيذ'
+    };
+    return stepMap[r.status] || '-';
+  }
+
+  Modules._viewRequest = function(id) {
+    const db = APP.getDB();
+    const req = db.requests.find(r => r.id === id);
+    if (!req) return;
+    const typeConfig = SelfService.REQUEST_TYPES.find(t => t.id === req.type) || {};
+    
+    const body = document.getElementById('requestDetailBody');
+    document.getElementById('requestDetailTitle').textContent = req.title;
+    
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div><b>النوع:</b> ${typeConfig.label || req.type}</div>
+        <div><b>الحالة:</b> <span class="badge ${SelfService.STATUS_COLORS[req.status]}">${SelfService.STATUS_LABELS[req.status]}</span></div>
+        <div><b>التاريخ:</b> ${new Date(req.createdAt).toLocaleString('ar-EG')}</div>
+        <div><b>الموظف:</b> ${req.employeeName} (${req.employeeId})</div>
+        ${req.amount ? `<div><b>المبلغ:</b> ${req.amount.toLocaleString('ar-EG')} ر.ي</div>` : ''}
+        ${req.startDate ? `<div><b>من تاريخ:</b> ${req.startDate}</div>` : ''}
+        ${req.endDate ? `<div><b>إلى تاريخ:</b> ${req.endDate}</div>` : ''}
+        ${req.duration ? `<div><b>المدة:</b> ${req.duration}</div>` : ''}
+      </div>
+      <div style="margin-bottom:14px">
+        <b>الوصف:</b>
+        <p style="background:var(--bg-darker);padding:10px;border-radius:6px;margin-top:6px">${req.description || '-'}</p>
+      </div>
+      <div>
+        <b>سجل الطلب:</b>
+        <ul style="margin-top:6px;list-style:none;padding:0">
+          ${(req.history || []).map(h => `
+            <li style="padding:6px 0;border-bottom:1px solid var(--border)">
+              <span class="badge badge-info">${h.action}</span>
+              <b>${h.by || '-'}</b> 
+              <span class="text-muted" style="font-size:12px">(${h.byRole || '-'})</span>
+              <span class="text-muted" style="font-size:12px"> - ${new Date(h.at).toLocaleString('ar-EG')}</span>
+              ${h.note ? `<div style="margin-top:4px;font-size:13px">${h.note}</div>` : ''}
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+    `;
+    document.getElementById('requestDetailModal').style.display = 'flex';
+  };
+
+  Modules._cancelRequest = function(id) {
+    if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) return;
+    const db = APP.getDB();
+    const req = db.requests.find(r => r.id === id);
+    if (req) {
+      req.status = 'cancelled';
+      req.history.push({
+        action: 'cancelled',
+        by: APP.getCurrentUser().name,
+        at: new Date().toISOString(),
+        note: 'تم الإلغاء من قبل الموظف'
+      });
+      APP.saveDB(db);
+      render();
+    }
+  };
+
+  render();
+};
+
+// ===== صفحة "طلب جديد" =====
+window.Modules.newRequest = function(container) {
+  SelfService.initDB();
+  const user = APP.getCurrentUser();
+  if (!user) { container.innerHTML = '<div class="alert alert-danger">الرجاء تسجيل الدخول</div>'; return; }
+
+  Exports.register("newRequest", {
+    label: "طلب جديد",
+    pdf: () => window.print(),
+    excel: () => {},
+    json: () => {},
+    csv: () => {},
+    print: () => window.print()
+  });
+
+  function render() {
+    container.innerHTML = `
+      <div class="alert alert-info">
+        <span>${Icons.render("plus")}</span>
+        <span>اختر نوع الطلب ثم عبّئ النموذج. سيتم تحويل الطلب تلقائياً إلى المرحلة المناسبة.</span>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("plus")} اختيار نوع الطلب</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+          ${SelfService.REQUEST_TYPES.map(t => `
+            <div class="request-type-card" onclick="Modules._selectRequestType('${t.id}')">
+              <div class="request-type-icon">${Icons.render(t.icon)}</div>
+              <div class="request-type-label">${t.label}</div>
+              <div class="request-type-dept">${t.dept}</div>
+              ${t.specialFlow ? '<div class="request-type-badge">مسار خاص</div>' : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div id="newRequestForm" style="display:none"></div>
+    `;
+  }
+
+  Modules._selectRequestType = function(typeId) {
+    const type = SelfService.REQUEST_TYPES.find(t => t.id === typeId);
+    if (!type) return;
+    const form = document.getElementById('newRequestForm');
+    
+    let extraFields = '';
+    if (type.id === 'leave') {
+      extraFields = `
+        <div class="form-group"><label>تاريخ بداية الإجازة *</label><input type="date" id="req_startDate" required /></div>
+        <div class="form-group"><label>تاريخ نهاية الإجازة *</label><input type="date" id="req_endDate" required /></div>
+        <div class="form-group"><label>سبب الإجازة</label><textarea id="req_reason" rows="3" placeholder="اذكر سبب الإجازة..."></textarea></div>
+      `;
+    } else if (type.id === 'purchase' || type.id === 'advance') {
+      extraFields = `
+        <div class="form-group"><label>المبلغ المطلوب (ر.ي) *</label><input type="number" id="req_amount" min="0" required /></div>
+        <div class="form-group"><label>التفاصيل</label><textarea id="req_reason" rows="3" placeholder="ما الذي تريد شراءه أو السلفة لِمَ..."></textarea></div>
+      `;
+    } else if (type.id === 'maintenance') {
+      extraFields = `
+        <div class="form-group"><label>المدة المتوقعة للتنفيذ</label><input type="text" id="req_duration" placeholder="مثل: 3 أيام" /></div>
+        <div class="form-group"><label>وصف العطل / الصيانة المطلوبة *</label><textarea id="req_reason" rows="3" required></textarea></div>
+      `;
+    } else if (type.id === 'certificate') {
+      extraFields = `
+        <div class="form-group"><label>نوع الشهادة *</label>
+          <select id="req_certType">
+            <option value="work">شهادة عمل</option>
+            <option value="salary">شهادة راتب</option>
+            <option value="experience">شهادة خبرة</option>
+          </select>
+        </div>
+        <div class="form-group"><label>الغرض منها</label><textarea id="req_reason" rows="3"></textarea></div>
+      `;
+    } else if (type.id === 'data_update') {
+      extraFields = `
+        <div class="form-group"><label>البيان المراد تحديثه *</label>
+          <select id="req_dataType">
+            <option value="phone">رقم الهاتف</option>
+            <option value="address">العنوان</option>
+            <option value="email">البريد الإلكتروني</option>
+            <option value="emergency">رقم الطوارئ</option>
+          </select>
+        </div>
+        <div class="form-group"><label>القيمة الجديدة *</label><input type="text" id="req_dataValue" required /></div>
+      `;
+    } else {
+      extraFields = `<div class="form-group"><label>تفاصيل الطلب *</label><textarea id="req_reason" rows="3" required></textarea></div>`;
+    }
+
+    form.style.display = 'block';
+    form.innerHTML = `
+      <div class="card">
+        <h3>${Icons.render(type.icon)} نموذج: ${type.label}</h3>
+        <p class="text-muted" style="margin-bottom:14px">
+          ${type.specialFlow 
+            ? '<span class="badge badge-warning">مسار خاص</span> سيرفع الطلب إلى <b>'+type.dept+'</b> مباشرة، ثم إلى <b>المدير العام</b> للاعتماد بحسب التكلفة والجدول الزمني.' 
+            : 'سيرفع الطلب إلى <b>المدير المباشر</b>، ثم <b>الإدارة (HR)</b>، ثم <b>المدير العام</b>.'}
+        </p>
+        <form class="form-grid" id="reqForm" onsubmit="event.preventDefault(); Modules._submitRequest('${type.id}');">
+          <div class="form-group" style="grid-column: span 2">
+            <label>عنوان الطلب *</label>
+            <input type="text" id="req_title" required placeholder="ملخص قصير للطلب" value="${type.label}" />
+          </div>
+          ${extraFields}
+        </form>
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="document.getElementById('newRequestForm').style.display='none'">${Icons.render("x")} إلغاء</button>
+          <button class="btn btn-primary" onclick="Modules._submitRequest('${type.id}')">${Icons.render("send")} تقديم الطلب</button>
+        </div>
+      </div>
+    `;
+    form.scrollIntoView({behavior: 'smooth'});
+  };
+
+  Modules._submitRequest = function(typeId) {
+    const title = document.getElementById('req_title')?.value.trim();
+    if (!title) { alert('الرجاء إدخال عنوان الطلب'); return; }
+    
+    const data = {
+      title: title,
+      description: '',
+      amount: 0,
+      duration: '',
+      startDate: '',
+      endDate: ''
+    };
+    
+    // جمع البيانات حسب نوع الطلب
+    if (typeId === 'leave') {
+      const start = document.getElementById('req_startDate')?.value;
+      const end = document.getElementById('req_endDate')?.value;
+      const reason = document.getElementById('req_reason')?.value;
+      if (!start || !end) { alert('الرجاء إدخال تاريخ الإجازة'); return; }
+      data.startDate = start;
+      data.endDate = end;
+      data.description = reason || 'إجازة من ' + start + ' إلى ' + end;
+    } else if (typeId === 'purchase' || typeId === 'advance') {
+      const amount = parseFloat(document.getElementById('req_amount')?.value || 0);
+      if (!amount || amount <= 0) { alert('الرجاء إدخال المبلغ'); return; }
+      data.amount = amount;
+      data.description = document.getElementById('req_reason')?.value || '';
+    } else if (typeId === 'maintenance') {
+      data.duration = document.getElementById('req_duration')?.value || '';
+      data.description = document.getElementById('req_reason')?.value || '';
+      if (!data.description) { alert('الرجاء وصف العطل'); return; }
+    } else if (typeId === 'certificate') {
+      const certType = document.getElementById('req_certType')?.value;
+      data.description = 'شهادة: ' + certType + ' - ' + (document.getElementById('req_reason')?.value || '');
+    } else if (typeId === 'data_update') {
+      const dataType = document.getElementById('req_dataType')?.value;
+      const dataValue = document.getElementById('req_dataValue')?.value;
+      data.description = 'تحديث ' + dataType + ' إلى: ' + dataValue;
+    } else {
+      data.description = document.getElementById('req_reason')?.value || '';
+    }
+    
+    const req = SelfService.createRequest(typeId, data);
+    if (req) {
+      alert('✓ تم تقديم الطلب بنجاح. رقم الطلب: ' + req.id);
+      APP.navigate('myRequests');
+    } else {
+      alert('✗ حدث خطأ في تقديم الطلب');
+    }
+  };
+
+  render();
+};
+
+// ===== صفحة "الطلبات الواردة" للمدير =====
+window.Modules.incomingRequests = function(container) {
+  SelfService.initDB();
+  const user = APP.getCurrentUser();
+  if (!user) { container.innerHTML = '<div class="alert alert-danger">الرجاء تسجيل الدخول</div>'; return; }
+
+  Exports.register("incomingRequests", {
+    label: "الطلبات الواردة",
+    pdf: () => window.print(),
+    excel: () => Exports.exportJSON(SelfService.getIncomingRequests(), 'incoming'),
+    json: () => Exports.exportJSON(SelfService.getIncomingRequests(), 'incoming'),
+    csv: () => {},
+    print: () => window.print()
+  });
+
+  function render() {
+    const incoming = SelfService.getIncomingRequests();
+
+    container.innerHTML = `
+      <div class="alert alert-info">
+        <span>${Icons.render("incoming")}</span>
+        <span>الطلبات الواردة إليك. اعتمد أو ارفض مع توضيح السبب.</span>
+      </div>
+
+      <div class="card">
+        <h3>${Icons.render("incoming")} الطلبات الواردة (${incoming.length})</h3>
+        
+        ${incoming.length === 0 ? `
+          <div class="empty-state" style="text-align:center;padding:30px">
+            <div style="font-size:48px;color:var(--text-muted)">${Icons.render("inbox")}</div>
+            <p style="color:var(--text-muted);margin-top:12px">لا توجد طلبات واردة حالياً</p>
+          </div>
+        ` : `
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>رقم الطلب</th>
+                <th>الموظف</th>
+                <th>النوع</th>
+                <th>العنوان</th>
+                <th>المبلغ</th>
+                <th>التاريخ</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${incoming.map(r => {
+                const typeLabel = (SelfService.REQUEST_TYPES.find(t => t.id === r.type) || {}).label || r.type;
+                return `
+                  <tr>
+                    <td><code>${r.id.substring(0, 12)}</code></td>
+                    <td>${r.employeeName}<br><span class="text-muted" style="font-size:11px">${r.department}</span></td>
+                    <td><span class="badge badge-info">${typeLabel}</span></td>
+                    <td>${r.title}</td>
+                    <td class="text-primary"><b>${r.amount ? r.amount.toLocaleString('ar-EG') + ' ر.ي' : '-'}</b></td>
+                    <td class="text-muted">${new Date(r.createdAt).toLocaleDateString('ar-EG')}</td>
+                    <td>
+                      <button class="btn btn-sm" onclick="Modules._viewRequest('${r.id}')" title="عرض">${Icons.render("eye")}</button>
+                      <button class="btn btn-sm btn-success" onclick="Modules._approveRequest('${r.id}')" title="اعتماد">${Icons.render("check")}</button>
+                      <button class="btn btn-sm btn-danger" onclick="Modules._rejectRequestUI('${r.id}')" title="رفض">${Icons.render("x")}</button>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        `}
+      </div>
+    `;
+  }
+
+  Modules._approveRequest = function(id) {
+    if (!confirm('هل تريد اعتماد هذا الطلب؟')) return;
+    const note = prompt('ملاحظة (اختياري):', '');
+    if (SelfService.approveRequest(id, note)) {
+      alert('✓ تم اعتماد الطلب وإحالته للمرحلة التالية');
+      render();
+    } else {
+      alert('✗ خطأ في اعتماد الطلب');
+    }
+  };
+
+  Modules._rejectRequestUI = function(id) {
+    const reason = prompt('سبب الرفض:');
+    if (!reason) { alert('الرجاء إدخال سبب الرفض'); return; }
+    if (SelfService.rejectRequest(id, reason)) {
+      alert('✓ تم رفض الطلب وإبلاغ الموظف');
+      render();
+    } else {
+      alert('✗ خطأ في رفض الطلب');
+    }
+  };
+
+  // استخدام نفس دالة عرض التفاصيل من myRequests
+  Modules._viewRequest = window.Modules._viewRequest;
+
+  render();
+};
