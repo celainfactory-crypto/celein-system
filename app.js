@@ -437,7 +437,15 @@ window.APP = (function () {
   function renderNav() {
     const role = currentUser.role;
     const allModules = [
-      { id: "dashboard",    group: "الرئيسية",          icon: "dashboard",     label: "لوحة التحكم",              roles: ["admin","executive","chairman","accountant"] },
+      // --- خدمة ذاتية ---
+      { id: "myDashboard", group: "خدمتي الذاتية",     icon: "layout",       label: "لوحة التحكم الشخصية",      roles: ["admin","executive","chairman","hr_manager","production","accountant","sales","lab","procurement","worker"] },
+      { id: "salarySlip",  group: "خدمتي الذاتية",     icon: "fileText",     label: "كشف الراتب",              roles: ["admin","executive","chairman","hr_manager","production","accountant","sales","lab","procurement","worker"] },
+      { id: "myRequests",  group: "خدمتي الذاتية",     icon: "inbox",        label: "طلباتي",                 roles: ["admin","executive","chairman","hr_manager","production","accountant","sales","lab","procurement","worker"] },
+      { id: "newRequest",  group: "خدمتي الذاتية",     icon: "plus",         label: "طلب جديد",               roles: ["admin","executive","chairman","hr_manager","production","accountant","sales","lab","procurement","worker"] },
+      { id: "incomingRequests", group: "خدمتي الذاتية", icon: "incoming",     label: "الطلبات الواردة",         roles: ["admin","executive","chairman","hr_manager","production","accountant","sales","lab","procurement"] },
+      { id: "profile",    group: "خدمتي الذاتية",     icon: "user",         label: "ملفي الشخصي",             roles: ["admin","executive","chairman","hr_manager","production","accountant","sales","lab","procurement","worker"] },
+      // --- الرئيسية ---
+      { id: "dashboard",   group: "الرئيسية",          icon: "dashboard",    label: "لوحة التحكم",             roles: ["admin","executive","chairman","accountant"] },
       { id: "production",   group: "الإنتاج",           icon: "factory",       label: "الإنتاج والتوالف",         roles: ["admin","production","accountant"] },
       { id: "hr",           group: "الموارد البشرية",   icon: "users",         label: "سجل الموظفين",             roles: ["admin","hr_manager"] },
       { id: "permissions",  group: "الموارد البشرية",   icon: "key",           label: "إدارة الصلاحيات",          roles: ["admin","hr_manager"] },
