@@ -449,7 +449,7 @@ window.APP = (function () {
       { id: "sales",        group: "المبيعات",          icon: "truck",         label: "المبيعات والمناديب",       roles: ["admin","sales","accountant"] },
       { id: "agents",        group: "المبيعات",          icon: "handshake",     label: "الوكلاء",                 roles: ["admin","sales","accountant"] },
       { id: "purchaseRequest",group:"المشتريات",        icon: "cart",          label: "طلب شراء",                 roles: ["admin","production","procurement","accountant"] },
-      { id: "procurement",  group: "المشتريات",         icon: "shoppingBag",   label: "المشتريات والموردين",     roles: ["admin","procurement","accountant"] },
+      { id: "procurement",  group: "المشتريات",         icon: "package",   label: "المشتريات والموردين",     roles: ["admin","procurement","accountant"] },
       { id: "lab",           group: "المختبر",          icon: "flask",         label: "سجل المختبر",             roles: ["admin","lab","production"] },
       { id: "reports",       group: "التقارير",          icon: "report",        label: "التقارير الشاملة",         roles: ["admin","executive","chairman","accountant","production","lab","procurement"] },
       { id: "orgchart",      group: "الإدارة",          icon: "sitemap",       label: "الهيكل التنظيمي",          roles: ["admin","chairman","accountant"] },
