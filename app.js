@@ -437,30 +437,24 @@ window.APP = (function () {
   function renderNav() {
     const role = currentUser.role;
     const allModules = [
-      { id: "myDashboard",  group: "خدمتي الذاتية",    icon: "layout",        label: "لوحة التحكم",           roles: ["admin","hr_manager","production","accountant","sales","lab","procurement","worker"] },
-      { id: "salarySlip",   group: "خدمتي الذاتية",    icon: "fileText",      label: "كشف الراتب",             roles: ["admin","hr_manager","production","accountant","sales","lab","procurement","worker"] },
-      { id: "dashboard",    group: "الرئيسية",          icon: "dashboard",     label: "لوحة التحكم الإدارية",    roles: ["admin","executive","chairman","accountant"] },
-      { id: "production",    group: "العمليات",          icon: "factory",       label: "الإنتاج والتوالف",      roles: ["admin","production","accountant"] },
-      { id: "purchaseRequest",group:"العمليات",          icon: "cart",          label: "طلب شراء",                roles: ["admin","production","procurement","accountant"] },
-      { id: "costs",         group: "العمليات",          icon: "money",         label: "التكاليف الفعلية",      roles: ["admin","accountant","production"] },
-      { id: "pricing",       group: "العمليات",          icon: "priceTag",      label: "الأسعار والوكلاء",       roles: ["admin","accountant"] },
-      { id: "inventory",     group: "المخزون",           icon: "box",           label: "إدارة المخزون",          roles: ["admin","production","accountant","procurement"] },
-      { id: "vouchers",      group: "المخزون",           icon: "clipboard",     label: "سندات الصرف",            roles: ["admin","accountant","production"] },
-      { id: "sales",         group: "المبيعات",          icon: "truck",         label: "المناديب والمبيعات",     roles: ["admin","sales","accountant"] },
-      { id: "agents",        group: "المبيعات",          icon: "handshake",     label: "الوكلاء",                roles: ["admin","sales","accountant"] },
-      { id: "lab",           group: "المختبر والمحطة",    icon: "flask",         label: "سجل المختبر",            roles: ["admin","lab","production"] },
-      { id: "procurement",   group: "المشتريات",          icon: "cart",          label: "المشتريات والموردين",    roles: ["admin","procurement","accountant"] },
-      { id: "hr",            group: "الموارد البشرية",   icon: "users",         label: "الموارد البشرية",          roles: ["admin","hr_manager"] },
-      { id: "reports",       group: "التقارير",          icon: "report",        label: "التقارير الشاملة",       roles: ["admin","executive","chairman","accountant","production","lab","procurement"] },
-
-      { id: "permissions",   group: "الإدارة",          icon: "key",           label: "إدارة الصلاحيات",         roles: ["admin","hr_manager"] },
-      { id: "terminated",    group: "الإدارة",          icon: "x",             label: "الموظفون المنتهية عقودهم", roles: ["admin"] },
-      { id: "orgchart",      group: "الإدارة",          icon: "sitemap",       label: "الهيكل التنظيمي",         roles: ["admin","chairman","accountant"] },
-      { id: "orgtree",       group: "الإدارة",          icon: "gitBranch",     label: "الشجرة التفاعلية",        roles: ["admin","chairman","accountant"] },
-      { id: "myRequests",    group: "خدمتي الذاتية",    icon: "inbox",         label: "طلباتي",                  roles: ["admin","hr_manager","production","accountant","sales","lab","procurement","worker"] },
-      { id: "newRequest",    group: "خدمتي الذاتية",    icon: "plus",          label: "طلب جديد",                roles: ["admin","hr_manager","production","accountant","sales","lab","procurement","worker"] },
-      { id: "incomingRequests",group: "خدمتي الذاتية",  icon: "incoming",      label: "الطلبات الواردة",         roles: ["admin","hr_manager"] },
-      { id: "settings",      group: "الإدارة",          icon: "settings",      label: "المطور",                  roles: ["admin"] }
+      { id: "dashboard",    group: "الرئيسية",          icon: "dashboard",     label: "لوحة التحكم",              roles: ["admin","executive","chairman","accountant"] },
+      { id: "production",   group: "الإنتاج",           icon: "factory",       label: "الإنتاج والتوالف",         roles: ["admin","production","accountant"] },
+      { id: "hr",           group: "الموارد البشرية",   icon: "users",         label: "سجل الموظفين",             roles: ["admin","hr_manager"] },
+      { id: "permissions",  group: "الموارد البشرية",   icon: "key",           label: "إدارة الصلاحيات",          roles: ["admin","hr_manager"] },
+      { id: "terminated",   group: "الموارد البشرية",   icon: "x",             label: "المنتهية عقودهم",          roles: ["admin"] },
+      { id: "costs",        group: "المالية",          icon: "money",         label: "التكاليف الفعلية",         roles: ["admin","accountant","production"] },
+      { id: "pricing",      group: "المالية",           icon: "priceTag",      label: "الأسعار والعمولات",        roles: ["admin","accountant"] },
+      { id: "inventory",    group: "المخزون",          icon: "box",           label: "إدارة المخزون",            roles: ["admin","production","accountant","procurement"] },
+      { id: "vouchers",     group: "المخزون",          icon: "clipboard",     label: "سندات الصرف",              roles: ["admin","accountant","production"] },
+      { id: "sales",        group: "المبيعات",          icon: "truck",         label: "المبيعات والمناديب",       roles: ["admin","sales","accountant"] },
+      { id: "agents",        group: "المبيعات",          icon: "handshake",     label: "الوكلاء",                 roles: ["admin","sales","accountant"] },
+      { id: "purchaseRequest",group:"المشتريات",        icon: "cart",          label: "طلب شراء",                 roles: ["admin","production","procurement","accountant"] },
+      { id: "procurement",  group: "المشتريات",         icon: "shoppingBag",   label: "المشتريات والموردين",     roles: ["admin","procurement","accountant"] },
+      { id: "lab",           group: "المختبر",          icon: "flask",         label: "سجل المختبر",             roles: ["admin","lab","production"] },
+      { id: "reports",       group: "التقارير",          icon: "report",        label: "التقارير الشاملة",         roles: ["admin","executive","chairman","accountant","production","lab","procurement"] },
+      { id: "orgchart",      group: "الإدارة",          icon: "sitemap",       label: "الهيكل التنظيمي",          roles: ["admin","chairman","accountant"] },
+      { id: "orgtree",       group: "الإدارة",          icon: "gitBranch",     label: "الشجرة التفاعلية",         roles: ["admin","chairman","accountant"] },
+      { id: "settings",      group: "الإدارة",           icon: "settings",      label: "لوحة المطور",              roles: ["admin"] }
     ];
 
     const grouped = {};
