@@ -13,7 +13,7 @@ window.SEED = {
     location: "الجمهورية اليمنية - البيضاء",
     year: 2026,
     copyright: "المهندس مختار عبدالله الحييد",
-    role: "نائب المدير التنفيذي العام",
+    role: "CEO - Celain",
     currency: "ر.ي",
     decimals: 2
   },
