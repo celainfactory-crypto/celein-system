@@ -5209,167 +5209,125 @@ window.Modules._showRequestModalHtml = function(title, html) {
    نظام الخدمة الذاتية - نظام ERP ذاتي الخدمة
    ============================================================ */
 
+
+/* ============================================================
+   نظام الخدمة الذاتية - v2 (String Concatenation Only)
+   ============================================================ */
+
 // ===== صفحة "طلباتي" =====
 window.Modules.myRequests = function(container) {
   SelfService.initDB();
   const db = APP.getDB();
   const user = APP.getCurrentUser();
-  if (!user) { container.innerHTML = '<div class="empty-state" style="text-align:center;padding:40px"><p style="color:var(--text-muted)">لم يتم تسجيل الدخول</p></div>'; return; }
-  
+  if (!user) {
+    container.innerHTML = '<div class="empty-state" style="text-align:center;padding:40px"><p style="color:var(--text-muted)">لم يتم تسجيل الدخول</p></div>';
+    return;
+  }
   const myReqs = SelfService.getMyRequests();
-  const notifs = (db.notifications || []).filter(n => n.for === user.empId || n.for === user.username).slice(-5).reverse();
+  const notifs = (db.notifications || []).filter(function(n) { return n.for === user.empId || n.for === user.username; }).slice(-5).reverse();
 
   Exports.register("myRequests", {
     label: "طلباتي",
-    pdf: () => Exports.exportPDF('طلباتي', '<h2>طلباتي</h2>' + myReqs.map(r => `<p><b>${r.id}</b>: ${r.title} - ${SelfService.STATUS_LABELS[r.status]}</p>`).join(''), 'myreqs'),
-    excel: () => Exports.exportJSON(myReqs, 'my_requests'),
-    json: () => Exports.exportJSON(myReqs, 'my_requests'),
-    csv: () => Exports.exportJSON(myReqs, 'my_requests'),
-    print: () => window.print()
+    pdf: function() { return Exports.exportPDF('طلباتي', '<h2>طلباتي</h2>' + myReqs.map(function(r) { return '<p><b>' + r.id.substring(0,12) + '</b>: ' + r.title + ' - ' + (SelfService.STATUS_LABELS[r.status] || r.status) + '</p>'; }).join(''), 'myreqs'); },
+    excel: function() { return Exports.exportJSON(myReqs, 'my_requests'); },
+    json: function() { return Exports.exportJSON(myReqs, 'my_requests'); },
+    csv: function() { return Exports.exportJSON(myReqs, 'my_requests'); },
+    print: function() { return window.print(); }
   });
 
-  function render() {
-    container.innerHTML = `
-      <div class="text-muted" style="padding:8px 0 16px 0;font-size:13px">جميع طلباتك. اضغط على أي طلب لعرض تفاصيله.</div>
-      
-      <div class="card">
-        <div class="header-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-          <h3>${Icons.render("inbox")} طلباتي (${myReqs.length})</h3>
-          <button class="btn btn-primary" onclick="APP.navigate('newRequest')">${Icons.render("plus")} طلب جديد</button>
-        </div>
-        
-        ${notifs.length > 0 ? `
-          <div class="alert alert-info" style="margin-bottom:14px">
-            <span>${Icons.render("bell")}</span>
-            <span><b>آخر الإشعارات:</b> ${notifs.map(n => `<span class="badge badge-info">${n.title}</span>`).join(' ')}</span>
-          </div>
-        ` : ''}
-        
-        ${myReqs.length === 0 ? `
-          <div class="empty-state" style="text-align:center;padding:30px">
-            <div style="font-size:48px;color:var(--text-muted)">${Icons.render("inbox")}</div>
-            <p style="color:var(--text-muted);margin-top:12px">لا توجد طلبات حتى الآن</p>
-            <button class="btn btn-primary" onclick="APP.navigate('newRequest')" style="margin-top:12px">${Icons.render("plus")} قدّم طلبك الأول</button>
-          </div>
-        ` : `
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>رقم الطلب</th>
-                <th>النوع</th>
-                <th>العنوان</th>
-                <th>التاريخ</th>
-                <th>المبلغ</th>
-                <th>الحالة</th>
-                <th>المرحلة الحالية</th>
-                <th>إجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${myReqs.map(r => {
-                const typeLabel = (SelfService.REQUEST_TYPES.find(t => t.id === r.type) || {}).label || r.type;
-                return `
-                  <tr>
-                    <td><code>${r.id.substring(0, 12)}</code></td>
-                    <td><span class="badge badge-info">${typeLabel}</span></td>
-                    <td>${r.title}</td>
-                    <td class="text-muted">${new Date(r.createdAt).toLocaleDateString('ar-EG')}</td>
-                    <td class="text-primary"><b>${r.amount ? r.amount.toLocaleString('ar-EG') + ' ر.ي' : '-'}</b></td>
-                    <td><span class="badge ${SelfService.STATUS_COLORS[r.status]}">${SelfService.STATUS_LABELS[r.status]}</span></td>
-                    <td class="text-muted" style="font-size:12px">${getCurrentStepName(r)}</td>
-                    <td>
-                      <button class="btn btn-sm" onclick="Modules._viewRequest('${r.id}')" title="عرض التفاصيل">${Icons.render("eye")}</button>
-                      ${(r.status === 'draft' || r.status === 'pending_manager' || r.status === 'pending_admin' || r.status === 'pending_dept' || r.status === 'pending_gm') ? `<button class="btn btn-sm btn-danger" onclick="Modules._cancelRequest('${r.id}')" title="إلغاء">${Icons.render("x")}</button>` : ''}
-                    </td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        `}
-      </div>
-      
-      <div id="requestDetailModal" class="modal-overlay" style="display:none">
-        <div class="modal-card" style="max-width:700px">
-          <div class="modal-header">
-            <h3 id="requestDetailTitle">تفاصيل الطلب</h3>
-            <button class="btn btn-sm" onclick="document.getElementById('requestDetailModal').style.display='none'">${Icons.render("x")}</button>
-          </div>
-          <div class="modal-body" id="requestDetailBody"></div>
-        </div>
-      </div>
-    `;
-  }
+  function esc(s) { return (s || '').toString().replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-  function getCurrentStepName(r) {
-    const stepMap = {
-      'pending_manager': 'المدير المباشر',
-      'pending_admin': 'الإدارة (HR)',
-      'pending_dept': 'القسم المختص',
-      'pending_gm': 'المدير العام (مختار)',
-      'approved': 'مكتمل',
-      'rejected': 'مرفوض',
-      'completed': 'مكتمل',
-      'cancelled': 'ملغى',
-      'in_progress': 'قيد التنفيذ'
-    };
-    return stepMap[r.status] || '-';
+  function render() {
+    var pending = myReqs.filter(function(r) { return ['pending_manager','pending_admin','pending_dept','pending_gm'].indexOf(r.status) >= 0; }).length;
+    var approved = myReqs.filter(function(r) { return ['approved','completed'].indexOf(r.status) >= 0; }).length;
+    var rejected = myReqs.filter(function(r) { return ['rejected','cancelled'].indexOf(r.status) >= 0; }).length;
+
+    var html = '<div class="text-muted" style="padding:8px 0 16px 0;font-size:13px">جميع طلباتك. اضغط على أي طلب لعرض تفاصيله.</div>';
+    html += '<div class="card">';
+    html += '<div class="header-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px">';
+    html += '<h3>' + Icons.render("inbox") + ' طلباتي (' + myReqs.length + ')</h3>';
+    html += '<button class="btn btn-primary" onclick="APP.navigate(\'newRequest\')">' + Icons.render("plus") + ' طلب جديد</button></div>';
+
+    if (notifs.length > 0) {
+      html += '<div class="alert alert-info" style="margin-bottom:14px"><span>' + Icons.render("bell") + '</span> <span><b>آخر الإشعارات:</b> ';
+      html += notifs.map(function(n) { return '<span class="badge badge-info">' + esc(n.title) + '</span>'; }).join(' ');
+      html += '</span></div>';
+    }
+
+    if (myReqs.length === 0) {
+      html += '<div class="empty-state" style="text-align:center;padding:30px">';
+      html += '<div style="font-size:48px;color:var(--text-muted)">' + Icons.render("inbox") + '</div>';
+      html += '<p style="color:var(--text-muted);margin-top:12px">لا توجد طلبات حتى الآن</p>';
+      html += '<button class="btn btn-primary" onclick="APP.navigate(\'newRequest\')" style="margin-top:12px">' + Icons.render("plus") + ' قدّم طلبك الأول</button></div>';
+    } else {
+      html += '<table class="data-table"><thead><tr><th>رقم الطلب</th><th>النوع</th><th>العنوان</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody>';
+      myReqs.forEach(function(r) {
+        var typeConfig = SelfService.REQUEST_TYPES.find(function(t) { return t.id === r.type; }) || {};
+        html += '<tr><td><code>' + r.id.substring(0,12) + '</code></td>';
+        html += '<td><span class="badge badge-info">' + esc(typeConfig.label || r.type) + '</span></td>';
+        html += '<td>' + esc(r.title) + '</td>';
+        html += '<td class="text-muted">' + new Date(r.createdAt).toLocaleDateString('ar-EG') + '</td>';
+        html += '<td class="text-primary"><b>' + (r.amount ? r.amount.toLocaleString('ar-EG') + ' ر.ي' : '-') + '</b></td>';
+        html += '<td><span class="badge ' + (SelfService.STATUS_COLORS[r.status] || 'badge-info') + '">' + esc(SelfService.STATUS_LABELS[r.status] || r.status) + '</span></td>';
+        html += '<td><button class="btn btn-sm" onclick="Modules._viewRequest(\'' + r.id + '\')" title="عرض">' + Icons.render("eye") + '</button>';
+        if (['draft','pending_manager','pending_admin','pending_dept','pending_gm'].indexOf(r.status) >= 0) {
+          html += ' <button class="btn btn-sm btn-danger" onclick="Modules._cancelRequest(\'' + r.id + '\')" title="إلغاء">' + Icons.render("x") + '</button>';
+        }
+        html += '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+
+    // Modal for details
+    html += '<div id="requestDetailModal" class="modal-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">';
+    html += '<div class="modal-card" style="background:var(--bg-card);border-radius:12px;padding:20px;max-width:700px;width:90%;max-height:80vh;overflow:auto">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">';
+    html += '<h3 id="requestDetailTitle" style="margin:0">تفاصيل الطلب</h3>';
+    html += '<button class="btn btn-sm" onclick="document.getElementById(\'requestDetailModal\').style.display=\'none\'">' + Icons.render("x") + '</button></div>';
+    html += '<div id="requestDetailBody"></div></div></div>';
+
+    container.innerHTML = html;
   }
 
   Modules._viewRequest = function(id) {
-    const db = APP.getDB();
-    const req = db.requests.find(r => r.id === id);
+    var db = APP.getDB();
+    var req = db.requests.find(function(r) { return r.id === id; });
     if (!req) return;
-    const typeConfig = SelfService.REQUEST_TYPES.find(t => t.id === req.type) || {};
-    
-    const body = document.getElementById('requestDetailBody');
+    var typeConfig = SelfService.REQUEST_TYPES.find(function(t) { return t.id === req.type; }) || {};
+    var body = document.getElementById('requestDetailBody');
     document.getElementById('requestDetailTitle').textContent = req.title;
-    
-    body.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-        <div><b>النوع:</b> ${typeConfig.label || req.type}</div>
-        <div><b>الحالة:</b> <span class="badge ${SelfService.STATUS_COLORS[req.status]}">${SelfService.STATUS_LABELS[req.status]}</span></div>
-        <div><b>التاريخ:</b> ${new Date(req.createdAt).toLocaleString('ar-EG')}</div>
-        <div><b>الموظف:</b> ${req.employeeName} (${req.employeeId})</div>
-        ${req.amount ? `<div><b>المبلغ:</b> ${req.amount.toLocaleString('ar-EG')} ر.ي</div>` : ''}
-        ${req.startDate ? `<div><b>من تاريخ:</b> ${req.startDate}</div>` : ''}
-        ${req.endDate ? `<div><b>إلى تاريخ:</b> ${req.endDate}</div>` : ''}
-        ${req.duration ? `<div><b>المدة:</b> ${req.duration}</div>` : ''}
-      </div>
-      <div style="margin-bottom:14px">
-        <b>الوصف:</b>
-        <p style="background:var(--bg-darker);padding:10px;border-radius:6px;margin-top:6px">${req.description || '-'}</p>
-      </div>
-      <div>
-        <b>سجل الطلب:</b>
-        <ul style="margin-top:6px;list-style:none;padding:0">
-          ${(req.history || []).map(h => `
-            <li style="padding:6px 0;border-bottom:1px solid var(--border)">
-              <span class="badge badge-info">${h.action}</span>
-              <b>${h.by || '-'}</b> 
-              <span class="text-muted" style="font-size:12px">(${h.byRole || '-'})</span>
-              <span class="text-muted" style="font-size:12px"> - ${new Date(h.at).toLocaleString('ar-EG')}</span>
-              ${h.note ? `<div style="margin-top:4px;font-size:13px">${h.note}</div>` : ''}
-            </li>
-          `).join('')}
-        </ul>
-      </div>
-    `;
+    var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">';
+    html += '<div><b>النوع:</b> ' + esc(typeConfig.label || req.type) + '</div>';
+    html += '<div><b>الحالة:</b> <span class="badge ' + (SelfService.STATUS_COLORS[req.status] || 'badge-info') + '">' + esc(SelfService.STATUS_LABELS[req.status] || req.status) + '</span></div>';
+    html += '<div><b>التاريخ:</b> ' + new Date(req.createdAt).toLocaleString('ar-EG') + '</div>';
+    html += '<div><b>الموظف:</b> ' + esc(req.employeeName) + ' (' + req.employeeId + ')</div>';
+    if (req.amount) html += '<div><b>المبلغ:</b> ' + req.amount.toLocaleString('ar-EG') + ' ر.ي</div>';
+    if (req.startDate) html += '<div><b>من تاريخ:</b> ' + req.startDate + '</div>';
+    if (req.endDate) html += '<div><b>إلى تاريخ:</b> ' + req.endDate + '</div>';
+    if (req.duration) html += '<div><b>المدة:</b> ' + esc(req.duration) + '</div>';
+    html += '</div>';
+    html += '<div style="margin-bottom:14px"><b>الوصف:</b><p style="background:var(--bg-darker);padding:10px;border-radius:6px;margin-top:6px">' + esc(req.description || '-') + '</p></div>';
+    html += '<div><b>سجل الطلب:</b><ul style="margin-top:6px;list-style:none;padding:0">';
+    (req.history || []).forEach(function(h) {
+      html += '<li style="padding:6px 0;border-bottom:1px solid var(--border)">';
+      html += '<span class="badge badge-info">' + esc(h.action) + '</span> <b>' + esc(h.by || '-') + '</b>';
+      html += ' <span class="text-muted" style="font-size:12px">(' + esc(h.byRole || '-') + ') - ' + new Date(h.at).toLocaleString('ar-EG') + '</span>';
+      if (h.note) html += '<div style="margin-top:4px;font-size:13px">' + esc(h.note) + '</div>';
+      html += '</li>';
+    });
+    html += '</ul></div>';
+    body.innerHTML = html;
     document.getElementById('requestDetailModal').style.display = 'flex';
   };
 
   Modules._cancelRequest = function(id) {
     if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) return;
-    const db = APP.getDB();
-    const req = db.requests.find(r => r.id === id);
+    var db = APP.getDB();
+    var req = db.requests.find(function(r) { return r.id === id; });
     if (req) {
       req.status = 'cancelled';
-      req.history.push({
-        action: 'cancelled',
-        by: APP.getCurrentUser().name,
-        at: new Date().toISOString(),
-        note: 'تم الإلغاء من قبل الموظف'
-      });
+      req.history.push({ action: 'cancelled', by: APP.getCurrentUser().name, at: new Date().toISOString(), note: 'تم الإلغاء من قبل الموظف' });
       APP.saveDB(db);
       render();
     }
@@ -5381,175 +5339,143 @@ window.Modules.myRequests = function(container) {
 // ===== صفحة "طلب جديد" =====
 window.Modules.newRequest = function(container) {
   SelfService.initDB();
-  const user = APP.getCurrentUser();
-  if (!user) { container.innerHTML = '<div class="empty-state" style="text-align:center;padding:40px"><p style="color:var(--text-muted)">لم يتم تسجيل الدخول</p></div>'; return; }
+  var user = APP.getCurrentUser();
+  if (!user) {
+    container.innerHTML = '<div class="empty-state" style="text-align:center;padding:40px"><p style="color:var(--text-muted)">لم يتم تسجيل الدخول</p></div>';
+    return;
+  }
 
   Exports.register("newRequest", {
     label: "طلب جديد",
-    pdf: () => window.print(),
-    excel: () => {},
-    json: () => {},
-    csv: () => {},
-    print: () => window.print()
+    pdf: function() { return window.print(); },
+    excel: function() {},
+    json: function() {},
+    csv: function() {},
+    print: function() { return window.print(); }
   });
 
+  function esc(s) { return (s || '').toString().replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
   function render() {
-    container.innerHTML = `
-      <div class="text-muted" style="padding:8px 0 16px 0;font-size:13px">اختر نوع الطلب، ثم الفئة الفرعية، ثم عبّئ التفاصيل.</div>
-
-      <div class="card">
-        <h3>${Icons.render("plus")} اختيار نوع الطلب</h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
-          ${SelfService.REQUEST_TYPES.map(t => `
-            <div class="request-type-card" onclick="Modules._selectRequestType('${t.id}')">
-              <div class="request-type-icon">${Icons.render(t.icon)}</div>
-              <div class="request-type-label">${t.label}</div>
-              <div class="request-type-dept">${t.dept} • ${t.subTypes.length} فئة</div>
-              ${t.specialFlow ? '<div class="request-type-badge">مسار خاص</div>' : ''}
-            </div>
-          `).join('')}
-        </div>
-      </div>
-
-      <div id="newRequestForm" style="display:none"></div>
-    `;
+    var html = '<div class="text-muted" style="padding:8px 0 16px 0;font-size:13px">اختر نوع الطلب، ثم الفئة الفرعية، ثم عبّئ التفاصيل.</div>';
+    html += '<div class="card">';
+    html += '<h3>' + Icons.render("plus") + ' اختيار نوع الطلب</h3>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">';
+    SelfService.REQUEST_TYPES.forEach(function(t) {
+      html += '<div class="request-type-card" onclick="Modules._selectRequestType(\'' + t.id + '\')">';
+      html += '<div class="request-type-icon">' + Icons.render(t.icon) + '</div>';
+      html += '<div class="request-type-label">' + esc(t.label) + '</div>';
+      html += '<div class="request-type-dept">' + esc(t.dept) + ' - ' + t.subTypes.length + ' فئة</div>';
+      if (t.specialFlow) html += '<div class="request-type-badge">مسار خاص</div>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+    html += '<div id="newRequestForm" style="display:none"></div>';
+    container.innerHTML = html;
   }
 
   Modules._selectRequestType = function(typeId) {
-    const type = SelfService.REQUEST_TYPES.find(t => t.id === typeId);
+    var type = SelfService.REQUEST_TYPES.find(function(t) { return t.id === typeId; });
     if (!type) return;
-    const form = document.getElementById('newRequestForm');
-    
+    var form = document.getElementById('newRequestForm');
+    var specialNote = type.specialFlow
+      ? '<span class="badge badge-warning">مسار خاص</span> سيرفع الطلب إلى <b>' + esc(type.dept) + '</b> مباشرة، ثم إلى <b>المدير العام</b>.'
+      : 'سيرفع الطلب إلى <b>المدير المباشر</b>، ثم <b>الإدارة (HR)</b>، ثم <b>المدير العام</b>.';
+
+    var html = '<div class="card" style="margin-top:14px">';
+    html += '<h3>' + Icons.render(type.icon) + ' ' + esc(type.label) + '</h3>';
+    html += '<p class="text-muted" style="margin-bottom:14px">' + specialNote + '</p>';
+    html += '<div class="form-group"><label>الفئة الفرعية *</label>';
+    html += '<select id="req_subType" required onchange="Modules._onSubTypeChange(\'' + typeId + '\')">';
+    html += '<option value="">-- اختر الفئة --</option>';
+    type.subTypes.forEach(function(st) {
+      html += '<option value="' + st.id + '">' + esc(st.label) + '</option>';
+    });
+    html += '</select></div>';
+    html += '<div id="subTypeForm"></div></div>';
     form.style.display = 'block';
-    form.innerHTML = `
-      <div class="card">
-        <h3>${Icons.render(type.icon)} ${type.label}</h3>
-        <p class="text-muted" style="margin-bottom:14px">
-          ${type.specialFlow 
-            ? '<span class="badge badge-warning">مسار خاص</span> سيرفع الطلب إلى <b>'+type.dept+'</b> مباشرة، ثم إلى <b>المدير العام</b> للاعتماد بحسب التكلفة والجدول الزمني.' 
-            : 'سيرفع الطلب إلى <b>المدير المباشر</b>، ثم <b>الإدارة (HR)</b>، ثم <b>المدير العام</b>.'}
-        </p>
-        
-        <div class="form-group">
-          <label>الفئة الفرعية *</label>
-          <select id="req_subType" required onchange="Modules._onSubTypeChange('${typeId}')">
-            <option value="">-- اختر الفئة --</option>
-            ${type.subTypes.map(st => `<option value="${st.id}">${st.label}</option>`).join('')}
-          </select>
-        </div>
-        
-        <div id="subTypeForm"></div>
-      </div>
-    `;
+    form.innerHTML = html;
     form.scrollIntoView({behavior: 'smooth'});
   };
 
-  // عند تغيير الفئة الفرعية - عرض الحقول المناسبة
   Modules._onSubTypeChange = function(typeId) {
-    const subTypeId = document.getElementById('req_subType').value;
-    if (!subTypeId) {
-      document.getElementById('subTypeForm').innerHTML = '';
-      return;
-    }
-    const type = SelfService.REQUEST_TYPES.find(t => t.id === typeId);
-    const subType = type.subTypes.find(st => st.id === subTypeId);
+    var subTypeId = document.getElementById('req_subType').value;
+    if (!subTypeId) { document.getElementById('subTypeForm').innerHTML = ''; return; }
+    var type = SelfService.REQUEST_TYPES.find(function(t) { return t.id === typeId; });
+    var subType = type.subTypes.find(function(st) { return st.id === subTypeId; });
     if (!subType) return;
-    
-    const form = document.getElementById('subTypeForm');
-    let html = '<form class="form-grid" id="reqForm" onsubmit="event.preventDefault(); Modules._submitRequest(\''+typeId+'\', \''+subTypeId+'\');">';
-    
-    // العنوان
-    html += `<div class="form-group" style="grid-column: span 2"><label>عنوان الطلب *</label><input type="text" id="req_title" required value="${subType.label}" /></div>`;
-    
-    // حقول التواريخ
+
+    var html = '<form class="form-grid" id="reqForm" onsubmit="event.preventDefault(); Modules._submitRequest(\'' + typeId + '\', \'' + subTypeId + '\');">';
+    html += '<div class="form-group" style="grid-column: span 2"><label>عنوان الطلب *</label>';
+    html += '<input type="text" id="req_title" required value="' + esc(subType.label) + '" /></div>';
+
     if (subType.requireDates) {
-      html += `<div class="form-group"><label>تاريخ البداية *</label><input type="date" id="req_startDate" required /></div>`;
-      html += `<div class="form-group"><label>تاريخ النهاية *</label><input type="date" id="req_endDate" required /></div>`;
+      html += '<div class="form-group"><label>تاريخ البداية *</label><input type="date" id="req_startDate" required /></div>';
+      html += '<div class="form-group"><label>تاريخ النهاية *</label><input type="date" id="req_endDate" required /></div>';
     }
-    
-    // حقل المبلغ
     if (subType.requireAmount) {
-      html += `<div class="form-group"><label>المبلغ التقديري (ر.ي) *</label><input type="number" id="req_amount" min="0" required /></div>`;
+      html += '<div class="form-group"><label>المبلغ التقديري (ر.ي) *</label><input type="number" id="req_amount" min="0" required /></div>';
     }
-    
-    // الحقول الإضافية
     if (subType.extraField) {
-      html += `<div class="form-group"><label>${subType.extraField} *</label><input type="text" id="req_extraValue" required /></div>`;
+      html += '<div class="form-group"><label>' + esc(subType.extraField) + ' *</label><input type="text" id="req_extraValue" required /></div>';
     }
-    
-    // حقل السبب
     if (subType.requireReason) {
-      html += `<div class="form-group" style="grid-column: span 2"><label>السبب / التفاصيل *</label><textarea id="req_reason" rows="3" required></textarea></div>`;
+      html += '<div class="form-group" style="grid-column: span 2"><label>السبب / التفاصيل *</label><textarea id="req_reason" rows="3" required></textarea></div>';
     }
-    
-    // المرفقات
     if (subType.requireAttachment) {
-      html += `<div class="form-group" style="grid-column: span 2"><label>${subType.attachmentLabel || 'مرفق'} *</label><input type="file" id="req_attachment" required /></div>`;
+      html += '<div class="form-group" style="grid-column: span 2"><label>' + esc(subType.attachmentLabel || 'مرفق') + ' *</label><input type="file" id="req_attachment" required /></div>';
     }
-    
-    // الوصف
-    html += `<div class="form-group" style="grid-column: span 2"><label>ملاحظات إضافية (اختياري)</label><textarea id="req_description" rows="2" placeholder="أي تفاصيل إضافية توضّح الطلب"></textarea></div>`;
-    
+    html += '<div class="form-group" style="grid-column: span 2"><label>ملاحظات إضافية (اختياري)</label><textarea id="req_description" rows="2" placeholder="أي تفاصيل إضافية"></textarea></div>';
     html += '</form>';
-    
-    html += `<div class="btn-row" style="margin-top:14px">
-      <button class="btn btn-secondary" onclick="document.getElementById('newRequestForm').style.display='none'">${Icons.render("x")} إلغاء</button>
-      <button class="btn btn-primary" onclick="Modules._submitRequest('${typeId}', '${subTypeId}')">${Icons.render("send")} تقديم الطلب</button>
-    </div>`;
-    
-    form.innerHTML = html;
+    html += '<div class="btn-row" style="margin-top:14px">';
+    html += '<button class="btn btn-secondary" onclick="document.getElementById(\'newRequestForm\').style.display=\'none\'">' + Icons.render("x") + ' إلغاء</button>';
+    html += '<button class="btn btn-primary" onclick="Modules._submitRequest(\'' + typeId + '\', \'' + subTypeId + '\')">' + Icons.render("send") + ' تقديم الطلب</button>';
+    html += '</div>';
+
+    document.getElementById('subTypeForm').innerHTML = html;
   };
 
   Modules._submitRequest = function(typeId, subTypeId) {
     if (!subTypeId) { alert('الرجاء اختيار الفئة الفرعية'); return; }
-    
-    const data = {
-      title: document.getElementById('req_title')?.value.trim() || '',
+    var data = {
+      title: document.getElementById('req_title') ? document.getElementById('req_title').value.trim() : '',
       subType: subTypeId,
-      description: document.getElementById('req_description')?.value || '',
+      description: document.getElementById('req_description') ? document.getElementById('req_description').value : '',
       amount: 0,
       duration: '',
       startDate: '',
       endDate: '',
-      extraValue: document.getElementById('req_extraValue')?.value || ''
+      extraValue: document.getElementById('req_extraValue') ? document.getElementById('req_extraValue').value : ''
     };
-    
     if (!data.title) { alert('الرجاء إدخال عنوان الطلب'); return; }
-    
-    const type = SelfService.REQUEST_TYPES.find(t => t.id === typeId);
-    const subType = type.subTypes.find(st => st.id === subTypeId);
-    
+
+    var type = SelfService.REQUEST_TYPES.find(function(t) { return t.id === typeId; });
+    var subType = type.subTypes.find(function(st) { return st.id === subTypeId; });
+
     if (subType.requireDates) {
-      data.startDate = document.getElementById('req_startDate')?.value || '';
-      data.endDate = document.getElementById('req_endDate')?.value || '';
+      data.startDate = document.getElementById('req_startDate') ? document.getElementById('req_startDate').value : '';
+      data.endDate = document.getElementById('req_endDate') ? document.getElementById('req_endDate').value : '';
       if (!data.startDate || !data.endDate) { alert('الرجاء إدخال التواريخ'); return; }
     }
-    
     if (subType.requireAmount) {
-      data.amount = parseFloat(document.getElementById('req_amount')?.value || 0);
-      if (data.amount <= 0) { alert('الرجاء إدخال المبلغ'); return; }
+      data.amount = parseFloat(document.getElementById('req_amount') ? document.getElementById('req_amount').value : 0);
+      if (!data.amount || data.amount <= 0) { alert('الرجاء إدخال المبلغ'); return; }
     }
-    
     if (subType.requireReason) {
-      const reason = document.getElementById('req_reason')?.value || '';
+      var reason = document.getElementById('req_reason') ? document.getElementById('req_reason').value : '';
       if (!reason) { alert('الرجاء إدخال السبب'); return; }
       data.description = reason + '\n\n' + data.description;
     }
-    
-    // توليد الوصف الكامل
-    let fullDescription = '';
     if (subType.extraField && data.extraValue) {
-      fullDescription += subType.extraField + ': ' + data.extraValue + '\n';
+      data.description = subType.extraField + ': ' + data.extraValue + '\n' + data.description;
     }
-    fullDescription += data.description;
-    data.description = fullDescription;
-    
-    const req = SelfService.createRequest(typeId, data);
+
+    var req = SelfService.createRequest(typeId, data);
     if (req) {
-      alert('✓ تم تقديم الطلب بنجاح.\nرقم الطلب: ' + req.id + '\n\nيمكنك متابعة حالته من صفحة "طلباتي"');
+      alert('تم تقديم الطلب بنجاح.\nرقم الطلب: ' + req.id + '\n\nيمكنك متابعة حالته من صفحة "طلباتي"');
       APP.navigate('myRequests');
     } else {
-      alert('✗ حدث خطأ في تقديم الطلب');
+      alert('حدث خطأ في تقديم الطلب');
     }
   };
 
@@ -5559,257 +5485,213 @@ window.Modules.newRequest = function(container) {
 // ===== صفحة "الطلبات الواردة" للمدير =====
 window.Modules.incomingRequests = function(container) {
   SelfService.initDB();
-  const user = APP.getCurrentUser();
-  if (!user) { container.innerHTML = '<div class="empty-state" style="text-align:center;padding:40px"><p style="color:var(--text-muted)">لم يتم تسجيل الدخول</p></div>'; return; }
+  var user = APP.getCurrentUser();
+  if (!user) {
+    container.innerHTML = '<div class="empty-state" style="text-align:center;padding:40px"><p style="color:var(--text-muted)">لم يتم تسجيل الدخول</p></div>';
+    return;
+  }
 
   Exports.register("incomingRequests", {
     label: "الطلبات الواردة",
-    pdf: () => window.print(),
-    excel: () => Exports.exportJSON(SelfService.getIncomingRequests(), 'incoming'),
-    json: () => Exports.exportJSON(SelfService.getIncomingRequests(), 'incoming'),
-    csv: () => {},
-    print: () => window.print()
+    pdf: function() { return window.print(); },
+    excel: function() { return Exports.exportJSON(SelfService.getIncomingRequests(), 'incoming'); },
+    json: function() { return Exports.exportJSON(SelfService.getIncomingRequests(), 'incoming'); },
+    csv: function() {},
+    print: function() { return window.print(); }
   });
 
+  function esc(s) { return (s || '').toString().replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
   function render() {
-    const incoming = SelfService.getIncomingRequests();
+    var incoming = SelfService.getIncomingRequests();
+    var html = '<div class="text-muted" style="padding:8px 0 16px 0;font-size:13px">الطلبات الواردة إليك. اعتمد أو ارفض مع توضيح السبب.</div>';
+    html += '<div class="card">';
+    html += '<h3>' + Icons.render("incoming") + ' الطلبات الواردة (' + incoming.length + ')</h3>';
 
-    container.innerHTML = `
-      <div class="text-muted" style="padding:8px 0 16px 0;font-size:13px">الطلبات الواردة إليك. اعتمد أو ارفض مع توضيح السبب.</div>
-
-      <div class="card">
-        <h3>${Icons.render("incoming")} الطلبات الواردة (${incoming.length})</h3>
-        
-        ${incoming.length === 0 ? `
-          <div class="empty-state" style="text-align:center;padding:30px">
-            <div style="font-size:48px;color:var(--text-muted)">${Icons.render("inbox")}</div>
-            <p style="color:var(--text-muted);margin-top:12px">لا توجد طلبات واردة حالياً</p>
-          </div>
-        ` : `
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>رقم الطلب</th>
-                <th>الموظف</th>
-                <th>النوع</th>
-                <th>العنوان</th>
-                <th>المبلغ</th>
-                <th>التاريخ</th>
-                <th>إجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${incoming.map(r => {
-                const typeLabel = (SelfService.REQUEST_TYPES.find(t => t.id === r.type) || {}).label || r.type;
-                return `
-                  <tr>
-                    <td><code>${r.id.substring(0, 12)}</code></td>
-                    <td>${r.employeeName}<br><span class="text-muted" style="font-size:11px">${r.department}</span></td>
-                    <td><span class="badge badge-info">${typeLabel}</span></td>
-                    <td>${r.title}</td>
-                    <td class="text-primary"><b>${r.amount ? r.amount.toLocaleString('ar-EG') + ' ر.ي' : '-'}</b></td>
-                    <td class="text-muted">${new Date(r.createdAt).toLocaleDateString('ar-EG')}</td>
-                    <td>
-                      <button class="btn btn-sm" onclick="Modules._viewRequest('${r.id}')" title="عرض">${Icons.render("eye")}</button>
-                      <button class="btn btn-sm btn-success" onclick="Modules._approveRequest('${r.id}')" title="اعتماد">${Icons.render("check")}</button>
-                      <button class="btn btn-sm btn-danger" onclick="Modules._rejectRequestUI('${r.id}')" title="رفض">${Icons.render("x")}</button>
-                    </td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        `}
-      </div>
-    `;
+    if (incoming.length === 0) {
+      html += '<div class="empty-state" style="text-align:center;padding:30px">';
+      html += '<div style="font-size:48px;color:var(--text-muted)">' + Icons.render("inbox") + '</div>';
+      html += '<p style="color:var(--text-muted);margin-top:12px">لا توجد طلبات واردة حالياً</p></div>';
+    } else {
+      html += '<table class="data-table"><thead><tr><th>رقم الطلب</th><th>الموظف</th><th>النوع</th><th>العنوان</th><th>المبلغ</th><th>التاريخ</th><th>إجراءات</th></tr></thead><tbody>';
+      incoming.forEach(function(r) {
+        var typeConfig = SelfService.REQUEST_TYPES.find(function(t) { return t.id === r.type; }) || {};
+        html += '<tr><td><code>' + r.id.substring(0,12) + '</code></td>';
+        html += '<td>' + esc(r.employeeName) + '<br><span class="text-muted" style="font-size:11px">' + esc(r.department) + '</span></td>';
+        html += '<td><span class="badge badge-info">' + esc(typeConfig.label || r.type) + '</span></td>';
+        html += '<td>' + esc(r.title) + '</td>';
+        html += '<td class="text-primary"><b>' + (r.amount ? r.amount.toLocaleString('ar-EG') + ' ر.ي' : '-') + '</b></td>';
+        html += '<td class="text-muted">' + new Date(r.createdAt).toLocaleDateString('ar-EG') + '</td>';
+        html += '<td>';
+        html += '<button class="btn btn-sm" onclick="Modules._viewRequest(\'' + r.id + '\')" title="عرض">' + Icons.render("eye") + '</button> ';
+        html += '<button class="btn btn-sm btn-success" onclick="Modules._approveRequest(\'' + r.id + '\')" title="اعتماد">' + Icons.render("check") + '</button> ';
+        html += '<button class="btn btn-sm btn-danger" onclick="Modules._rejectRequestUI(\'' + r.id + '\')" title="رفض">' + Icons.render("x") + '</button>';
+        html += '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+    container.innerHTML = html;
   }
 
   Modules._approveRequest = function(id) {
     if (!confirm('هل تريد اعتماد هذا الطلب؟')) return;
-    const note = prompt('ملاحظة (اختياري):', '');
+    var note = prompt('ملاحظة (اختياري):', '');
     if (SelfService.approveRequest(id, note)) {
-      alert('✓ تم اعتماد الطلب وإحالته للمرحلة التالية');
+      alert('تم اعتماد الطلب وإحالته للمرحلة التالية');
       render();
     } else {
-      alert('✗ خطأ في اعتماد الطلب');
+      alert('خطأ في اعتماد الطلب');
     }
   };
 
   Modules._rejectRequestUI = function(id) {
-    const reason = prompt('سبب الرفض:');
+    var reason = prompt('سبب الرفض:');
     if (!reason) { alert('الرجاء إدخال سبب الرفض'); return; }
     if (SelfService.rejectRequest(id, reason)) {
-      alert('✓ تم رفض الطلب وإبلاغ الموظف');
+      alert('تم رفض الطلب وإبلاغ الموظف');
       render();
     } else {
-      alert('✗ خطأ في رفض الطلب');
+      alert('خطأ في رفض الطلب');
     }
   };
-
-  // استخدام نفس دالة عرض التفاصيل من myRequests
-  Modules._viewRequest = window.Modules._viewRequest;
 
   render();
 };
 
 // ===== لوحة التحكم الشخصية =====
 window.Modules.myDashboard = function(container) {
-  const user = APP.getCurrentUser();
+  var user = APP.getCurrentUser();
   if (!user) return;
   SelfService.initDB();
-  const db = APP.getDB();
-  const myReqs = SelfService.getMyRequests();
-  const notifs = (db.notifications || []).filter(n => n.for === user.empId || n.for === user.username);
-  const unread = notifs.filter(n => !n.read).length;
-  const emp = db.employeesLog.find(e => e.empId === user.empId) || {};
+  var db = APP.getDB();
+  var myReqs = SelfService.getMyRequests();
+  var notifs = (db.notifications || []).filter(function(n) { return n.for === user.empId || n.for === user.username; });
+  var unread = notifs.filter(function(n) { return !n.read; }).length;
+  var emp = db.employeesLog.find(function(e) { return e.empId === user.empId; }) || {};
 
-  // حساب الراتب الشهري
-  const salary = parseFloat(emp.salary || 0);
-  const allowances = parseFloat(emp.allowances || 0);
-  const housing = parseFloat(emp.housingAllowance || 0);
-  const total = salary + allowances + housing;
+  var salary = parseFloat(emp.salary || 0);
+  var allowances = parseFloat(emp.allowances || 0);
+  var housing = parseFloat(emp.housingAllowance || 0);
+  var total = salary + allowances + housing;
+  var pendingReqs = myReqs.filter(function(r) { return ['pending_manager','pending_admin','pending_dept','pending_gm'].indexOf(r.status) >= 0; }).length;
+  var approvedReqs = myReqs.filter(function(r) { return ['approved','completed'].indexOf(r.status) >= 0; }).length;
 
-  const pendingReqs = myReqs.filter(r => !['approved','rejected','completed','cancelled'].includes(r.status)).length;
-  const approvedReqs = myReqs.filter(r => r.status === 'approved' || r.status === 'completed').length;
+  function esc(s) { return (s || '').toString().replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-  container.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px">
-      <div class="stat-card">
-        <div class="stat-label">إجمالي طلباتي</div>
-        <div class="stat-value">${myReqs.length}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">بانتظار الموافقة</div>
-        <div class="stat-value" style="color:var(--warning)">${pendingReqs}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">معتمدة</div>
-        <div class="stat-value" style="color:var(--success)">${approvedReqs}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">إشعارات غير مقروءة</div>
-        <div class="stat-value" style="color:var(--primary)">${unread}</div>
-      </div>
-    </div>
+  var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px">';
+  html += '<div class="stat-card"><div class="stat-label">إجمالي طلباتي</div><div class="stat-value">' + myReqs.length + '</div></div>';
+  html += '<div class="stat-card"><div class="stat-label">بانتظار الموافقة</div><div class="stat-value" style="color:var(--warning)">' + pendingReqs + '</div></div>';
+  html += '<div class="stat-card"><div class="stat-label">معتمدة</div><div class="stat-value" style="color:var(--success)">' + approvedReqs + '</div></div>';
+  html += '<div class="stat-card"><div class="stat-label">إشعارات غير مقروءة</div><div class="stat-value" style="color:var(--primary)">' + unread + '</div></div>';
+  html += '</div>';
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-      <div class="card">
-        <h3>${Icons.render("user")} بياناتي</h3>
-        <table style="width:100%;font-size:13px">
-          <tr><td class="text-muted" width="120">الاسم</td><td><b>${emp.name || '-'}</b></td></tr>
-          <tr><td class="text-muted">رقم البطاقة</td><td>${emp.displayId || '-'} (${emp.empId || '-'})</td></tr>
-          <tr><td class="text-muted">القسم</td><td>${emp.department || '-'}</td></tr>
-          <tr><td class="text-muted">المسمى الوظيفي</td><td>${emp.position || '-'}</td></tr>
-          <tr><td class="text-muted">تاريخ التعيين</td><td>${emp.hireDate || '-'}</td></tr>
-          <tr><td class="text-muted">رقم الهاتف</td><td>${emp.phone || '-'}</td></tr>
-        </table>
-        <div class="btn-row" style="margin-top:12px">
-          <button class="btn btn-sm" onclick="APP.navigate('profile')">${Icons.render("edit")} تعديل بياناتي</button>
-        </div>
-      </div>
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">';
+  html += '<div class="card"><h3>' + Icons.render("user") + ' بياناتي</h3>';
+  html += '<table style="width:100%;font-size:13px">';
+  html += '<tr><td class="text-muted" width="120">الاسم</td><td><b>' + esc(emp.name || '-') + '</b></td></tr>';
+  html += '<tr><td class="text-muted">رقم البطاقة</td><td>' + esc(emp.displayId || '-') + ' (' + esc(emp.empId || '-') + ')</td></tr>';
+  html += '<tr><td class="text-muted">القسم</td><td>' + esc(emp.department || '-') + '</td></tr>';
+  html += '<tr><td class="text-muted">المسمى الوظيفي</td><td>' + esc(emp.position || '-') + '</td></tr>';
+  html += '<tr><td class="text-muted">تاريخ التعيين</td><td>' + esc(emp.hireDate || '-') + '</td></tr>';
+  html += '<tr><td class="text-muted">رقم الهاتف</td><td>' + esc(emp.phone || '-') + '</td></tr>';
+  html += '</table>';
+  html += '<div class="btn-row" style="margin-top:12px"><button class="btn btn-sm" onclick="APP.navigate(\'profile\')">' + Icons.render("edit") + ' تعديل بياناتي</button></div>';
+  html += '</div>';
 
-      <div class="card">
-        <h3>${Icons.render("fileText")} رواتبي الشهرية</h3>
-        <table style="width:100%;font-size:13px">
-          <tr><td class="text-muted" width="120">الراتب الأساسي</td><td class="text-primary"><b>${salary.toLocaleString('ar-EG')} ر.ي</b></td></tr>
-          <tr><td class="text-muted">البدلات</td><td>${allowances.toLocaleString('ar-EG')} ر.ي</td></tr>
-          <tr><td class="text-muted">بدل السكن</td><td>${housing.toLocaleString('ar-EG')} ر.ي</td></tr>
-          <tr style="border-top:2px solid var(--border)">
-            <td class="text-muted"><b>الإجمالي</b></td>
-            <td class="text-primary" style="font-size:16px"><b>${total.toLocaleString('ar-EG')} ر.ي</b></td>
-          </tr>
-        </table>
-      </div>
-    </div>
+  html += '<div class="card"><h3>' + Icons.render("fileText") + ' رواتبي الشهرية</h3>';
+  html += '<table style="width:100%;font-size:13px">';
+  html += '<tr><td class="text-muted" width="120">الراتب الأساسي</td><td class="text-primary"><b>' + salary.toLocaleString('ar-EG') + ' ر.ي</b></td></tr>';
+  html += '<tr><td class="text-muted">البدلات</td><td>' + allowances.toLocaleString('ar-EG') + ' ر.ي</td></tr>';
+  html += '<tr><td class="text-muted">بدل السكن</td><td>' + housing.toLocaleString('ar-EG') + ' ر.ي</td></tr>';
+  html += '<tr style="border-top:2px solid var(--border)"><td class="text-muted"><b>الإجمالي</b></td><td class="text-primary" style="font-size:16px"><b>' + total.toLocaleString('ar-EG') + ' ر.ي</b></td></tr>';
+  html += '</table></div>';
+  html += '</div>';
 
-    <div class="card" style="margin-top:14px">
-      <h3>${Icons.render("bell")} آخر الإشعارات</h3>
-      ${notifs.length === 0 ? '<p class="text-muted" style="padding:10px 0">لا توجد إشعارات</p>' : `
-        <table class="data-table">
-          <thead><tr><th>العنوان</th><th>الرسالة</th><th>التاريخ</th><th></th></tr></thead>
-          <tbody>
-            ${notifs.slice(-10).reverse().map(n => `
-              <tr style="${n.read ? 'opacity:0.5' : ''}">
-                <td><b>${n.title}</b></td>
-                <td>${n.message}</td>
-                <td class="text-muted" style="font-size:12px">${new Date(n.createdAt).toLocaleDateString('ar-EG')}</td>
-                <td>${n.read ? '' : '<span class="badge badge-info">جديد</span>'}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `}
-    </div>
-  `;
+  html += '<div class="card" style="margin-top:14px"><h3>' + Icons.render("bell") + ' آخر الإشعارات</h3>';
+  if (notifs.length === 0) {
+    html += '<p class="text-muted" style="padding:10px 0">لا توجد إشعارات</p>';
+  } else {
+    html += '<table class="data-table"><thead><tr><th>العنوان</th><th>الرسالة</th><th>التاريخ</th><th></th></tr></thead><tbody>';
+    notifs.slice(-10).reverse().forEach(function(n) {
+      html += '<tr' + (n.read ? ' style="opacity:0.5"' : '') + '>';
+      html += '<td><b>' + esc(n.title) + '</b></td><td>' + esc(n.message) + '</td>';
+      html += '<td class="text-muted" style="font-size:12px">' + new Date(n.createdAt).toLocaleDateString('ar-EG') + '</td>';
+      html += '<td>' + (n.read ? '' : '<span class="badge badge-info">جديد</span>') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+
+  container.innerHTML = html;
 };
 
 // ===== كشف الراتب الشهري =====
 window.Modules.salarySlip = function(container) {
-  const user = APP.getCurrentUser();
+  var user = APP.getCurrentUser();
   if (!user) return;
   SelfService.initDB();
-  const db = APP.getDB();
-  const emp = db.employeesLog.find(e => e.empId === user.empId) || {};
-  const now = new Date();
-  const months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
-  const monthName = months[now.getMonth()];
-  const year = now.getFullYear();
+  var db = APP.getDB();
+  var emp = db.employeesLog.find(function(e) { return e.empId === user.empId; }) || {};
+  var now = new Date();
+  var months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  var monthName = months[now.getMonth()];
+  var year = now.getFullYear();
 
-  const salary = parseFloat(emp.salary || 0);
-  const allowances = parseFloat(emp.allowances || 0);
-  const housing = parseFloat(emp.housingAllowance || 0);
-  const deductions = 0;
-  const net = salary + allowances + housing;
+  var salary = parseFloat(emp.salary || 0);
+  var allowances = parseFloat(emp.allowances || 0);
+  var housing = parseFloat(emp.housingAllowance || 0);
+  var net = salary + allowances + housing;
 
   Exports.register("salarySlip", {
     label: "كشف الراتب",
-    pdf: () => window.print(),
-    excel: () => {},
-    json: () => {},
-    csv: () => {},
-    print: () => window.print()
+    pdf: function() { return window.print(); },
+    excel: function() {},
+    json: function() {},
+    csv: function() {},
+    print: function() { return window.print(); }
   });
 
-  container.innerHTML = `
-    <div class="card">
-      <div style="text-align:center;border-bottom:2px solid var(--border);padding-bottom:14px;margin-bottom:14px">
-        <h2 style="margin:0">${Icons.render("fileText")} مصنع سيلين للمياه المعدنية والمرطبات</h2>
-        <h3 style="margin:8px 0 4px 0;color:var(--primary)">كشف الراتب الشهري</h3>
-        <p style="margin:0" class="text-muted">${monthName} ${year}</p>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-        <div>
-          <h4 style="margin:0 0 10px 0;border-bottom:1px solid var(--border);padding-bottom:6px">بيانات الموظف</h4>
-          <table style="width:100%;font-size:13px">
-            <tr><td class="text-muted">الاسم</td><td><b>${emp.name || '-'}</b></td></tr>
-            <tr><td class="text-muted">رقم الموظف</td><td>${emp.displayId || '-'}</td></tr>
-            <tr><td class="text-muted">القسم</td><td>${emp.department || '-'}</td></tr>
-            <tr><td class="text-muted">المسمى الوظيفي</td><td>${emp.position || '-'}</td></tr>
-            <tr><td class="text-muted">تاريخ التعيين</td><td>${emp.hireDate || '-'}</td></tr>
-          </table>
-        </div>
-        <div>
-          <h4 style="margin:0 0 10px 0;border-bottom:1px solid var(--border);padding-bottom:6px">الاستحقاقات</h4>
-          <table style="width:100%;font-size:13px">
-            <tr><td class="text-muted">الراتب الأساسي</td><td class="text-left" style="text-align:left">${salary.toLocaleString('ar-EG')}</td></tr>
-            <tr><td class="text-muted">البدلات</td><td class="text-left" style="text-align:left">${allowances.toLocaleString('ar-EG')}</td></tr>
-            <tr><td class="text-muted">بدل السكن</td><td class="text-left" style="text-align:left">${housing.toLocaleString('ar-EG')}</td></tr>
-            <tr style="border-top:2px solid var(--border)"><td><b>الإجمالي</b></td><td class="text-primary" style="text-align:left"><b>${net.toLocaleString('ar-EG')}</b></td></tr>
-          </table>
-        </div>
-      </div>
-      <div style="text-align:center;margin-top:20px;padding-top:14px;border-top:2px solid var(--border)">
-        <p style="margin:0;font-size:18px"><b>صافي الراتب: ${net.toLocaleString('ar-EG')} ر.ي</b></p>
-        <p style="margin:4px 0 0 0" class="text-muted">فقط ${toArabicWords(net)} ريال يمني</p>
-      </div>
-    </div>
-    <div class="btn-row" style="margin-top:14px">
-      <button class="btn btn-primary" onclick="window.print()">${Icons.render("printer")} طباعة</button>
-    </div>
-  `;
-
+  function esc(s) { return (s || '').toString().replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   function toArabicWords(num) {
-    const units = ['','واحد','اثنان','ثلاثة','أربعة','خمسة','ستة','سبعة','ثمانية','تسعة','عشرة'];
-    return Math.floor(num).toString().replace(/\d/g, d => units[parseInt(d)]).replace(/,/g,' و') || 'صفر';
+    var units = ['','واحد','اثنان','ثلاثة','أربعة','خمسة','ستة','سبعة','ثمانية','تسعة','عشرة'];
+    return Math.floor(num).toString().replace(/\d/g, function(d) { return units[parseInt(d)]; }).replace(/,/g,' و') || 'صفر';
   }
+
+  var html = '<div class="card">';
+  html += '<div style="text-align:center;border-bottom:2px solid var(--border);padding-bottom:14px;margin-bottom:14px">';
+  html += '<h2 style="margin:0">' + Icons.render("fileText") + ' مصنع سيلين للمياه المعدنية والمرطبات</h2>';
+  html += '<h3 style="margin:8px 0 4px 0;color:var(--primary)">كشف الراتب الشهري</h3>';
+  html += '<p style="margin:0" class="text-muted">' + monthName + ' ' + year + '</p></div>';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">';
+  html += '<div><h4 style="margin:0 0 10px 0;border-bottom:1px solid var(--border);padding-bottom:6px">بيانات الموظف</h4>';
+  html += '<table style="width:100%;font-size:13px">';
+  html += '<tr><td class="text-muted">الاسم</td><td><b>' + esc(emp.name || '-') + '</b></td></tr>';
+  html += '<tr><td class="text-muted">رقم الموظف</td><td>' + esc(emp.displayId || '-') + '</td></tr>';
+  html += '<tr><td class="text-muted">القسم</td><td>' + esc(emp.department || '-') + '</td></tr>';
+  html += '<tr><td class="text-muted">المسمى الوظيفي</td><td>' + esc(emp.position || '-') + '</td></tr>';
+  html += '<tr><td class="text-muted">تاريخ التعيين</td><td>' + esc(emp.hireDate || '-') + '</td></tr>';
+  html += '</table></div>';
+
+  html += '<div><h4 style="margin:0 0 10px 0;border-bottom:1px solid var(--border);padding-bottom:6px">الاستحقاقات</h4>';
+  html += '<table style="width:100%;font-size:13px">';
+  html += '<tr><td class="text-muted">الراتب الأساسي</td><td style="text-align:left">' + salary.toLocaleString('ar-EG') + '</td></tr>';
+  html += '<tr><td class="text-muted">البدلات</td><td style="text-align:left">' + allowances.toLocaleString('ar-EG') + '</td></tr>';
+  html += '<tr><td class="text-muted">بدل السكن</td><td style="text-align:left">' + housing.toLocaleString('ar-EG') + '</td></tr>';
+  html += '<tr style="border-top:2px solid var(--border)"><td><b>الإجمالي</b></td><td class="text-primary" style="text-align:left"><b>' + net.toLocaleString('ar-EG') + '</b></td></tr>';
+  html += '</table></div>';
+  html += '</div>';
+
+  html += '<div style="text-align:center;margin-top:20px;padding-top:14px;border-top:2px solid var(--border)">';
+  html += '<p style="margin:0;font-size:18px"><b>صافي الراتب: ' + net.toLocaleString('ar-EG') + ' ر.ي</b></p>';
+  html += '<p style="margin:4px 0 0 0" class="text-muted">فقط ' + toArabicWords(net) + ' ريال يمني</p>';
+  html += '</div>';
+  html += '<div class="btn-row" style="margin-top:14px">';
+  html += '<button class="btn btn-primary" onclick="window.print()">' + Icons.render("printer") + ' طباعة</button>';
+  html += '</div></div>';
+
+  container.innerHTML = html;
 };
+
+console.log('Self-service modules v2 loaded (string concat only)');
