@@ -443,7 +443,16 @@ window.APP = (function () {
     return m[role] || role;
   }
 
-  function renderNav() {
+  // Module ID → section group mapping (for navigate accordion)
+  const MODULE_GROUP = {
+    production: "الإنتاج", lab: "المختبر", inventory: "المخازن", vouchers: "المخازن",
+    sales: "المبيعات", agents: "المبيعات", purchaseRequest: "المشتريات", procurement: "المشتريات",
+    costs: "المالية", pricing: "المالية", hr: "الموارد البشرية", permissions: "الموارد البشرية",
+    terminated: "الموارد البشرية", reports: "التقارير", orgchart: "التقارير", orgtree: "التقارير",
+    dashboard: "الإدارة", settings: "الإدارة"
+  };
+
+  function renderNav(openGroupOverride) {
     const role = currentUser.role;
     const allModules = [
       // ===============================================
@@ -501,40 +510,64 @@ window.APP = (function () {
     });
 
     const nav = document.getElementById("navMenu");
-    nav.innerHTML = Object.keys(grouped).map(g => `
-      <div class="nav-group">
-        <div class="nav-group-title">${g}</div>
-        ${grouped[g].map(m => `
-          <div class="nav-item ${currentModule === m.id ? 'active' : ''}" data-id="${m.id}">
-            <span class="icon">${Icons.render(m.icon)}</span>
-            <span>${m.label}</span>
-          </div>
-        `).join("")}
-      </div>
-    `).join("");
+    const sectionNames = Object.keys(grouped);
+    const defaultOpen = sectionNames[0] || '';
+    let openGroup = openGroupOverride !== undefined ? openGroupOverride : defaultOpen;
 
-    nav.querySelectorAll(".nav-item").forEach(el => {
-      el.addEventListener("click", () => navigate(el.dataset.id));
+    const chevron = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+    nav.innerHTML = sectionNames.map(g => {
+      const isOpen = g === openGroup;
+      const items = grouped[g];
+      return `
+        <div class="nav-group">
+          <div class="nav-section-header ${isOpen ? 'open' : ''}" onclick="toggleGroup('${g}')">
+            <span>${g}</span>
+            <span class="nav-chevron" style="transform:rotate(${isOpen ? '180deg' : '0deg'});transition:transform 0.2s">${chevron}</span>
+          </div>
+          <div class="nav-section-items" style="overflow:hidden;max-height:${isOpen ? (items.length * 70) : 0}px;transition:max-height 0.3s ease">
+            ${items.map(m => `
+              <div class="nav-item ${currentModule === m.id ? 'active' : ''}" data-id="${m.id}">
+                <span class="icon">${Icons.render(m.icon)}</span>
+                <span>${m.label}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    nav.querySelectorAll('.nav-item').forEach(el => {
+      el.addEventListener('click', () => navigate(el.dataset.id));
     });
 
-    // Build mobile bottom nav (5 most important modules)
+    // Mobile bottom nav
     const mobileNav = document.getElementById("mobileNav");
     if (mobileNav) {
-      const priorityIds = ["dashboard", "production", "purchaseRequest", "inventory", "reports"];
-      const mobileItems = priorityIds
-        .map(id => allModules.find(m => m.id === id))
-        .filter(m => m && m.roles.includes(role));
-      mobileNav.innerHTML = mobileItems.map(m => `
-        <a href="#" data-id="${m.id}" class="${currentModule === m.id ? 'active' : ''}">
-          ${Icons.render(m.icon)}
-          <span>${m.label.replace('الإنتاج والتوالف', 'الإنتاج').replace('إدارة المخزون', 'المخزون').replace('التقارير الشاملة', 'التقارير').replace('خطوط التعبئة والورديات', 'الإنتاج').replace('جرد المواد الخام والمنتجات', 'المخازن').replace('سندات الصرف والإضافة', 'السندات').replace('إدارة العملاء والمناديب', 'المبيعات').replace('فحوصات الجودة والتعقيم', 'المختبر').replace('الموردين والالتزامات', 'المشتريات').replace('التكاليف الفعلية', 'المالية').replace('اللوحة الشاملة', 'التقارير')}</span>
-        </a>
-      `).join("");
-      mobileNav.querySelectorAll("a").forEach(el => {
-        el.addEventListener("click", e => { e.preventDefault(); navigate(el.dataset.id); });
-      });
+      const groupIcons = { 'الإنتاج': 'factory', 'المختبر': 'flask', 'المخازن': 'box', 'المبيعات': 'truck', 'المشتريات': 'cart', 'المالية': 'money', 'الموارد البشرية': 'users', 'التقارير': 'report', 'الإدارة': 'dashboard' };
+      mobileNav.innerHTML = sectionNames.map(g => {
+        const firstMod = grouped[g][0];
+        const isActive = firstMod && firstMod.roles.includes(role);
+        return `
+          <a href="#" onclick="event.preventDefault();toggleGroup('${g}')" class="${isActive ? 'active' : ''}" title="${g}">
+            ${Icons.render(groupIcons[g] || 'box')}
+            <span style="font-size:10px">${g}</span>
+          </a>
+        `;
+      }).join('');
     }
   }
+
+  // Accordion toggle (global)
+  let _openGroup = '';
+  window.toggleGroup = function(groupName) {
+    if (_openGroup === groupName) {
+      _openGroup = '';
+      renderNav('');
+    } else {
+      _openGroup = groupName;
+      renderNav(groupName);
+    }
+  };
 
   function navigate(moduleId) {
     // التحقق من الصلاحيات قبل التنقل
@@ -544,6 +577,11 @@ window.APP = (function () {
     }
     currentModule = moduleId;
     document.querySelectorAll(".nav-item").forEach(el => el.classList.toggle("active", el.dataset.id === moduleId));
+    // Keep accordion open on navigation
+    if (typeof renderNav === 'function') {
+      const grp = MODULE_GROUP[moduleId];
+      if (grp) renderNav(grp);
+    }
     const titles = {
       dashboard: "لوحة التحكم - نظرة لحظية",
       production: "خطوط التعبئة والورديات - مؤشرات OEE",

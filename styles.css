@@ -341,15 +341,32 @@ button, input, select, textarea {
   margin-top: 8px;
 }
 .nav-group {
-  margin-bottom: 16px;
+  margin-bottom: 6px;
 }
-.nav-group-title {
-  padding: 8px 14px 4px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--text-muted);
+.nav-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 12px;
   font-weight: 700;
+  color: var(--primary);
+  cursor: pointer;
+  border-radius: var(--radius);
+  background: var(--bg-darker);
+  margin-bottom: 4px;
+  user-select: none;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+.nav-section-header:hover {
+  background: var(--bg-card);
+  border-color: var(--border);
+}
+.nav-section-header.open {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
 }
 .nav-item {
   display: flex;
