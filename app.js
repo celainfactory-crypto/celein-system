@@ -103,7 +103,7 @@ window.APP = (function () {
           <button class="login-btn" onclick="APP.doLogin()">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.44 - PWA Enabled</div>
+          <div class="login-version-tag">v18.45 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -172,7 +172,9 @@ window.APP = (function () {
   // --- Toggle Sidebar (Mobile) ---
   function toggleSidebar() {
     const sidebar = document.querySelector('.sidebar');
+    const backdrop = document.getElementById('sidebarBackdrop');
     if (sidebar) sidebar.classList.toggle('open');
+    if (backdrop) backdrop.classList.toggle('active');
   }
 
   // --- PWA Install ---
@@ -321,6 +323,8 @@ window.APP = (function () {
     if (window.innerWidth > 900) return;
     if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && !toggle.contains(e.target)) {
       sidebar.classList.remove('open');
+      const backdrop = document.getElementById('sidebarBackdrop');
+      if (backdrop) backdrop.classList.remove('active');
     }
   });
 
@@ -364,6 +368,7 @@ window.APP = (function () {
   function showMainApp() {
     document.body.innerHTML = `
       <div class="app">
+        <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="APP.toggleSidebar()"></div>
         <aside class="sidebar">
           <div class="brand">
             <img src="logo.png" alt="سيلين" />

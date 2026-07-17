@@ -289,6 +289,16 @@ button, input, select, textarea {
 /* ============================================================
    الشريط الجانبي
    ============================================================ */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 99;
+  backdrop-filter: blur(2px);
+}
+.sidebar-backdrop.active { display: block; }
+
 .sidebar {
   background: var(--bg);
   padding: 24px 18px;
@@ -862,34 +872,52 @@ tfoot td {
 }
 
 /* ============================================================
-   استجابة الجوال
+   استجابة الجوال (Off-canvas Sidebar)
    ============================================================ */
 @media (max-width: 900px) {
   .app { grid-template-columns: 1fr; }
+
+  /* Off-canvas drawer */
   .sidebar {
-    position: relative;
-    height: auto;
-    padding: 12px;
+    position: fixed;
+    top: 0;
+    right: -300px;
+    height: 100vh;
+    width: 280px;
+    z-index: 200;
+    transition: right 0.3s ease;
+    box-shadow: -10px 0 40px rgba(0,0,0,0.3);
+    padding-top: env(safe-area-inset-top);
   }
-  .sidebar .brand { padding: 12px; }
-  #navMenu {
-    display: flex;
+  .sidebar.open { right: 0; }
+
+  /* Toggle button */
+  .menu-toggle { display: inline-flex !important; }
+
+  /* Topbar */
+  .topbar {
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
+    padding: 10px 14px;
   }
-  .nav-group {
-    flex: 1 1 100%;
-    margin-bottom: 8px;
-  }
-  .nav-group-title { display: none; }
-  .nav-item {
-    padding: 8px 12px;
-    font-size: 12px;
-    flex: 1 1 auto;
-  }
-  .kpi-grid { grid-template-columns: 1fr 1fr; }
-  .topbar { flex-direction: column; gap: 10px; align-items: stretch; }
-  .topbar .user-info { justify-content: center; }
+
+  /* Grid */
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .card { padding: 16px; }
+  .card h3 { font-size: 15px; }
+
+  /* Self-service bar */
+  .self-service-bar { padding: 6px 12px; gap: 4px; overflow-x: auto; }
+  .self-service-bar a { padding: 4px 8px; font-size: 11px; white-space: nowrap; }
+
+  /* Accordion sections in mobile sidebar */
+  .nav-section-header { padding: 10px 12px; font-size: 12px; }
+  .nav-item { padding: 10px 12px 10px 22px; font-size: 12px; }
+}
+
+@media (max-width: 480px) {
+  .sidebar { width: 85vw; right: -85vw; }
+  .self-service-bar a span:not(.install-text) { display: none; }
 }
 
 /* ============================================================
