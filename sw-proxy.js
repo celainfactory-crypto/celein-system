@@ -1,6 +1,4 @@
-// Service Worker Proxy v18.51 - لا يكشف أي شيء من الكاش
-const VERSION = 'celein-v18-51';
-
+// sw-proxy.js v18.52 — NO CACHE — Network Only
 self.addEventListener('install', e => self.skipWaiting());
 self.addEventListener('activate', e => {
   e.waitUntil(
@@ -8,12 +6,7 @@ self.addEventListener('activate', e => {
       .then(() => self.clients.claim())
   );
 });
-
-self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
-  if (url.origin !== location.origin) return;
-  if (event.request.method !== 'GET') return;
-
-  // servir directement depuis le réseau (pas de cache)
-  event.respondWith(fetch(event.request));
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  e.respondWith(fetch(e.request, { cache: 'no-store' }));
 });
