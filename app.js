@@ -103,7 +103,7 @@ window.APP = (function () {
           <button class="login-btn" id="loginBtnReal" onclick="APP.doLogin()">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.51 - PWA Enabled</div>
+          <div class="login-version-tag">v18.52 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -545,13 +545,13 @@ window.APP = (function () {
       const items = grouped[g];
       return `
         <div class="nav-group">
-          <div class="nav-section-header ${isOpen ? 'open' : ''}" onclick="toggleGroup('${g}')">
+          <div class="nav-section-header ${isOpen ? 'open' : ''}" data-group="${g}">
             <span>${g}</span>
             <span class="nav-chevron" style="transform:rotate(${isOpen ? '180deg' : '0deg'});transition:transform 0.2s">${chevron}</span>
           </div>
           <div class="nav-section-items" style="overflow:hidden;max-height:${isOpen ? (items.length * 70) : 0}px;transition:max-height 0.3s ease">
             ${items.map(m => `
-              <div class="nav-item ${currentModule === m.id ? 'active' : ''}" data-id="${m.id}">
+              <div class="nav-item ${currentModule === m.id ? 'active' : ''}" data-id="${m.id}" data-group="${g}">
                 <span class="icon">${Icons.render(m.icon)}</span>
                 <span>${m.label}</span>
               </div>
@@ -565,6 +565,14 @@ window.APP = (function () {
       el.addEventListener('click', () => navigate(el.dataset.id));
     });
 
+    // Accordion section headers - event listener approach (no onclick in template)
+    nav.querySelectorAll('.nav-section-header').forEach(el => {
+      el.addEventListener('click', () => {
+        const g = el.dataset.group;
+        if (g) window.toggleGroup(g);
+      });
+    });
+
     // Mobile bottom nav
     const mobileNav = document.getElementById("mobileNav");
     if (mobileNav) {
@@ -573,12 +581,28 @@ window.APP = (function () {
         const firstMod = grouped[g][0];
         const isActive = firstMod && firstMod.roles.includes(role);
         return `
-          <a href="#" onclick="event.preventDefault();toggleGroup('${g}')" class="${isActive ? 'active' : ''}" title="${g}">
+          <a href="#" class="mobile-nav-group ${isActive ? 'active' : ''}" data-group="${g}" title="${g}">
             ${Icons.render(groupIcons[g] || 'box')}
             <span style="font-size:10px">${g}</span>
           </a>
         `;
       }).join('');
+
+      // Mobile accordion tap - open sidebar and scroll to section
+      mobileNav.querySelectorAll('.mobile-nav-group').forEach(el => {
+        el.addEventListener('click', () => {
+          const g = el.dataset.group;
+          if (g) {
+            // Open sidebar on mobile
+            const sidebar = document.querySelector('.sidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            if (sidebar) sidebar.classList.add('open');
+            if (backdrop) backdrop.classList.add('active');
+            // Open the right section
+            window.toggleGroup(g);
+          }
+        });
+      });
     }
   }
 

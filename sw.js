@@ -1,12 +1,10 @@
-// Service Worker - نظام سيلين v11 (Network-First)
-const VERSION = 'celein-v12';
+// Service Worker - نظام سيلين v18.51 (Network-First, No Cache)
+const VERSION = 'celein-v18-51';
 
-// Install: take control immediately
 self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// Activate: clean ALL old caches and claim clients
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
@@ -15,26 +13,15 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch: ALWAYS try network first, fallback to cache
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
   if (url.origin !== location.origin) return;
 
-  event.respondWith(
-    fetch(event.request, { cache: 'no-cache' })
-      .then(response => {
-        if (response && response.status === 200) {
-          const clone = response.clone();
-          caches.open(VERSION).then(c => c.put(event.request, clone));
-        }
-        return response;
-      })
-      .catch(() => caches.match(event.request))
-  );
+  // Serve directly from network - no caching
+  event.respondWith(fetch(event.request, { cache: 'no-store' }));
 });
 
-// Listen for SKIP_WAITING messages
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();

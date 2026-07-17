@@ -1,6 +1,5 @@
-// Service Worker Proxy - يحول طلبات Netlify إلى jsDelivr
-const VERSION = 'celein-v19-proxy';
-const CDN_BASE = 'https://cdn.jsdelivr.net/gh/celainfactory-crypto/celein-system@main';
+// Service Worker Proxy v18.51 - لا يكشف أي شيء من الكاش
+const VERSION = 'celein-v18-51';
 
 self.addEventListener('install', e => self.skipWaiting());
 self.addEventListener('activate', e => {
@@ -14,14 +13,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (url.origin !== location.origin) return;
   if (event.request.method !== 'GET') return;
-  
-  // تحويل طلبات الملفات إلى jsDelivr
-  const path = url.pathname;
-  if (path.endsWith('.js') || path.endsWith('.css') || path.endsWith('.json')) {
-    const cdnUrl = CDN_BASE + path + (path.includes('?') ? '' : '');
-    event.respondWith(
-      fetch(cdnUrl, { cache: 'no-cache' })
-        .catch(() => fetch(event.request, { cache: 'no-cache' }))
-    );
-  }
+
+  // servir directement depuis le réseau (pas de cache)
+  event.respondWith(fetch(event.request));
 });
