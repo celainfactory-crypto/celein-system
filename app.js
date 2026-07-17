@@ -103,7 +103,7 @@ window.APP = (function () {
           <button class="login-btn" id="loginBtnReal" onclick="APP.doLogin()">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.50 - PWA Enabled</div>
+          <div class="login-version-tag">v18.51 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -469,6 +469,16 @@ window.APP = (function () {
 
   function renderNav(openGroupOverride) {
     const role = currentUser.role;
+    let _openGroup = '';
+    window.toggleGroup = function(groupName) {
+      if (_openGroup === groupName) {
+        _openGroup = '';
+        renderNav('');
+      } else {
+        _openGroup = groupName;
+        renderNav(groupName);
+      }
+    };
     const allModules = [
       // ===============================================
       // 1. الإنتاج
@@ -572,17 +582,6 @@ window.APP = (function () {
     }
   }
 
-  // Accordion toggle (global)
-  let _openGroup = '';
-  window.toggleGroup = function(groupName) {
-    if (_openGroup === groupName) {
-      _openGroup = '';
-      renderNav('');
-    } else {
-      _openGroup = groupName;
-      renderNav(groupName);
-    }
-  };
 
   function navigate(moduleId) {
     // التحقق من الصلاحيات قبل التنقل
