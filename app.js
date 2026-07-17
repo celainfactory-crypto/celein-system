@@ -100,7 +100,7 @@ window.APP = (function () {
               </button>
             </div>
           </div>
-          <button class="login-btn" onclick="APP.doLogin()">
+          <button class="login-btn" id="loginBtnReal" onclick="try{APP.doLogin()}catch(e){alert('خطأ: '+e.message)}">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
           <div class="login-version-tag">v18.48 - PWA Enabled</div>
