@@ -100,10 +100,10 @@ window.APP = (function () {
               </button>
             </div>
           </div>
-          <button class="login-btn" id="loginBtnReal" onclick="try{APP.doLogin()}catch(e){alert('خطأ: '+e.message)}">
+          <button class="login-btn" id="loginBtnReal" onclick="APP.doLogin()">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.48 - PWA Enabled</div>
+          <div class="login-version-tag">v18.50 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -424,7 +424,7 @@ window.APP = (function () {
             <a href="#" onclick="APP.navigate('salarySlip');return false" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('fileText')} كشف الراتب</a>
             <a href="#" onclick="APP.navigate('myRequests');return false" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('inbox')} طلباتي</a>
             <a href="#" onclick="APP.navigate('newRequest');return false" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--primary);color:#fff;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('plus')} طلب جديد</a>
-            ${['admin','executive','chairman','hr_manager','production','accountant'].includes(role) ? `<a href="#" onclick="APP.navigate('incomingRequests');return false" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--warning);color:#000;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('incoming')} الطلبات الواردة</a>` : ''}
+            ${['admin','executive','chairman','hr_manager','production','accountant'].includes(currentUser.role) ? `<a href="#" onclick="APP.navigate('incomingRequests');return false" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--warning);color:#000;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('incoming')} الطلبات الواردة</a>` : ''}
             <a href="#" onclick="APP.navigate('profile');return false" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('user')} ملفي</a>
           </div>
           <main class="content" id="content"></main>
