@@ -108,7 +108,7 @@ window.APP = (function () {
       </div>
     `;
     document.getElementById("loginPass").addEventListener("keypress", e => {
-      if (e.key === "Enter") APP.doLogin();
+      if (e.key === "Enter") doLogin();
     });
   }
 
@@ -148,6 +148,16 @@ window.APP = (function () {
   function doLogin() {
     const username = document.getElementById("loginUser").value.trim();
     const password = document.getElementById("loginPass").value;
+    if (!username || !password) {
+      const err = document.getElementById("loginError");
+      err.textContent = "الرجاء إدخال اسم المستخدم وكلمة المرور";
+      err.style.display = "block";
+      return;
+    }
+    if (!db || !db.users) {
+      alert("خطأ: قاعدة البيانات غير متوفرة. يرجى تحديث الصفحة.");
+      return;
+    }
     const user = db.users.find(u => u.username === username && u.password === password && u.active);
     if (!user) {
       const err = document.getElementById("loginError");
@@ -158,7 +168,6 @@ window.APP = (function () {
     DB.setSession(user);
     showMainApp();
   }
-  window.doLogin = doLogin;  // global fallback for inline handlers
 
   function logout() {
     DB.clearSession();
