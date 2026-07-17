@@ -108,7 +108,7 @@ window.APP = (function () {
       </div>
     `;
     document.getElementById("loginPass").addEventListener("keypress", e => {
-      if (e.key === "Enter") doLogin();
+      if (e.key === "Enter") APP.doLogin();
     });
   }
 
@@ -158,6 +158,7 @@ window.APP = (function () {
     DB.setSession(user);
     showMainApp();
   }
+  window.doLogin = doLogin;  // global fallback for inline handlers
 
   function logout() {
     DB.clearSession();
