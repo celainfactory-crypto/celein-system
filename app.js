@@ -403,6 +403,15 @@ window.APP = (function () {
               <button class="logout-btn" onclick="APP.logout()">${Icons.render('logout')} خروج</button>
             </div>
           </header>
+          <div class="self-service-bar" id="selfServiceBar" style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--bg-darker);border-bottom:1px solid var(--border);flex-wrap:wrap;font-size:13px;overflow-x:auto">
+            <span style="font-weight:700;color:var(--primary);white-space:nowrap;margin-left:6px">خدمتي:</span>
+            <a href="#" onclick="APP.navigate('myDashboard');return false" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('layout')} لوحة التحكم</a>
+            <a href="#" onclick="APP.navigate('salarySlip');return false" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('fileText')} كشف الراتب</a>
+            <a href="#" onclick="APP.navigate('myRequests');return false" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('inbox')} طلباتي</a>
+            <a href="#" onclick="APP.navigate('newRequest');return false" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--primary);color:#fff;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('plus')} طلب جديد</a>
+            ${['admin','executive','chairman','hr_manager','production','accountant'].includes(role) ? `<a href="#" onclick="APP.navigate('incomingRequests');return false" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--warning);color:#000;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('incoming')} الطلبات الواردة</a>` : ''}
+            <a href="#" onclick="APP.navigate('profile');return false" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('user')} ملفي</a>
+          </div>
           <main class="content" id="content"></main>
           <footer class="app-footer">
             جميع الحقوق محفوظة © ${db.meta.year} | <b>${db.meta.copyright}</b> - ${db.meta.role} - ${db.meta.location}
@@ -438,56 +447,47 @@ window.APP = (function () {
     const role = currentUser.role;
     const allModules = [
       // ===============================================
-      // 1. خدمتي الذاتية (الملف الشخصي)
-      // ===============================================
-      { id: "myDashboard",    group: "خدمتي الذاتية",      icon: "layout",    label: "لوحة التحكم الشخصية",   roles: ["admin","executive","chairman","hr_manager","production","accountant","sales","lab","procurement","worker"] },
-      { id: "salarySlip",     group: "خدمتي الذاتية",      icon: "fileText",  label: "كشف الراتب",           roles: ["admin","executive","chairman","hr_manager","production","accountant","sales","lab","procurement","worker"] },
-      { id: "myRequests",     group: "خدمتي الذاتية",      icon: "inbox",     label: "طلباتي",              roles: ["admin","executive","chairman","hr_manager","production","accountant","sales","lab","procurement","worker"] },
-      { id: "newRequest",     group: "خدمتي الذاتية",      icon: "plus",      label: "طلب جديد",            roles: ["admin","executive","chairman","hr_manager","production","accountant","sales","lab","procurement","worker"] },
-      { id: "incomingRequests",group: "خدمتي الذاتية",    icon: "incoming",  label: "الطلبات الواردة",      roles: ["admin","executive","chairman","hr_manager","production","accountant","sales","lab","procurement"] },
-      { id: "profile",        group: "خدمتي الذاتية",      icon: "user",      label: "ملفي الشخصي",          roles: ["admin","executive","chairman","hr_manager","production","accountant","sales","lab","procurement","worker"] },
-      // ===============================================
-      // 2. الإنتاج
+      // 1. الإنتاج
       // ===============================================
       { id: "production",     group: "الإنتاج",            icon: "factory",   label: "خطوط التعبئة والورديات",roles: ["admin","production","accountant"] },
       // ===============================================
-      // 3. المختبر
+      // 2. المختبر
       // ===============================================
       { id: "lab",           group: "المختبر",            icon: "flask",     label: "فحوصات الجودة والتعقيم",roles: ["admin","lab","production"] },
       // ===============================================
-      // 4. المخازن
+      // 3. المخازن
       // ===============================================
       { id: "inventory",     group: "المخازن",            icon: "box",       label: "جرد المواد الخام والمنتجات",roles:["admin","production","accountant","procurement"] },
       { id: "vouchers",      group: "المخازن",            icon: "clipboard", label: "سندات الصرف والإضافة",  roles: ["admin","accountant","production"] },
       // ===============================================
-      // 5. المبيعات
+      // 4. المبيعات
       // ===============================================
       { id: "sales",         group: "المبيعات",            icon: "truck",     label: "إدارة العملاء والمناديب", roles: ["admin","sales","accountant"] },
       { id: "agents",        group: "المبيعات",            icon: "handshake", label: "الوكلاء",              roles: ["admin","sales","accountant"] },
       // ===============================================
-      // 6. المشتريات
+      // 5. المشتريات
       // ===============================================
       { id: "purchaseRequest",group:"المشتريات",          icon: "cart",      label: "طلبات الشراء",           roles: ["admin","production","procurement","accountant"] },
       { id: "procurement",   group: "المشتريات",          icon: "package",   label: "الموردين والالتزامات",  roles: ["admin","procurement","accountant"] },
       // ===============================================
-      // 7. المالية
+      // 6. المالية
       // ===============================================
       { id: "costs",         group: "المالية",            icon: "money",     label: "التكاليف الفعلية",       roles: ["admin","accountant","production"] },
       { id: "pricing",       group: "المالية",            icon: "priceTag",  label: "الأسعار",               roles: ["admin","accountant"] },
       // ===============================================
-      // 8. الموارد البشرية
+      // 7. الموارد البشرية
       // ===============================================
       { id: "hr",            group: "الموارد البشرية",    icon: "users",     label: "سجل الموظفين",           roles: ["admin","hr_manager"] },
       { id: "permissions",   group: "الموارد البشرية",    icon: "key",       label: "إدارة الصلاحيات",        roles: ["admin","hr_manager"] },
       { id: "terminated",    group: "الموارد البشرية",    icon: "x",         label: "المنتهية عقودهم",        roles: ["admin"] },
       // ===============================================
-      // 9. التقارير
+      // 8. التقارير
       // ===============================================
       { id: "reports",       group: "التقارير",            icon: "report",    label: "اللوحة الشاملة",          roles: ["admin","executive","chairman","accountant","production","lab","procurement"] },
       { id: "orgchart",     group: "التقارير",            icon: "sitemap",   label: "الهيكل التنظيمي",        roles: ["admin","chairman","accountant"] },
       { id: "orgtree",      group: "التقارير",            icon: "gitBranch", label: "الشجرة التفاعلية",        roles: ["admin","chairman","accountant"] },
       // ===============================================
-      // الإدارة
+      // 9. الإدارة
       // ===============================================
       { id: "dashboard",     group: "الإدارة",            icon: "dashboard", label: "لوحة التحكم",             roles: ["admin","executive","chairman","accountant"] },
       { id: "settings",      group: "الإدارة",            icon: "settings",  label: "لوحة المطور",             roles: ["admin"] }
