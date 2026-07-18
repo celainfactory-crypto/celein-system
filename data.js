@@ -61,26 +61,26 @@ window.DB = (function () {
     // executive: dashboard + reports + profile فقط (إزالة orgchart/orgtree)
     // worker: إضافة dashboard (مفقود)
     pages: {
-      dashboard:       ['admin', 'executive', 'chairman', 'accountant', 'worker'],
-      production:      ['admin', 'production', 'accountant'],
-      purchaseRequest: ['admin', 'production', 'procurement', 'accountant'],
-      costs:           ['admin', 'accountant', 'production'],
-      pricing:         ['admin', 'accountant'],
-      inventory:       ['admin', 'production', 'accountant', 'procurement'],
-      vouchers:        ['admin', 'accountant', 'production'],
-      sales:           ['admin', 'sales', 'accountant'],
-      agents:          ['admin', 'sales', 'accountant'],
-      lab:             ['admin', 'lab', 'production'],
-      procurement:     ['admin', 'procurement', 'accountant'],
-      hr:              ['admin', 'hr_manager'],
-      reports:         ['admin', 'executive', 'chairman', 'accountant', 'production', 'lab', 'procurement'],
-      users:           ['admin', 'hr_manager'],
-      permissions:     ['admin', 'hr_manager'],
-      settings:        ['admin'],
-      terminated:      ['admin'],
-      orgchart:        ['admin', 'chairman', 'accountant'],
-      orgtree:         ['admin', 'chairman', 'accountant'],
-      profile:         ['admin', 'executive', 'chairman', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker']
+      dashboard:       ['admin','vice_executive', 'executive', 'chairman', 'accountant', 'worker'],
+      production:      ['admin','vice_executive', 'production', 'accountant'],
+      purchaseRequest: ['admin','vice_executive', 'production', 'procurement', 'accountant'],
+      costs:           ['admin','vice_executive', 'accountant', 'production'],
+      pricing:         ['admin','vice_executive', 'accountant'],
+      inventory:       ['admin','vice_executive', 'production', 'accountant', 'procurement'],
+      vouchers:        ['admin','vice_executive', 'accountant', 'production'],
+      sales:           ['admin','vice_executive', 'sales', 'accountant'],
+      agents:          ['admin','vice_executive', 'sales', 'accountant'],
+      lab:             ['admin','vice_executive', 'lab', 'production'],
+      procurement:     ['admin','vice_executive', 'procurement', 'accountant'],
+      hr:              ['admin','vice_executive', 'hr_manager'],
+      reports:         ['admin','vice_executive', 'executive', 'chairman', 'accountant', 'production', 'lab', 'procurement'],
+      users:           ['admin','vice_executive', 'hr_manager'],
+      permissions:     ['admin','vice_executive', 'hr_manager'],
+      settings:        ['admin','vice_executive'],
+      terminated:      ['admin','vice_executive'],
+      orgchart:        ['admin','vice_executive', 'chairman', 'accountant'],
+      orgtree:         ['admin','vice_executive', 'chairman', 'accountant'],
+      profile:         ['admin','vice_executive', 'executive', 'chairman', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker']
     },
     // كل صفحة: وضع العرض (full = تعديل، view = عرض فقط)
     // الإصلاح (Agent 4 — 2026-07-12): sales لم يعد يصل لـ pricing/inventory/vouchers/reports
@@ -130,7 +130,7 @@ window.DB = (function () {
   function canAccess(user, pageId) {
     if (!user) return false;
     // المدير العام يدخل كل شيء
-    if (user.role === 'admin') return true;
+    if (user.role === 'admin','vice_executive') return true;
     // تحقق من الصلاحيات المخصصة
     if (user.customPermissions && user.customPermissions.includes(pageId)) return true;
     // تحقق من الدور
@@ -141,7 +141,7 @@ window.DB = (function () {
   // هل المستخدم في وضع التعديل الكامل أم عرض فقط؟
   function getAccessMode(user, pageId) {
     if (!user) return 'view';
-    if (user.role === 'admin') return 'full';
+    if (user.role === 'admin','vice_executive') return 'full';
     if (user.customPermissions && user.customPermissions.includes(pageId + ':full')) return 'full';
     const mode = PERMISSIONS.modes[pageId];
     if (!mode) return 'view';
@@ -151,7 +151,7 @@ window.DB = (function () {
   // هل الصفحة مقتصرة على قسم المستخدم؟
   function scopeToDepartment(user, pageId) {
     if (!user) return null;
-    if (user.role === 'admin' || user.role === 'hr_manager' || user.role === 'accountant') return null;
+    if (user.role === 'admin','vice_executive' || user.role === 'hr_manager' || user.role === 'accountant') return null;
     const scoped = PERMISSIONS.departmentScoped[pageId] || [];
     if (scoped.includes(user.role)) {
       return user.department;
@@ -162,7 +162,7 @@ window.DB = (function () {
   // فلترة قائمة المستخدمين بحسب القسم
   function getAccessibleUsers(viewer, allUsers) {
     if (!viewer) return [];
-    if (viewer.role === 'admin' || viewer.role === 'hr_manager') return allUsers;
+    if (viewer.role === 'admin','vice_executive' || viewer.role === 'hr_manager') return allUsers;
     // المديرين الآخرين يرون فقط المستخدمين في قسمهم
     return allUsers.filter(u => u.department === viewer.department);
   }
@@ -170,7 +170,7 @@ window.DB = (function () {
   // هل يمكن لمستخدم رؤية موظف معين؟
   function canViewEmployee(viewer, employee) {
     if (!viewer || !employee) return false;
-    if (viewer.role === 'admin' || viewer.role === 'hr_manager') return true;
+    if (viewer.role === 'admin','vice_executive' || viewer.role === 'hr_manager') return true;
     if (viewer.role === 'accountant') return true;
     // المستخدم نفسه
     if (viewer.employeeId === employee.id) return true;

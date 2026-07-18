@@ -142,7 +142,7 @@ window.APP = (function () {
           <button class="login-btn" id="loginBtnReal" onclick="window.APP && window.APP.doLogin();">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.53 - PWA Enabled</div>
+          <div class="login-version-tag">v18.54 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -494,48 +494,48 @@ window.APP = (function () {
       // ===============================================
       // 1. الإنتاج
       // ===============================================
-      { id: "production",     group: "الإنتاج",            icon: "factory",   label: "خطوط التعبئة والورديات",roles: ["admin","production","accountant"] },
+      { id: "production",     group: "الإنتاج",            icon: "factory",   label: "خطوط التعبئة والورديات",roles: ["admin","vice_executive","production","accountant"] },
       // ===============================================
       // 2. المختبر
       // ===============================================
-      { id: "lab",           group: "المختبر",            icon: "flask",     label: "فحوصات الجودة والتعقيم",roles: ["admin","lab","production"] },
+      { id: "lab",           group: "المختبر",            icon: "flask",     label: "فحوصات الجودة والتعقيم",roles: ["admin","vice_executive","lab","production"] },
       // ===============================================
       // 3. المخازن
       // ===============================================
-      { id: "inventory",     group: "المخازن",            icon: "box",       label: "جرد المواد الخام والمنتجات",roles:["admin","production","accountant","procurement"] },
-      { id: "vouchers",      group: "المخازن",            icon: "clipboard", label: "سندات الصرف والإضافة",  roles: ["admin","accountant","production"] },
+      { id: "inventory",     group: "المخازن",            icon: "box",       label: "جرد المواد الخام والمنتجات",roles:["admin","vice_executive","production","accountant","procurement"] },
+      { id: "vouchers",      group: "المخازن",            icon: "clipboard", label: "سندات الصرف والإضافة",  roles: ["admin","vice_executive","accountant","production"] },
       // ===============================================
       // 4. المبيعات
       // ===============================================
-      { id: "sales",         group: "المبيعات",            icon: "truck",     label: "إدارة العملاء والمناديب", roles: ["admin","sales","accountant"] },
-      { id: "agents",        group: "المبيعات",            icon: "handshake", label: "الوكلاء",              roles: ["admin","sales","accountant"] },
+      { id: "sales",         group: "المبيعات",            icon: "truck",     label: "إدارة العملاء والمناديب", roles: ["admin","vice_executive","sales","accountant"] },
+      { id: "agents",        group: "المبيعات",            icon: "handshake", label: "الوكلاء",              roles: ["admin","vice_executive","sales","accountant"] },
       // ===============================================
       // 5. المشتريات
       // ===============================================
-      { id: "purchaseRequest",group:"المشتريات",          icon: "cart",      label: "طلبات الشراء",           roles: ["admin","production","procurement","accountant"] },
-      { id: "procurement",   group: "المشتريات",          icon: "package",   label: "الموردين والالتزامات",  roles: ["admin","procurement","accountant"] },
+      { id: "purchaseRequest",group:"المشتريات",          icon: "cart",      label: "طلبات الشراء",           roles: ["admin","vice_executive","production","procurement","accountant"] },
+      { id: "procurement",   group: "المشتريات",          icon: "package",   label: "الموردين والالتزامات",  roles: ["admin","vice_executive","procurement","accountant"] },
       // ===============================================
       // 6. المالية
       // ===============================================
-      { id: "costs",         group: "المالية",            icon: "money",     label: "التكاليف الفعلية",       roles: ["admin","accountant","production"] },
-      { id: "pricing",       group: "المالية",            icon: "priceTag",  label: "الأسعار",               roles: ["admin","accountant"] },
+      { id: "costs",         group: "المالية",            icon: "money",     label: "التكاليف الفعلية",       roles: ["admin","vice_executive","accountant","production"] },
+      { id: "pricing",       group: "المالية",            icon: "priceTag",  label: "الأسعار",               roles: ["admin","vice_executive","accountant"] },
       // ===============================================
       // 7. الموارد البشرية
       // ===============================================
-      { id: "hr",            group: "الموارد البشرية",    icon: "users",     label: "سجل الموظفين",           roles: ["admin","hr_manager"] },
-      { id: "permissions",   group: "الموارد البشرية",    icon: "key",       label: "إدارة الصلاحيات",        roles: ["admin","hr_manager"] },
-      { id: "terminated",    group: "الموارد البشرية",    icon: "x",         label: "المنتهية عقودهم",        roles: ["admin"] },
+      { id: "hr",            group: "الموارد البشرية",    icon: "users",     label: "سجل الموظفين",           roles: ["admin","vice_executive","hr_manager"] },
+      { id: "permissions",   group: "الموارد البشرية",    icon: "key",       label: "إدارة الصلاحيات",        roles: ["admin","vice_executive","hr_manager"] },
+      { id: "terminated",    group: "الموارد البشرية",    icon: "x",         label: "المنتهية عقودهم",        roles: ["admin","vice_executive"] },
       // ===============================================
       // 8. التقارير
       // ===============================================
-      { id: "reports",       group: "التقارير",            icon: "report",    label: "اللوحة الشاملة",          roles: ["admin","executive","chairman","accountant","production","lab","procurement"] },
-      { id: "orgchart",     group: "التقارير",            icon: "sitemap",   label: "الهيكل التنظيمي",        roles: ["admin","chairman","accountant"] },
-      { id: "orgtree",      group: "التقارير",            icon: "gitBranch", label: "الشجرة التفاعلية",        roles: ["admin","chairman","accountant"] },
+      { id: "reports",       group: "التقارير",            icon: "report",    label: "اللوحة الشاملة",          roles: ["admin","vice_executive","executive","chairman","accountant","production","lab","procurement"] },
+      { id: "orgchart",     group: "التقارير",            icon: "sitemap",   label: "الهيكل التنظيمي",        roles: ["admin","vice_executive","chairman","accountant"] },
+      { id: "orgtree",      group: "التقارير",            icon: "gitBranch", label: "الشجرة التفاعلية",        roles: ["admin","vice_executive","chairman","accountant"] },
       // ===============================================
       // 9. الإدارة
       // ===============================================
-      { id: "dashboard",     group: "الإدارة",            icon: "dashboard", label: "لوحة التحكم",             roles: ["admin","executive","chairman","accountant"] },
-      { id: "settings",      group: "الإدارة",            icon: "settings",  label: "لوحة المطور",             roles: ["admin"] }
+      { id: "dashboard",     group: "الإدارة",            icon: "dashboard", label: "لوحة التحكم",             roles: ["admin","vice_executive","executive","chairman","accountant"] },
+      { id: "settings",      group: "الإدارة",            icon: "settings",  label: "لوحة المطور",             roles: ["admin","vice_executive"] }
     ];
 
     const grouped = {};
