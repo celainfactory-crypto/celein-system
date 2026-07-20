@@ -35,16 +35,16 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
 
-  <!-- نظام سيلين - v18.62 - Off-canvas sidebar + Accordion + Self-service bar -->
-  <script src="data-seed.js?v=18.62"></script>
-  <script src="data.js?v=18.62"></script>
-  <script src="icons.js?v=18.62"></script>
-  <script src="exports.js?v=18.62"></script>
-  <script src="app.js?v=18.62"></script>
-  <script src="modules.js?v=18.62"></script>
-  <script src="modules2.js?v=18.62"></script>
-  <script src="self-service.js?v=18.62"></script>
-  <script src="reports.js?v=18.62"></script>
+  <!-- نظام سيلين - v18.63 - Off-canvas sidebar + Accordion + Self-service bar -->
+  <script src="data-seed.js?v=18.63"></script>
+  <script src="data.js?v=18.63"></script>
+  <script src="icons.js?v=18.63"></script>
+  <script src="exports.js?v=18.63"></script>
+  <script src="app.js?v=18.63"></script>
+  <script src="modules.js?v=18.63"></script>
+  <script src="modules2.js?v=18.63"></script>
+  <script src="self-service.js?v=18.63"></script>
+  <script src="reports.js?v=18.63"></script>
 
   <style>
     /* Pre-render hide to prevent FOUC */
@@ -69,7 +69,7 @@
     // PWA: Register Service Worker + force update check
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw-proxy.js?v=18.62&t=' + Date.now())
+        navigator.serviceWorker.register('/sw-proxy.js?v=18.63&t=' + Date.now())
           .then(reg => {
             console.log('✓ PWA Service Worker v11 registered');
             // Force update check every 60 seconds

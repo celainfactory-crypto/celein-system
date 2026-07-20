@@ -146,7 +146,7 @@ window.APP = (function () {
           <button class="login-btn" id="loginBtnReal" data-action="do-login">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.62 - PWA Enabled</div>
+          <div class="login-version-tag">v18.63 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -539,7 +539,7 @@ window.APP = (function () {
       // ===============================================
       // 9. الإدارة
       // ===============================================
-      { id: "dashboard",     group: "الإدارة",            icon: "dashboard", label: "لوحة التحكم",             roles: ["admin","vice_executive","executive","chairman","accountant"] },
+      { id: "dashboard",     group: "الإدارة",            icon: "dashboard", label: "لوحة التحكم",             roles: ["admin","vice_executive","executive","chairman","accountant","sales"] },
       { id: "settings",      group: "الإدارة",            icon: "settings",  label: "لوحة المطور",             roles: ["admin","vice_executive"] }
     ];
 

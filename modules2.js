@@ -4735,7 +4735,7 @@ window.Modules.developer = window.Modules.settings = function(container) {
     
     const allMenus = (db.allModules || getAllModules());
     const standardMenus = [
-      {id:'dashboard',label:'لوحة التحكم',group:'الرئيسية',icon:'home',roles:['admin','executive','chairman','accountant'],order:1},
+      {id:'dashboard',label:'لوحة التحكم',group:'الرئيسية',icon:'home',roles:['admin','executive','chairman','accountant','sales'],order:1},
       {id:'hr',label:'الموارد البشرية',group:'الإدارة',icon:'users',roles:['admin','hr_manager'],order:10},
       {id:'orgtree',label:'الشجرة التفاعلية',group:'الإدارة',icon:'gitBranch',roles:['admin','chairman','accountant'],order:11},
       {id:'orgchart',label:'الهيكل التنظيمي',group:'الإدارة',icon:'sitemap',roles:['admin','chairman','accountant'],order:12},

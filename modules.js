@@ -7,6 +7,152 @@ window.Modules = {};
 /* ============ لوحة التحكم ============ */
 window.Modules.dashboard = function(container) {
   const db = APP.getDB();
+  const user = APP.getUser();
+  const isSalesRep = user && user.role === 'sales';
+
+  // ===== عرض مندوب المبيعات =====
+  if (isSalesRep) {
+    Exports.register("dashboard", {
+      label: "لوحة التحكم - المناديب",
+      pdf: () => { Exports.exportPDF("متابعة المبيعات", "<p>تصدير PDF للمناديب</p>", "dashboard"); },
+      excel: () => { alert('قريباً - التصدير للمناديب'); },
+      csv: () => { alert('قريباً - التصدير للمناديب'); },
+      json: () => Exports.exportJSON(db, "dashboard_backup"),
+      print: () => window.print()
+    });
+
+    // حساب بيانات كل مندوب
+    const today = new Date().toISOString().split('T')[0];
+    const monthStart = today.substring(0, 7) + '-01';
+    const repStats = (db.salesReps || []).map(rep => {
+      const repSales = (db.salesLog || []).filter(s => s.repCode === rep.code);
+      const monthSales = repSales.filter(s => s.date >= monthStart);
+      const totalSales = repSales.reduce((sum, s) => sum + (s.cash || 0) + (s.credit || 0), 0);
+      const monthAmt = monthSales.reduce((sum, s) => sum + (s.cash || 0) + (s.credit || 0), 0);
+      const monthCash = monthSales.reduce((sum, s) => sum + (s.cash || 0), 0);
+      const monthCredit = monthSales.reduce((sum, s) => sum + (s.credit || 0), 0);
+      const monthColl = monthSales.reduce((sum, s) => sum + (s.collection || 0), 0);
+      const balance = (rep.openingBalance || 0) + totalSales;
+      const custCredits = (db.customerCredits || []).filter(c => (c.notes || '').includes(rep.code));
+      return { ...rep, totalSales, monthAmt, monthCash, monthCredit, monthColl, balance, custCount: custCredits.length };
+    });
+
+    const grandMonth = repStats.reduce((s, r) => s + r.monthAmt, 0);
+    const grandColl = repStats.reduce((s, r) => s + r.monthColl, 0);
+    const grandDebt = repStats.reduce((s, r) => s + r.balance, 0);
+
+    container.innerHTML = `
+      <div class="alert alert-info">
+        ${Icons.render('info')}
+        <span>مرحباً <b>${user.name}</b> — هذه لوحة متابعة المبيعات للمناديب. البيانات محدّثة لحظياً.</span>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card info">
+          <div class="label"><span class="ic">${Icons.render('cash')}</span> مبيعات الشهر</div>
+          <div class="value">${(grandMonth/1000).toFixed(0)}K</div>
+          <div class="delta">ريال يمني</div>
+        </div>
+        <div class="kpi-card success">
+          <div class="label"><span class="ic">${Icons.render('collection')}</span> تحصيلات الشهر</div>
+          <div class="value">${(grandColl/1000).toFixed(0)}K</div>
+          <div class="delta">ريال يمني</div>
+        </div>
+        <div class="kpi-card danger">
+          <div class="label"><span class="ic">${Icons.render('debt')}</span> إجمالي المديونية</div>
+          <div class="value">${(grandDebt/1000).toFixed(0)}K</div>
+          <div class="delta">ريال يمني</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label"><span class="ic">${Icons.render('users')}</span> عدد المناديب</div>
+          <div class="value">${repStats.length}</div>
+          <div class="delta">مندوب</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <h3>${Icons.render('chart')} توزيع مبيعات الشهر حسب المندوب</h3>
+        <canvas id="chartRepSales" height="200"></canvas>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <h3>${Icons.render('truck')} ملخص أداء المناديب</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>المندوب</th>
+              <th>المركبة</th>
+              <th>مبيعات الشهر (ر.ي)</th>
+              <th>نقدي (ر.ي)</th>
+              <th>آجل (ر.ي)</th>
+              <th>تحصيل (ر.ي)</th>
+              <th>المديونية (ر.ي)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${repStats.map(r => `
+              <tr>
+                <td><b>${r.name}</b></td>
+                <td>${r.vehicle || '-'}</td>
+                <td class="text-primary"><b>${r.monthAmt.toLocaleString('ar-EG')}</b></td>
+                <td class="text-success">${r.monthCash.toLocaleString('ar-EG')}</td>
+                <td class="text-warning">${r.monthCredit.toLocaleString('ar-EG')}</td>
+                <td class="text-info">${r.monthColl.toLocaleString('ar-EG')}</td>
+                <td class="text-danger">${r.balance.toLocaleString('ar-EG')}</td>
+              </tr>`).join('')}
+          </tbody>
+          <tfoot>
+            <tr style="background:var(--bg-darker);font-weight:700">
+              <td colspan="2">الإجمالي</td>
+              <td class="text-primary">${grandMonth.toLocaleString('ar-EG')}</td>
+              <td class="text-success">${repStats.reduce((s,r)=>s+r.monthCash,0).toLocaleString('ar-EG')}</td>
+              <td class="text-warning">${repStats.reduce((s,r)=>s+r.monthCredit,0).toLocaleString('ar-EG')}</td>
+              <td class="text-info">${grandColl.toLocaleString('ar-EG')}</td>
+              <td class="text-danger">${grandDebt.toLocaleString('ar-EG')}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <h3>${Icons.render('document')} سجل المبيعات الأخير</h3>
+        <table>
+          <thead>
+            <tr><th>التاريخ</th><th>المندوب</th><th>العميل</th><th>النقدي</th><th>الآجل</th><th>التحصيل</th><th>ملاحظة</th></tr>
+          </thead>
+          <tbody>
+            ${(db.salesLog || []).slice(-30).reverse().map(s => `
+              <tr>
+                <td>${s.date}</td>
+                <td><b>${s.repCode}</b></td>
+                <td>${s.customerName || '-'}</td>
+                <td class="text-success">${(s.cash||0).toLocaleString('ar-EG')}</td>
+                <td class="text-warning">${(s.credit||0).toLocaleString('ar-EG')}</td>
+                <td class="text-info">${(s.collection||0).toLocaleString('ar-EG')}</td>
+                <td class="text-muted">${s.notes || '-'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    setTimeout(() => {
+      new Chart(document.getElementById('chartRepSales'), {
+        type: 'bar',
+        data: {
+          labels: repStats.map(r => r.name),
+          datasets: [
+            { label: 'مبيعات الشهر', data: repStats.map(r => r.monthAmt), backgroundColor: '#1565c0' },
+            { label: 'تحصيلات', data: repStats.map(r => r.monthColl), backgroundColor: '#2e7d32' }
+          ]
+        },
+        options: { responsive: true }
+      });
+    }, 100);
+    return;
+  }
+
+  // ===== العرض الكامل للإدارة =====
   // تسجيل دالة التصدير
   Exports.register("dashboard", {
     label: "لوحة التحكم",
