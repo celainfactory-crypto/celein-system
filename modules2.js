@@ -549,7 +549,7 @@ window.Modules.sales = function(container) {
         <h3>${Icons.render("document")} سجل مبيعات تفصيلي</h3>
         <div class="search-bar">
           <span class="icon">${Icons.render("search")}</span>
-          <input type="text" id="salesSearch" placeholder="ابحث باسم المندوب أو التاريخ..." oninput="Modules._filterSales()" />
+          <input type="text" id="salesSearch" data-filter="sales" placeholder="ابحث باسم المندوب أو التاريخ..." />
         </div>
         <div style="max-height:500px;overflow-y:auto">
           <table id="salesTable">
@@ -1060,13 +1060,13 @@ window.Modules.cashflow = function(container) {
           <h3>${Icons.render("list")} سجل التدفقات النقدية</h3>
           <div class="search-bar">
             <span class="icon">${Icons.render("search")}</span>
-            <input type="text" id="cfSearch" placeholder="ابحث..." oninput="Modules._filterCashFlow()" />
-            <select id="cfTypeFilter" onchange="Modules._filterCashFlow()" style="padding:6px 10px;border-radius:20px;border:1px solid #ddd;margin-right:8px">
+            <input type="text" id="cfSearch" data-filter="cf" placeholder="ابحث..." />
+            <select id="cfTypeFilter" data-filter="cf" style="padding:6px 10px;border-radius:20px;border:1px solid #ddd;margin-right:8px">
               <option value="">الكل</option>
               <option value="incoming">وارد فقط</option>
               <option value="outgoing">صادر فقط</option>
             </select>
-            <select id="cfAccFilter" onchange="Modules._filterCashFlow()" style="padding:6px 10px;border-radius:20px;border:1px solid #ddd;margin-right:8px">
+            <select id="cfAccFilter" data-filter="cf" style="padding:6px 10px;border-radius:20px;border:1px solid #ddd;margin-right:8px">
               <option value="">كل الحسابات</option>
               ${db.cashAccounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('')}
             </select>
@@ -1704,6 +1704,23 @@ window.Modules.cashflow = function(container) {
         Modules._deleteFlow(e.target.dataset.fid); break;
       case 'close-modal':
         window.CF.closeModals(); break;
+    }
+  });
+
+  // Delegate input/change events for filter inputs (no inline onclick/oninput)
+  container.addEventListener('input', function(e) {
+    const target = e.target;
+    if (target.id === 'salesSearch') {
+      Modules._filterSales();
+    } else if (target.id === 'cfSearch') {
+      Modules._filterCashFlow();
+    }
+  });
+
+  container.addEventListener('change', function(e) {
+    const target = e.target;
+    if (target.id === 'cfTypeFilter' || target.id === 'cfAccFilter') {
+      Modules._filterCashFlow();
     }
   });
 

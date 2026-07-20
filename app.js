@@ -142,7 +142,7 @@ window.APP = (function () {
           <button class="login-btn" id="loginBtnReal" onclick="window.APP && window.APP.doLogin();">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.55 - PWA Enabled</div>
+          <div class="login-version-tag">v18.56 - PWA Enabled</div>
         </div>
       </div>
     `;
