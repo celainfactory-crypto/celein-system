@@ -142,7 +142,7 @@ window.APP = (function () {
           <button class="login-btn" id="loginBtnReal" data-action="do-login">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.58 - PWA Enabled</div>
+          <div class="login-version-tag">v18.59 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -716,5 +716,30 @@ document.addEventListener('click', function(e) {
     if (sidebar) sidebar.classList.add('open');
     if (backdrop) backdrop.classList.add('active');
     if (window.toggleGroup) window.toggleGroup(g);
+  }
+});
+
+// === Global event delegation for data-action attributes ===
+document.addEventListener('click', function(e) {
+  var el = e.target.closest('[data-action]');
+  if (!el) return;
+  var action = el.dataset.action;
+  if (!action) return;
+
+  switch(action) {
+    case 'toggle-password': window.togglePasswordGlobal(); break;
+    case 'toggle-sidebar': window.toggleSidebarGlobal(); break;
+    case 'do-login': doLogin(); break;
+    case 'install-pwa': if (window.APP && window.APP.installPWA) window.APP.installPWA(); break;
+    case 'show-export-menu': if (window.APP && window.APP.showExportMenu) window.APP.showExportMenu(e); break;
+    case 'logout': logout(); break;
+    case 'nav-profile': if (window.APP && window.APP.navigate) window.APP.navigate('profile'); break;
+    case 'nav': if (window.APP && window.APP.navigate) window.APP.navigate(el.dataset.page); break;
+    case 'do-export': if (window.APP && window.APP.doExport) window.APP.doExport(el.dataset.type); break;
+    case 'modal-close':
+      var m = e.target.closest('.modal-overlay') || e.target.closest('.modal-content') ||
+              e.target.closest('[class*="modal"]') || e.target.closest('[id*="Modal"]');
+      if (m) m.style.display = 'none';
+      break;
   }
 });
