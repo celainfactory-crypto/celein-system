@@ -582,137 +582,231 @@ window.Modules.sales = function(container) {
 
       <!-- بطاقة البيع الآجل مع فحص الائتمان -->
       <div class="card">
-        <h3>${Icons.render("credit")} إضافة بيع آجل (متابعة العملاء)</h3>
-        <div id="creditSaleAlert" class="alert alert-danger" style="display:none"></div>
-        <form class="form-grid" id="creditSaleForm">
-          <div class="form-group">
-            <label>اسم العميل</label>
-            <select id="cs_customer">
-              <option value="">-- اختر العميل --</option>
-              ${(db.customerCredits || []).map(c => {
-                const over = c.currentBalance > c.creditLimit;
-                return `<option value="${c.customerName}" ${c.blocked ? 'disabled' : ''}>
-                  ${c.customerName} ${c.blocked ? '⛔ محظور' : over ? '⚠️ تجاوز' : ''}
-                </option>`;
-              }).join('')}
-            </select>
+        <h3>${Icons.render("plus")} تسجيل حركة مبيعات جديدة</h3>
+        <div id="salesEntryAlert" class="alert" style="display:none"></div>
+        <form id="salesEntryForm">
+          <div class="form-grid" style="grid-template-columns: repeat(4, 1fr)">
+            <div class="form-group">
+              <label>التاريخ</label>
+              <input type="date" id="se_date" value="${new Date().toISOString().split('T')[0]}" required />
+            </div>
+            <div class="form-group">
+              <label>المندوب</label>
+              <select id="se_rep" required>
+                <option value="">-- اختر --</option>
+                ${db.salesReps.map(r => `<option value="${r.code}">${r.name}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>العميل / السوق</label>
+              <input type="text" id="se_customer" placeholder="اسم العميل أو السوق" required />
+            </div>
+            <div class="form-group">
+              <label>نوع البيع</label>
+              <select id="se_type">
+                <option value="cash">نقدي فقط</option>
+                <option value="mixed">نقدي + آجل</option>
+                <option value="credit">آجل فقط</option>
+              </select>
+            </div>
           </div>
-          <div class="form-group">
-            <label>المندوب المسؤول</label>
-            <select id="cs_rep">
-              <option value="">-- اختر المندوب --</option>
-              ${db.salesReps.map(r => `<option value="${r.code}">${r.name}</option>`).join('')}
-            </select>
+
+          <h4 style="margin-top:20px;margin-bottom:10px">${Icons.render("box")} الأصناف المباعة</h4>
+          <div style="overflow-x:auto">
+            <table id="seProductsTable" style="min-width:800px">
+              <thead>
+                <tr>
+                  <th>الصنف</th>
+                  <th>الكمية (كرتون)</th>
+                  <th>سعر الوحدة (ر.ي)</th>
+                  <th>الإجمالي (ر.ي)</th>
+                  <th>نقدي (ر.ي)</th>
+                  <th>آجل (ر.ي)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${db.products.map((p, i) => {
+                  const price = (db.pricing.find(pr => pr.code === p.code) || {}).retailPrice || 0;
+                  return `<tr data-pcode="${p.code}">
+                    <td><b>${p.name}</b><br><small class="text-muted">${p.size} | ${p.packaging}</small></td>
+                    <td>
+                      <input type="number" id="se_qty_${i}" min="0" step="1" value="0"
+                        data-product-idx="${i}" data-action="se-qty-change"
+                        style="width:90px;text-align:center;font-weight:700" />
+                    </td>
+                    <td>
+                      <input type="number" id="se_price_${i}" min="0" value="${price}"
+                        data-product-idx="${i}" data-action="se-price-change"
+                        style="width:100px;text-align:center" />
+                    </td>
+                    <td id="se_subtotal_${i}" style="text-align:center;font-weight:700;color:var(--primary)">0</td>
+                    <td>
+                      <input type="number" id="se_cash_${i}" min="0" value="0"
+                        data-product-idx="${i}" data-action="se-cash-change"
+                        style="width:100px;text-align:center" />
+                    </td>
+                    <td>
+                      <input type="number" id="se_credit_${i}" min="0" value="0"
+                        data-product-idx="${i}" data-action="se-credit-change"
+                        style="width:100px;text-align:center" />
+                    </td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+              <tfoot>
+                <tr style="background:var(--bg-darker);font-weight:700">
+                  <td colspan="3" style="text-align:left">الإجمالي</td>
+                  <td id="se_total" style="text-align:center;font-size:1.2em;color:var(--primary)">0</td>
+                  <td id="se_totalCash" style="text-align:center;color:#2e7d32">0</td>
+                  <td id="se_totalCredit" style="text-align:center;color:#c62828">0</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
-          <div class="form-group">
-            <label>المبلغ (ر.ي)</label>
-            <input type="number" id="cs_amount" min="1" placeholder="أدخل مبلغ البيع الآجل" />
+
+          <div class="form-grid" style="margin-top:16px;grid-template-columns: repeat(3, 1fr)">
+            <div class="form-group">
+              <label>إجمالي النقدي</label>
+              <input type="text" id="se_displayCash" readonly style="font-weight:700;color:#2e7d32" />
+            </div>
+            <div class="form-group">
+              <label>إجمالي الآجل</label>
+              <input type="text" id="se_displayCredit" readonly style="font-weight:700;color:#c62828" />
+            </div>
+            <div class="form-group">
+              <label>الإجمالي الكلي</label>
+              <input type="text" id="se_displayTotal" readonly style="font-weight:700;color:var(--primary)" />
+            </div>
           </div>
-          <div class="form-group">
-            <label>تاريخ البيع</label>
-            <input type="date" id="cs_date" value="${new Date().toISOString().split('T')[0]}" />
-          </div>
-          <div class="form-group" style="grid-column: span 2">
+
+          <div id="seCreditAlert" class="alert alert-warning" style="display:none;margin-top:10px"></div>
+
+          <div class="form-group" style="margin-top:10px">
             <label>ملاحظات</label>
-            <input type="text" id="cs_notes" placeholder="ملاحظات إضافية (اختياري)" />
+            <input type="text" id="se_notes" placeholder="ملاحظات إضافية (اختياري)" />
           </div>
-          <div id="csCreditInfo" class="form-group" style="grid-column: span 2"></div>
+
+          <div class="btn-row" style="margin-top:14px">
+            <button type="button" class="btn btn-primary" data-action="se-submit">${Icons.render("check")} تسجيل البيع</button>
+            <button type="button" class="btn btn-secondary" data-action="se-reset">مسح الكل</button>
+          </div>
         </form>
-        <div class="btn-row">
-          <button class="btn btn-primary" id="csSubmitBtn">${Icons.render("check")} تسجيل البيع الآجل</button>
-        </div>
       </div>
     `;
 
-    // Credit info preview when customer selected
-    const csCustomer = document.getElementById('cs_customer');
-    const csAmount = document.getElementById('cs_amount');
-    const csInfo = document.getElementById('csCreditInfo');
-    const csAlert = document.getElementById('creditSaleAlert');
-    const csSubmitBtn = document.getElementById('csSubmitBtn');
+    // --- Sales Entry JS ---
+    const seProducts = db.products.map((p, i) => ({
+      code: p.code,
+      name: p.name,
+      qty: 0,
+      price: (db.pricing.find(pr => pr.code === p.code) || {}).retailPrice || 0,
+      subtotal: 0,
+      cash: 0,
+      credit: 0
+    }));
 
-    function updateCreditInfo() {
-      const custName = csCustomer.value;
-      const amount = parseFloat(csAmount.value) || 0;
-      if (!custName || !amount) { csInfo.innerHTML = ''; return; }
-      const cust = (db.customerCredits || []).find(c => c.customerName === custName);
-      if (!cust) return;
-      const newBal = cust.currentBalance + amount;
-      const over = newBal > cust.creditLimit;
-      csInfo.innerHTML = `
-        <div class="alert ${cust.blocked ? 'alert-danger' : over ? 'alert-warning' : 'alert-success'}">
-          <b>${cust.customerName}</b><br>
-          سقف الائتمان: <b>${cust.creditLimit.toLocaleString('ar-EG')}</b> ر.ي | 
-          الرصيد الحالي: <b>${cust.currentBalance.toLocaleString('ar-EG')}</b> ر.ي<br>
-          بعد البيع: <b>${newBal.toLocaleString('ar-EG')}</b> ر.ي
-          ${cust.blocked ? '<br><b>⛔ العميل محظور - لا يمكن البيع!</b>' :
-            over ? '<br><b>⚠️ سيتم تجاوز سقف الائتمان - سيتم إرسال تنبيه!</b>' :
-            '<br><✅ الرصيد ضمن السقف المسموح'}
-        </div>
-      `;
+    window.__SE = window.__SE || {};
+    window.__SE.products = seProducts;
+
+    function seCalc() {
+      let total = 0, totalCash = 0, totalCredit = 0;
+      seProducts.forEach((p, i) => {
+        p.subtotal = p.qty * p.price;
+        total += p.subtotal;
+        totalCash += p.cash;
+        totalCredit += p.credit;
+        var subEl = document.getElementById('se_subtotal_' + i);
+        if (subEl) subEl.textContent = p.subtotal.toLocaleString('ar-EG');
+      });
+      var totEl = document.getElementById('se_total');
+      var cashEl = document.getElementById('se_displayCash');
+      var creditEl = document.getElementById('se_displayCredit');
+      var total2El = document.getElementById('se_displayTotal');
+      if (totEl) totEl.textContent = total.toLocaleString('ar-EG');
+      if (cashEl) cashEl.value = totalCash.toLocaleString('ar-EG') + ' ر.ي';
+      if (creditEl) creditEl.value = totalCredit.toLocaleString('ar-EG') + ' ر.ي';
+      if (total2El) total2El.value = (totalCash + totalCredit).toLocaleString('ar-EG') + ' ر.ي';
     }
 
-    csCustomer.addEventListener('change', updateCreditInfo);
-    csAmount.addEventListener('input', updateCreditInfo);
-
-    csSubmitBtn.addEventListener('click', function() {
-      const custName = csCustomer.value;
-      const repCode = document.getElementById('cs_rep').value;
-      const amount = parseFloat(document.getElementById('cs_amount').value);
-      const date = document.getElementById('cs_date').value;
-      const notes = document.getElementById('cs_notes').value;
-
-      if (!custName || !repCode || !amount || !date) {
-        alert('يرجى تعبئة جميع الحقول المطلوبة');
-        return;
-      }
-
-      const db2 = APP.getDB();
-      if (!db2.customerCredits) db2.customerCredits = [];
-      let cust = db2.customerCredits.find(c => c.customerName === custName);
-
-      // If customer not in credit system, create record
-      if (!cust) {
-        const limit = parseFloat(prompt('هذا العميل غير مسجل في نظام الائتمان. أدخل سقف الائتمان (ر.ي):') || '0');
-        if (!limit || limit <= 0) { alert('تم الإلغاء - يجب تحديد سقف ائتمان'); return; }
-        cust = { id: 'cr' + Date.now(), customerName: custName, creditLimit: limit, currentBalance: 0, blocked: false, lastPayment: null, notes: '' };
-        db2.customerCredits.push(cust);
-      }
-
-      const newBalance = cust.currentBalance + amount;
-      cust.currentBalance = newBalance;
-
-      // Auto-block if exceeded
-      if (newBalance > cust.creditLimit && !cust.blocked) {
-        cust.blocked = true;
-        db2.creditAlerts = db2.creditAlerts || [];
-        db2.creditAlerts.push({
-          id: 'alert' + Date.now(),
-          date: new Date().toISOString().split('T')[0],
-          customerId: cust.id,
-          customerName: cust.customerName,
-          alertType: 'limit_exceeded',
-          message: `تجاوز سقف الائتمان! المبلغ الجديد ${newBalance.toLocaleString('ar-EG')} ر.ي exceeds الحد ${cust.creditLimit.toLocaleString('ar-EG')} ر.ي`,
-          read: false, resolved: false, resolvedBy: null, resolvedAt: null, action: null
-        });
-      }
-
-      // Add to sales log as credit sale
-      const rep = db2.salesReps.find(r => r.code === repCode);
-      db2.salesLog.push({
-        date, repCode,
-        qty: 0,
-        credit: amount,
-        cash: 0,
-        collection: 0,
-        customerName: custName,
-        notes: 'بيع آجل - ' + notes
-      });
-
-      APP.saveDB(db2);
-      alert(Icons.render('check') + ' تم تسجيل البيع الآجل بنجاح!\n' + (newBalance > cust.creditLimit ? '⚠️ تم تجاوز سقف الائتمان - تم إرسال تنبيه.' : 'OK'));
-      render();
+    // Attach inline input handlers (these are bound directly to inputs, not from delegation)
+    seProducts.forEach((p, i) => {
+      setTimeout(() => {
+        var qtyEl = document.getElementById('se_qty_' + i);
+        var priceEl = document.getElementById('se_price_' + i);
+        var cashEl = document.getElementById('se_cash_' + i);
+        var creditEl = document.getElementById('se_credit_' + i);
+        if (qtyEl) qtyEl.addEventListener('input', function() { p.qty = parseFloat(this.value) || 0; seCalc(); });
+        if (priceEl) priceEl.addEventListener('input', function() { p.price = parseFloat(this.value) || 0; seCalc(); });
+        if (cashEl) cashEl.addEventListener('input', function() { p.cash = parseFloat(this.value) || 0; seCalc(); });
+        if (creditEl) creditEl.addEventListener('input', function() { p.credit = parseFloat(this.value) || 0; seCalc(); });
+      }, 50);
     });
+
+    // Submit handler
+    window.__SE.calc = seCalc;
+
+    window.__SE.submit = function() {
+      var date = document.getElementById('se_date').value;
+      var repCode = document.getElementById('se_rep').value;
+      var customer = document.getElementById('se_customer').value.trim();
+      var notes = document.getElementById('se_notes').value.trim();
+      var type = document.getElementById('se_type').value;
+
+      if (!date || !repCode || !customer) { alert('يرجى تعبئة التاريخ والمندوب واسم العميل'); return; }
+      var hasProducts = seProducts.some(p => p.qty > 0 || p.cash > 0 || p.credit > 0);
+      if (!hasProducts) { alert('يرجى إدخال أصناف على الأقل'); return; }
+      var db2 = APP.getDB();
+      if (!db2.customerCredits) db2.customerCredits = [];
+      if (!db2.creditAlerts) db2.creditAlerts = [];
+      var totalQty = 0, totalCash = 0, totalCredit = 0;
+      var entries = [];
+      seProducts.forEach((p) => {
+        if (p.qty <= 0 && p.cash <= 0 && p.credit <= 0) return;
+        totalQty += p.qty;
+        totalCash += p.cash;
+        totalCredit += p.credit;
+        entries.push({ code: p.code, name: p.name, qty: p.qty, price: p.price, subtotal: p.subtotal, cash: p.cash, credit: p.credit });
+        if (p.credit > 0) {
+          let cust = db2.customerCredits.find(c => c.customerName === customer);
+          if (!cust) {
+            var limitStr = prompt('العميل "' + customer + '" غير مسجل في نظام الائتمان. أدخل سقف الائتمان (ر.ي):');
+            var limit = parseFloat(limitStr || '0');
+            if (!limit || limit <= 0) { alert('تم الإلغاء - يجب تحديد سقف ائتمان'); return; }
+            cust = { id: 'cr' + Date.now(), customerName: customer, creditLimit: limit, currentBalance: 0, blocked: false, lastPayment: null, notes: '' };
+            db2.customerCredits.push(cust);
+          }
+          var newBal = cust.currentBalance + p.credit;
+          cust.currentBalance = newBal;
+          if (newBal > cust.creditLimit && !cust.blocked) {
+            cust.blocked = true;
+            db2.creditAlerts.push({ id: 'alert' + Date.now(), date: date, customerId: cust.id, customerName: customer, alertType: 'limit_exceeded', message: 'تجاوز سقف الائتمان! ' + newBal.toLocaleString('ar-EG') + ' ر.ي exceeds الحد ' + cust.creditLimit.toLocaleString('ar-EG') + ' ر.ي', read: false, resolved: false, resolvedBy: null, resolvedAt: null, action: null });
+          }
+        }
+      });
+      db2.salesLog.push({ date: date, repCode: repCode, qty: totalQty, credit: totalCredit, cash: totalCash, collection: 0, customerName: customer, notes: notes, entries: entries, type: type });
+      APP.saveDB(db2);
+      alert(Icons.render('check') + ' تم تسجيل البيع بنجاح!\nالكمية: ' + totalQty + ' كرتون | النقدي: ' + totalCash.toLocaleString('ar-EG') + ' | الآجل: ' + totalCredit.toLocaleString('ar-EG'));
+      window.__SE.reset();
+      render();
+    };
+
+    window.__SE.reset = function() {
+      seProducts.forEach((p, i) => {
+        p.qty = 0; p.price = (db.pricing.find(pr => pr.code === p.code) || {}).retailPrice || 0; p.subtotal = 0; p.cash = 0; p.credit = 0;
+        var qEl = document.getElementById('se_qty_' + i);
+        var pEl = document.getElementById('se_price_' + i);
+        var cEl = document.getElementById('se_cash_' + i);
+        var crEl = document.getElementById('se_credit_' + i);
+        if (qEl) qEl.value = 0;
+        if (pEl) pEl.value = p.price;
+        if (cEl) cEl.value = 0;
+        if (crEl) crEl.value = 0;
+      });
+      document.getElementById('se_customer').value = '';
+      document.getElementById('se_notes').value = '';
+      document.getElementById('se_type').value = 'cash';
+      seCalc();
+    };
 
     setTimeout(() => {
       new Chart(document.getElementById('chartReps'), {
@@ -6862,6 +6956,10 @@ console.log('Self-service modules v2 loaded (string concat only)');
     }
     if (action === 'do-auto-post') { Modules._doAutoPost && Modules._doAutoPost(); return; }
     if (action === 'print-page2') { window.print && window.print(); return; }
+    // --- Sales Entry ---
+    if (action === 'se-submit') { window.__SE && window.__SE.submit && window.__SE.submit(); return; }
+    if (action === 'se-reset') { window.__SE && window.__SE.reset && window.__SE.reset(); return; }
+    if (action === 'se-qty-change' || action === 'se-price-change' || action === 'se-cash-change' || action === 'se-credit-change') { window.__SE && window.__SE.calc && window.__SE.calc(); return; }
 
   });
 
