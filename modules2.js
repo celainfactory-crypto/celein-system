@@ -1034,6 +1034,249 @@ window.Modules.sales = function(container) {
   render();
 };
 
+
+/* ============ مبيعاتي (لمندوب المبيعات فقط) ============ */
+window.Modules.mySales = function(container) {
+  const db = APP.getDB();
+  const user = APP.getUser();
+
+  // Find this rep by matching user name
+  const myName = (user.name || '').trim();
+  const myRep = (db.salesReps || []).find(r =>
+    r.name === myName || r.code === myName || myName.includes(r.name.split(' ')[0])
+  );
+  const myRepCode = myRep ? myRep.code : null;
+
+  Exports.register("mySales", {
+    label: "مبيعاتي",
+    pdf: () => {
+      const myLog = (db.salesLog || []).filter(s => s.repCode === myRepCode);
+      const rows = myLog.map(s => [s.date, s.customerName || '-', s.qty, (s.cash||0).toLocaleString('ar-EG'), (s.credit||0).toLocaleString('ar-EG'), (s.collection||0).toLocaleString('ar-EG')]);
+      const html = `<h2>${myRep ? myRep.name : 'مندوب'}</h2>` + Exports.rowsToHTMLTable(['التاريخ','العميل','الكمية','نقدي','آجل','تحصيل'], rows, { title: 'سجل مبيعاتي' });
+      Exports.exportPDF("مبيعاتي", html, "mySales");
+    },
+    excel: () => Exports.exportExcel(Exports.rowsToHTMLTable(['التاريخ','العميل','الكمية','نقدي','آجل','تحصيل'], (db.salesLog || []).filter(s => s.repCode === myRepCode).map(s => [s.date, s.customerName||'-', s.qty, s.cash||0, s.credit||0, s.collection||0]), { title: 'مبيعاتي' }), "mySales"),
+    csv: () => Exports.exportCSV([['التاريخ','العميل','الكمية','نقدي','آجل','تحصيل']].concat((db.salesLog || []).filter(s => s.repCode === myRepCode).map(s => [s.date, s.customerName||'-', s.qty, s.cash||0, s.credit||0, s.collection||0])), "mySales"),
+    json: () => Exports.exportJSON({ mySales: (db.salesLog || []).filter(s => s.repCode === myRepCode) }, "mySales_data"),
+    print: () => window.print()
+  });
+
+  if (!myRepCode) {
+    container.innerHTML = `<div class="card"><div class="alert alert-warning">${Icons.render('alert')} لم يتم الربط بحساب مندوب. يرجى مراجعة مدير النظام.</div></div>`;
+    return;
+  }
+
+  const myLog = (db.salesLog || []).filter(s => s.repCode === myRepCode);
+  const myEntries = myLog.filter(s => s.entries && s.entries.length > 0);
+  const totalQty = myLog.reduce((s, r) => s + (r.qty || 0), 0);
+  const totalCash = myLog.reduce((s, r) => s + (r.cash || 0), 0);
+  const totalCredit = myLog.reduce((s, r) => s + (r.credit || 0), 0);
+  const totalColl = myLog.reduce((s, r) => s + (r.collection || 0), 0);
+  const myBalance = (myRep.openingBalance || 0) + myLog.reduce((s, r) => s + (r.cash || 0) + (r.credit || 0), 0) - totalColl;
+
+  container.innerHTML = `
+    <div class="alert alert-info">
+      ${Icons.render('info')}
+      <span>مرحباً <b>${myRep.name}</b> — سجل مبيعاتك الشخصية. الكميات المباعة والسيولة محدّثة لحظياً.</span>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card info">
+        <div class="label"><span class="ic">${Icons.render('box')}</span> إجمالي الكمية المباعة</div>
+        <div class="value">${totalQty.toLocaleString('ar-EG')}</div>
+        <div class="delta">كرتون</div>
+      </div>
+      <div class="kpi-card success">
+        <div class="label"><span class="ic">${Icons.render('cash')}</span> إجمالي المبيعات النقدية</div>
+        <div class="value">${(totalCash/1000).toFixed(0)}K</div>
+        <div class="delta">ريال يمني</div>
+      </div>
+      <div class="kpi-card warning">
+        <div class="label"><span class="ic">${Icons.render('credit')}</span> إجمالي المبيعات الآجلة</div>
+        <div class="value">${(totalCredit/1000).toFixed(0)}K</div>
+        <div class="delta">ريال يمني</div>
+      </div>
+      <div class="kpi-card danger">
+        <div class="label"><span class="ic">${Icons.render('debt')}</span> مديونيتي</div>
+        <div class="value">${(myBalance/1000).toFixed(0)}K</div>
+        <div class="delta">ريال يمني</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <h3>${Icons.render("plus")} تسجيل عملية بيع جديدة</h3>
+      <form id="repSaleForm">
+        <div class="form-grid" style="grid-template-columns:repeat(4,1fr)">
+          <div class="form-group">
+            <label>التاريخ</label>
+            <input type="date" id="rs_date" value="${new Date().toISOString().split('T')[0]}" />
+          </div>
+          <div class="form-group">
+            <label>العميل / السوق</label>
+            <input type="text" id="rs_customer" placeholder="اسم العميل أو السوق" required />
+          </div>
+          <div class="form-group">
+            <label>نوع البيع</label>
+            <select id="rs_type">
+              <option value="cash">نقدي فقط</option>
+              <option value="mixed">نقدي + آجل</option>
+              <option value="credit">آجل فقط</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>ملاحظة</label>
+            <input type="text" id="rs_notes" placeholder="اختياري" />
+          </div>
+        </div>
+
+        <h4 style="margin-top:16px;margin-bottom:10px">${Icons.render("box")} الأصناف</h4>
+        <div style="overflow-x:auto">
+          <table style="min-width:700px">
+            <thead>
+              <tr><th>الصنف</th><th>الكمية (كرتون)</th><th>السعر (ر.ي)</th><th>الإجمالي</th><th>نقدي</th><th>آجل</th></tr>
+            </thead>
+            <tbody>
+              ${db.products.map((p, i) => {
+                const price = (db.pricing.find(pr => pr.code === p.code) || {}).retailPrice || 0;
+                return `<tr>
+                  <td><b>${p.name}</b><br><small class="text-muted">${p.size} | ${p.packaging}</small></td>
+                  <td><input type="number" id="rs_qty_${i}" min="0" value="0" data-idx="${i}" data-action="rs-qty" style="width:85px;text-align:center;font-weight:700" /></td>
+                  <td><input type="number" id="rs_price_${i}" value="${price}" data-idx="${i}" data-action="rs-price" style="width:95px;text-align:center" /></td>
+                  <td id="rs_sub_${i}" style="text-align:center;font-weight:700;color:var(--primary)">0</td>
+                  <td><input type="number" id="rs_cash_${i}" min="0" value="0" data-idx="${i}" data-action="rs-cash" style="width:95px;text-align:center" /></td>
+                  <td><input type="number" id="rs_credit_${i}" min="0" value="0" data-idx="${i}" data-action="rs-credit" style="width:95px;text-align:center" /></td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="background:var(--bg-darker);font-weight:700">
+                <td colspan="3">الإجمالي</td>
+                <td id="rs_total" style="text-align:center;font-size:1.15em;color:var(--primary)">0</td>
+                <td id="rs_totalCash" style="text-align:center;color:#2e7d32">0</td>
+                <td id="rs_totalCredit" style="text-align:center;color:#c62828">0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="form-grid" style="margin-top:12px;grid-template-columns:repeat(3,1fr)">
+          <div class="form-group"><label>إجمالي النقدي</label><input type="text" id="rs_dispCash" readonly style="font-weight:700;color:#2e7d32" /></div>
+          <div class="form-group"><label>إجمالي الآجل</label><input type="text" id="rs_dispCredit" readonly style="font-weight:700;color:#c62828" /></div>
+          <div class="form-group"><label>الإجمالي الكلي</label><input type="text" id="rs_dispTotal" readonly style="font-weight:700;color:var(--primary)" /></div>
+        </div>
+
+        <div class="btn-row" style="margin-top:14px">
+          <button type="button" class="btn btn-primary" data-action="rs-submit">${Icons.render("check")} تسجيل البيع</button>
+          <button type="button" class="btn btn-secondary" data-action="rs-reset">مسح</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <h3>${Icons.render("document")} سجل مبيعاتي (${myLog.length} عملية)</h3>
+      <div style="max-height:500px;overflow-y:auto">
+        <table>
+          <thead>
+            <tr><th>التاريخ</th><th>العميل</th><th>الكمية</th><th>النقدي</th><th>الآجل</th><th>ملاحظة</th></tr>
+          </thead>
+          <tbody>
+            ${myLog.slice().reverse().map(s => `
+              <tr>
+                <td>${s.date}</td>
+                <td><b>${s.customerName || '-'}</b></td>
+                <td class="text-primary">${(s.qty||0).toLocaleString('ar-EG')}</td>
+                <td class="text-success">${(s.cash||0).toLocaleString('ar-EG')}</td>
+                <td class="text-warning">${(s.credit||0).toLocaleString('ar-EG')}</td>
+                <td class="text-muted">${s.notes || '-'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  // --- Rep Sale JS ---
+  const rsProds = db.products.map((p, i) => ({
+    qty: 0, price: (db.pricing.find(pr => pr.code === p.code) || {}).retailPrice || 0,
+    subtotal: 0, cash: 0, credit: 0
+  }));
+
+  window.__RS = window.__RS || {};
+  window.__RS.prods = rsProds;
+
+  function rsCalc() {
+    let total = 0, tCash = 0, tCredit = 0;
+    rsProds.forEach((p, i) => {
+      p.subtotal = p.qty * p.price;
+      total += p.subtotal; tCash += p.cash; tCredit += p.credit;
+      var el = document.getElementById('rs_sub_' + i);
+      if (el) el.textContent = p.subtotal.toLocaleString('ar-EG');
+    });
+    var te = document.getElementById('rs_total');
+    if (te) te.textContent = total.toLocaleString('ar-EG');
+    var dc = document.getElementById('rs_dispCash');
+    if (dc) dc.value = tCash.toLocaleString('ar-EG') + ' ر.ي';
+    var cr = document.getElementById('rs_dispCredit');
+    if (cr) cr.value = tCredit.toLocaleString('ar-EG') + ' ر.ي';
+    var tt = document.getElementById('rs_dispTotal');
+    if (tt) tt.value = (tCash + tCredit).toLocaleString('ar-EG') + ' ر.ي';
+  }
+
+  window.__RS.calc = rsCalc;
+
+  db.products.forEach((p, i) => {
+    setTimeout(() => {
+      var qEl = document.getElementById('rs_qty_' + i);
+      var pEl = document.getElementById('rs_price_' + i);
+      var cEl = document.getElementById('rs_cash_' + i);
+      var crEl = document.getElementById('rs_credit_' + i);
+      if (qEl) qEl.addEventListener('input', () => { rsProds[i].qty = parseFloat(qEl.value) || 0; rsCalc(); });
+      if (pEl) pEl.addEventListener('input', () => { rsProds[i].price = parseFloat(pEl.value) || 0; rsCalc(); });
+      if (cEl) cEl.addEventListener('input', () => { rsProds[i].cash = parseFloat(cEl.value) || 0; rsCalc(); });
+      if (crEl) crEl.addEventListener('input', () => { rsProds[i].credit = parseFloat(crEl.value) || 0; rsCalc(); });
+    }, 50);
+  });
+
+  window.__RS.submit = function() {
+    var date = document.getElementById('rs_date').value;
+    var customer = document.getElementById('rs_customer').value.trim();
+    var notes = document.getElementById('rs_notes').value.trim();
+    var type = document.getElementById('rs_type').value;
+    if (!customer) { alert('يرجى إدخال اسم العميل'); return; }
+    var hasItems = rsProds.some(p => p.qty > 0 || p.cash > 0 || p.credit > 0);
+    if (!hasItems) { alert('يرجى إدخال أصناف على الأقل'); return; }
+    var totalQty = 0, totalCash = 0, totalCredit = 0;
+    var entries = [];
+    rsProds.forEach((p, i) => {
+      if (p.qty <= 0 && p.cash <= 0 && p.credit <= 0) return;
+      totalQty += p.qty; totalCash += p.cash; totalCredit += p.credit;
+      entries.push({ code: db.products[i].code, name: db.products[i].name, qty: p.qty, price: p.price, subtotal: p.subtotal, cash: p.cash, credit: p.credit });
+    });
+    var db2 = APP.getDB();
+    db2.salesLog.push({ date, repCode: myRepCode, qty: totalQty, credit: totalCredit, cash: totalCash, collection: 0, customerName: customer, notes: 'مبيعاتي - ' + notes, entries, type });
+    APP.saveDB(db2);
+    alert(Icons.render('check') + ' تم تسجيل البيع بنجاح!\nالكمية: ' + totalQty + ' | النقدي: ' + totalCash.toLocaleString('ar-EG') + ' | الآجل: ' + totalCredit.toLocaleString('ar-EG'));
+    window.__RS.reset && window.__RS.reset();
+    Modules.mySales && Modules.mySales(container);
+  };
+
+  window.__RS.reset = function() {
+    rsProds.forEach((p, i) => {
+      p.qty = 0; p.price = (db.pricing.find(pr => pr.code === db.products[i].code) || {}).retailPrice || 0;
+      p.subtotal = 0; p.cash = 0; p.credit = 0;
+      var q = document.getElementById('rs_qty_' + i);
+      var pr = document.getElementById('rs_price_' + i);
+      var c = document.getElementById('rs_cash_' + i);
+      var cr = document.getElementById('rs_credit_' + i);
+      if (q) q.value = 0; if (pr) pr.value = p.price; if (c) c.value = 0; if (cr) cr.value = 0;
+    });
+    document.getElementById('rs_customer').value = '';
+    document.getElementById('rs_notes').value = '';
+    document.getElementById('rs_type').value = 'cash';
+    rsCalc();
+  };
+};
+
 /* ============ الوكلاء ============ */
 window.Modules.agents = function(container) {
   const db = APP.getDB();
@@ -3249,6 +3492,7 @@ window.Modules.permissions = function(container) {
     { id: 'inventory',       label: 'المخزون' },
     { id: 'vouchers',        label: 'سندات الصرف' },
     { id: 'sales',           label: 'المبيعات' },
+    { id: 'mySales',        label: 'مبيعاتي' },
     { id: 'agents',          label: 'الوكلاء' },
     { id: 'lab',             label: 'المختبر' },
     { id: 'procurement',     label: 'المشتريات' },
@@ -7167,6 +7411,10 @@ console.log('Self-service modules v2 loaded (string concat only)');
     if (action === 'se-submit') { window.__SE && window.__SE.submit && window.__SE.submit(); return; }
     if (action === 'se-reset') { window.__SE && window.__SE.reset && window.__SE.reset(); return; }
     if (action === 'se-qty-change' || action === 'se-price-change' || action === 'se-cash-change' || action === 'se-credit-change') { window.__SE && window.__SE.calc && window.__SE.calc(); return; }
+    // --- My Sales (rep) delegation ---
+    if (action === 'rs-submit') { window.__RS && window.__RS.submit && window.__RS.submit(); return; }
+    if (action === 'rs-reset') { window.__RS && window.__RS.reset && window.__RS.reset(); return; }
+    if (action === 'rs-qty' || action === 'rs-price' || action === 'rs-cash' || action === 'rs-credit') { window.__RS && window.__RS.calc && window.__RS.calc(); return; }
 
   });
 

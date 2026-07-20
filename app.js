@@ -146,7 +146,7 @@ window.APP = (function () {
           <button class="login-btn" id="loginBtnReal" data-action="do-login">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.66 - PWA Enabled</div>
+          <div class="login-version-tag">v18.67 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -511,7 +511,8 @@ window.APP = (function () {
       // ===============================================
       // 4. المبيعات
       // ===============================================
-      { id: "sales",         group: "المبيعات",            icon: "truck",     label: "إدارة العملاء والمناديب", roles: ["admin","vice_executive","sales","accountant"] },
+      { id: "sales",         group: "المبيعات",            icon: "truck",     label: "إدارة العملاء والمناديب", roles: ["admin","vice_executive","accountant"] },
+      { id: "mySales",      group: "المبيعات",            icon: "truck",     label: "مبيعاتي",              roles: ["sales"] },
       { id: "agents",        group: "المبيعات",            icon: "handshake", label: "الوكلاء",              roles: ["admin","vice_executive","sales","accountant"] },
       // ===============================================
       // 5. المشتريات
@@ -617,6 +618,7 @@ window.APP = (function () {
       inventory: "جرد المواد الخام والمنتجات",
       vouchers: "سندات الصرف والإضافة",
       sales: "إدارة العملاء والمناديب",
+      mySales: "مبيعاتي",
       agents: "الوكلاء",
       purchaseRequest: "طلبات الشراء",
       procurement: "الموردين والالتزامات والأولويات",
