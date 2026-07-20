@@ -54,6 +54,10 @@ window.APP = (function () {
     DB.init();
     db = DB.load();
 
+    // Make doLogin/logout globally accessible BEFORE showLogin() renders the button
+    window.doLogin = doLogin;
+    window.logout = logout;
+
     // ============ Auto-Update Check ============
     checkForUpdates();
 
@@ -142,7 +146,7 @@ window.APP = (function () {
           <button class="login-btn" id="loginBtnReal" data-action="do-login">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.60 - PWA Enabled</div>
+          <div class="login-version-tag">v18.61 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -190,14 +194,12 @@ window.APP = (function () {
     currentUser = user;
     DB.setSession(user);
     showMainApp();
-    window.doLogin = doLogin; // make globally accessible
   }
 
   function logout() {
     DB.clearSession();
     currentUser = null;
     showLogin();
-    window.logout = logout; // make globally accessible
   }
 
   function getCurrentUser() {
