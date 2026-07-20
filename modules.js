@@ -151,7 +151,7 @@ window.Modules.dashboard = function(container) {
     <div class="card" style="margin-top:20px">
       <div class="header-row">
         <h3>${Icons.render('document')} آخر العمليات الإنتاجية</h3>
-        <button class="btn btn-secondary btn-sm" onclick="APP.navigate('production')">${Icons.render('arrowRight')} عرض الكل</button>
+        <button class="btn btn-secondary btn-sm" data-action="nav-production">${Icons.render('arrowRight')} عرض الكل</button>
       </div>
       <table>
         <thead>
@@ -327,8 +327,8 @@ window.Modules.production = function(container) {
           </div>
         </form>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="Modules._addProduction()">${Icons.render('save')} حفظ الإنتاج</button>
-          <button class="btn btn-secondary" onclick="document.getElementById('prodForm').reset()">مسح</button>
+          <button class="btn btn-primary" data-action="add-production">${Icons.render('save')} حفظ الإنتاج</button>
+          <button class="btn btn-secondary" data-action="reset-prod-form">مسح</button>
         </div>
       </div>
 
@@ -361,7 +361,7 @@ window.Modules.production = function(container) {
       <div class="card">
         <div class="header-row">
           <h3>${Icons.render('clipboard')} سجل الإنتاج (${recent.length} عملية)</h3>
-          <button class="btn btn-secondary btn-sm" onclick="Modules.exportTable('productionLog', 'سجل_الإنتاج')">${Icons.render('download')} تصدير</button>
+          <button class="btn btn-secondary btn-sm" data-action="export-production">${Icons.render('download')} تصدير</button>
         </div>
         <table>
           <thead>
@@ -383,7 +383,7 @@ window.Modules.production = function(container) {
                 <td class="text-primary">${p.qty.toLocaleString('ar-EG')}</td>
                 <td class="text-warning">${p.waste}</td>
                 <td class="text-muted">${p.note || '-'}</td>
-                <td><button class="btn btn-danger btn-sm" onclick="Modules._deleteProduction(${db.productionLog.length - 1 - idx})">${Icons.render('trash')} حذف</button></td>
+                <td><button class="btn btn-danger btn-sm" data-action="delete-production" data-idx="${db.productionLog.length - 1 - idx})">${Icons.render('trash')} حذف</button></td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -473,7 +473,7 @@ window.Modules.costs = function(container) {
       <div class="card">
         <div class="header-row">
           <h3>${Icons.render('settings')} إعدادات الإنتاج (المؤثرات على التكلفة)</h3>
-          <button class="btn btn-primary btn-sm" onclick="Modules._saveCostSettings()">${Icons.render('save')} حفظ التعديلات</button>
+          <button class="btn btn-primary btn-sm" data-action="save-cost-settings">${Icons.render('save')} حفظ التعديلات</button>
         </div>
         <div class="form-grid">
           <div class="form-group">
@@ -686,3 +686,19 @@ window.Modules.costs = function(container) {
 
   render();
 };
+
+// === Event delegation (no inline onclick) ===
+document.addEventListener('click', function(e) {
+  var el = e.target.closest('[data-action]');
+  if (!el) return;
+  var action = el.dataset.action;
+  switch(action) {
+    case 'nav-production': APP.navigate('production'); break;
+    case 'add-production': Modules._addProduction(); break;
+    case 'reset-prod-form': document.getElementById('prodForm') && document.getElementById('prodForm').reset(); break;
+    case 'export-production': Modules.exportTable && Modules.exportTable('productionLog', 'سجل_الإنتاج'); break;
+    case 'delete-production': Modules._deleteProduction && Modules._deleteProduction(el.dataset.idx); break;
+    case 'save-cost-settings': Modules._saveCostSettings && Modules._saveCostSettings(); break;
+  }
+});
+

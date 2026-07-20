@@ -133,16 +133,16 @@ window.APP = (function () {
             <label>كلمة المرور</label>
             <div class="password-wrapper">
               <input type="password" id="loginPass" placeholder="" autocomplete="current-password" />
-              <button type="button" class="toggle-password" id="togglePassBtn" onclick="window.togglePasswordGlobal()" aria-label="إظهار/إخفاء كلمة المرور">
+              <button type="button" class="toggle-password" id="togglePassBtn" data-action="toggle-password" aria-label="إظهار/إخفاء كلمة المرور">
                 <svg class="icon-eye" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 <svg class="icon-eye-off" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
               </button>
             </div>
           </div>
-          <button class="login-btn" id="loginBtnReal" onclick="window.APP && window.APP.doLogin();">
+          <button class="login-btn" id="loginBtnReal" data-action="do-login">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.56 - PWA Enabled</div>
+          <div class="login-version-tag">v18.57 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -317,14 +317,14 @@ window.APP = (function () {
     modal.className = 'modal-overlay';
     modal.innerHTML = `
       <div class="modal-box" style="max-width:500px">
-        <button class="modal-close" onclick="this.closest('.modal-overlay').remove();">${Icons.render('x')}</button>
+        <button class="modal-close" data-action="modal-close">${Icons.render('x')}</button>
         ${html}
         <div class="alert alert-info" style="margin-top:16px">
           <span>${Icons.render('info')}</span>
           <span><b>مميزات التطبيق المُثبّت:</b> يعمل بدون إنترنت، أيقونة على الشاشة، شاشة كاملة، إشعارات</span>
         </div>
         <div style="text-align:center;margin-top:16px">
-          <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove();">${Icons.render('check')} فهمت</button>
+          <button class="btn btn-primary" data-action="modal-close">${Icons.render('check')} فهمت</button>
         </div>
       </div>
     `;
@@ -389,7 +389,7 @@ window.APP = (function () {
   function showMainApp() {
     document.body.innerHTML = `
       <div class="app">
-        <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="window.toggleSidebarGlobal();"></div>
+        <div class="sidebar-backdrop" id="sidebarBackdrop" data-action="toggle-sidebar"></div>
         <aside class="sidebar">
           <div class="brand">
             <img src="logo.png" alt="سيلين" />
@@ -401,42 +401,42 @@ window.APP = (function () {
         </aside>
         <div class="main">
           <header class="topbar">
-            <button class="menu-toggle" id="menuToggleBtn" onclick="window.toggleSidebarGlobal();" aria-label="القائمة" title="القائمة">
+            <button class="menu-toggle" id="menuToggleBtn" data-action="toggle-sidebar" aria-label="القائمة" title="القائمة">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             </button>
             <div class="page-title" id="pageTitle">لوحة التحكم</div>
             <div class="user-info">
-              <button class="install-pwa-btn" id="installPwaBtn" style="display:none" onclick="window.APP && window.APP.installPWA();" title="تحميل التطبيق على الجهاز">
+              <button class="install-pwa-btn" id="installPwaBtn" style="display:none" data-action="install-pwa" title="تحميل التطبيق على الجهاز">
                 ${Icons.render('download')} <span class="install-text">تحميل التطبيق</span>
               </button>
               <div class="export-bar" id="exportBar">
-                <button class="btn-export" onclick="window.APP && window.APP.showExportMenu(event);" title="تصدير التقرير الحالي">
+                <button class="btn-export" data-action="show-export-menu" title="تصدير التقرير الحالي">
                   ${Icons.render('download')} تصدير <span style="margin-right:4px">▾</span>
                 </button>
                 <div class="export-menu" id="exportMenu" style="display:none">
-                  <button onclick="window.APP && window.APP.doExport('pdf');">${Icons.render('pdf')} PDF</button>
-                  <button onclick="window.APP && window.APP.doExport('excel');">${Icons.render('excel')} Excel</button>
-                  <button onclick="window.APP && window.APP.doExport('csv');">${Icons.render('csv')} CSV</button>
-                  <button onclick="window.APP && window.APP.doExport('json');">${Icons.render('json')} JSON</button>
-                  <button onclick="window.APP && window.APP.doExport('print');">${Icons.render('print')} طباعة</button>
+                  <button data-action="do-export" data-type="pdf">${Icons.render('pdf')} PDF</button>
+                  <button data-action="do-export" data-type="excel">${Icons.render('excel')} Excel</button>
+                  <button data-action="do-export" data-type="csv">${Icons.render('csv')} CSV</button>
+                  <button data-action="do-export" data-type="json">${Icons.render('json')} JSON</button>
+                  <button data-action="do-export" data-type="print">${Icons.render('print')} طباعة</button>
                 </div>
               </div>
               <div class="details">
                 <b>${currentUser.name}</b><br>
                 <span>${roleLabel(currentUser.role)} | ${currentUser.empId}</span>
               </div>
-              <div class="avatar" onclick="window.APP && window.APP.navigate('profile');" style="cursor:pointer" title="ملفي الشخصي">${currentUser.name.charAt(0)}</div>
-              <button class="logout-btn" onclick="window.APP && window.APP.logout();">${Icons.render('logout')} خروج</button>
+              <div class="avatar" data-action="nav-profile" style="cursor:pointer" title="ملفي الشخصي">${currentUser.name.charAt(0)}</div>
+              <button class="logout-btn" data-action="logout">${Icons.render('logout')} خروج</button>
             </div>
           </header>
           <div class="self-service-bar" id="selfServiceBar" style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--bg-darker);border-bottom:1px solid var(--border);flex-wrap:wrap;font-size:13px;overflow-x:auto">
             <span style="font-weight:700;color:var(--primary);white-space:nowrap;margin-left:6px">خدمتي:</span>
-            <a href="#" onclick="window.APP && window.APP.navigate('myDashboard');return false;" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('layout')} لوحة التحكم</a>
-            <a href="#" onclick="window.APP && window.APP.navigate('salarySlip');return false;" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('fileText')} كشف الراتب</a>
-            <a href="#" onclick="window.APP && window.APP.navigate('myRequests');return false;" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('inbox')} طلباتي</a>
-            <a href="#" onclick="window.APP && window.APP.navigate('newRequest');return false;" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--primary);color:#fff;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('plus')} طلب جديد</a>
-            ${['admin','executive','chairman','hr_manager','production','accountant'].includes(currentUser.role) ? `<a href="#" onclick="window.APP && window.APP.navigate('incomingRequests');return false;" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--warning);color:#000;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('incoming')} الطلبات الواردة</a>` : ''}
-            <a href="#" onclick="window.APP && window.APP.navigate('profile');return false;" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('user')} ملفي</a>
+            <a href="#" data-action="nav" data-page="myDashboard" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('layout')} لوحة التحكم</a>
+            <a href="#" data-action="nav" data-page="salarySlip" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('fileText')} كشف الراتب</a>
+            <a href="#" data-action="nav" data-page="myRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('inbox')} طلباتي</a>
+            <a href="#" data-action="nav" data-page="newRequest" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--primary);color:#fff;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('plus')} طلب جديد</a>
+            ${['admin','executive','chairman','hr_manager','production','accountant'].includes(currentUser.role) ? `<a href="#" data-action="nav" data-page="incomingRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--warning);color:#000;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('incoming')} الطلبات الواردة</a>` : ''}
+            <a href="#" data-action="nav" data-page="profile" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('user')} ملفي</a>
           </div>
           <main class="content" id="content"></main>
           <footer class="app-footer">

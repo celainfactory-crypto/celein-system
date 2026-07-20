@@ -209,10 +209,10 @@ window.Modules.reports = function(container) {
           <h3>${Icons.render("download")} تصدير التقارير</h3>
         </div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="Modules.exportToPDF()">${Icons.render("document")} تصدير PDF</button>
-          <button class="btn btn-success" onclick="Modules.exportToExcel()">${Icons.render("chart")} تصدير Excel</button>
-          <button class="btn btn-warning" onclick="window.print()">${Icons.render("print")} طباعة</button>
-          <button class="btn btn-secondary" onclick="Modules.exportBackup()">${Icons.render("save")} نسخة احتياطية JSON</button>
+          <button class="btn btn-primary" data-action="export-pdf">${Icons.render("document")} تصدير PDF</button>
+          <button class="btn btn-success" data-action="export-excel">${Icons.render("chart")} تصدير Excel</button>
+          <button class="btn btn-warning" data-action="print-page">${Icons.render("print")} طباعة</button>
+          <button class="btn btn-secondary" data-action="export-backup">${Icons.render("save")} نسخة احتياطية JSON</button>
         </div>
       </div>
     `;
@@ -315,7 +315,7 @@ window.Modules.reports = function(container) {
         </div>
 
         <div class="no-print" style="text-align:center;margin-top:30px">
-          <button onclick="window.print()" style="padding:12px 24px;background:#1565c0;color:white;border:0;border-radius:8px;font-weight:700;cursor:pointer;font-family:Cairo">${Icons.render("print")} طباعة / حفظ PDF</button>
+          <button data-action="print-page" style="padding:12px 24px;background:#1565c0;color:white;border:0;border-radius:8px;font-weight:700;cursor:pointer;font-family:Cairo">${Icons.render("print")} طباعة / حفظ PDF</button>
         </div>
       </body>
       </html>

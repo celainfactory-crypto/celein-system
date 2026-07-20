@@ -55,7 +55,7 @@ window.Modules.pricing = function(container) {
       <div class="card">
         <div class="header-row">
           <h3>${Icons.render("money")} تحديث أسعار الأصناف</h3>
-          <button class="btn btn-primary btn-sm" onclick="Modules._savePricing()">${Icons.render("save")} حفظ الأسعار</button>
+          <button class="btn btn-primary btn-sm" data-action="save-pricing">${Icons.render("save")} حفظ الأسعار</button>
         </div>
         <table>
           <thead>
@@ -237,7 +237,7 @@ window.Modules.inventory = function(container) {
       <div class="card">
         <div class="header-row">
           <h3>${Icons.render("clipboard")} جرد المخزون الحالي</h3>
-          <button class="btn btn-secondary btn-sm" onclick="Modules.exportTable('inventory', 'جرد_المخزون')">${Icons.render("download")} تصدير</button>
+          <button class="btn btn-secondary btn-sm" data-action="export-inventory">${Icons.render("download")} تصدير</button>
         </div>
         <table>
           <thead>
@@ -353,7 +353,7 @@ window.Modules.vouchers = function(container) {
           </div>
         </form>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="Modules._addVoucher()">${Icons.render("save")} حفظ السند</button>
+          <button class="btn btn-primary" data-action="add-voucher">${Icons.render("save")} حفظ السند</button>
         </div>
       </div>
 
@@ -382,7 +382,7 @@ window.Modules.vouchers = function(container) {
                 <td>${prod ? prod.name : v.product}</td>
                 <td class="text-primary">${v.qty}</td>
                 <td class="text-muted">${v.notes || '-'}</td>
-                <td><button class="btn btn-danger btn-sm" onclick="Modules._deleteVoucher(${realIdx})">${Icons.render("trash")}</button></td>
+                <td><button class="btn btn-danger btn-sm" data-action="delete-voucher" data-vidx="${realIdx})">${Icons.render("trash")}</button></td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -500,7 +500,7 @@ window.Modules.sales = function(container) {
       <div class="card">
         <div class="header-row">
           <h3>${Icons.render("clipboard")} ملخص أداء المناديب للشهر</h3>
-          <button class="btn btn-secondary btn-sm" onclick="Modules.exportTable('salesReps', 'أداء_المناديب')">${Icons.render("download")} تصدير</button>
+          <button class="btn btn-secondary btn-sm" data-action="export-sales">${Icons.render("download")} تصدير</button>
         </div>
         <table>
           <thead>
@@ -797,7 +797,7 @@ window.Modules.agents = function(container) {
                 <td><b>${a.name}</b></td>
                 <td>${a.transportSubsidy} ر.ي</td>
                 <td class="text-muted">${a.notes || '-'}</td>
-                <td><button class="btn btn-danger btn-sm" onclick="Modules._deleteAgent(${idx})">${Icons.render("trash")}</button></td>
+                <td><button class="btn btn-danger btn-sm" data-action="delete-agent" data-aidx="${idx})">${Icons.render("trash")}</button></td>
               </tr>
             `).join('')}
           </tbody>
@@ -821,7 +821,7 @@ window.Modules.agents = function(container) {
           </div>
         </form>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="Modules._addAgent()">${Icons.render("plus")} إضافة</button>
+          <button class="btn btn-primary" data-action="add-agent">${Icons.render("plus")} إضافة</button>
         </div>
       </div>
 
@@ -1230,7 +1230,7 @@ window.Modules.cashflow = function(container) {
           </div>
           <div id="cfApPreview" class="alert alert-info" style="display:none"></div>
           <div class="btn-row">
-            <button class="btn btn-primary" onclick="Modules._doAutoPost()">${Icons.render("sync")} بدء الترحيل</button>
+            <button class="btn btn-primary" data-action="do-auto-post">${Icons.render("sync")} بدء الترحيل</button>
             <button type="button" class="btn btn-secondary" data-action="close-modal">إلغاء</button>
           </div>
         </div>
@@ -1816,7 +1816,7 @@ window.Modules.lab = function(container) {
           </div>
         </form>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="Modules._addLab()">${Icons.render("save")} حفظ</button>
+          <button class="btn btn-primary" data-action="add-lab">${Icons.render("save")} حفظ</button>
         </div>
       </div>
 
@@ -1950,9 +1950,9 @@ window.Modules.procurement = function(container) {
             ${r.reminders > 0 ? `<div class="text-warning" style="font-size:11px;margin-top:4px">${Icons.render("bell")} ${r.reminders} تذكير${r.reminders > 1 ? 'ات' : ''}</div>` : ''}
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn btn-primary btn-sm" onclick="Modules._prViewIncoming(${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("eye")} عرض</button>
-            <button class="btn btn-success btn-sm" onclick="Modules._prApprove(${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("check")} موافقة</button>
-            <button class="btn btn-danger btn-sm" onclick="Modules._prReject(${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("close")} رفض</button>
+            <button class="btn btn-primary btn-sm" data-action="pr-view-incoming" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("eye")} عرض</button>
+            <button class="btn btn-success btn-sm" data-action="pr-approve" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("check")} موافقة</button>
+            <button class="btn btn-danger btn-sm" data-action="pr-reject" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("close")} رفض</button>
           </div>
         </div>
       </div>
@@ -1974,7 +1974,7 @@ window.Modules.procurement = function(container) {
       <div class="card">
         <div class="header-row">
           <h3>${Icons.render("cart")} طلبات الشراء الواردة من الإنتاج (${allRequests.length})</h3>
-          <button class="btn btn-secondary btn-sm" onclick="Modules._prToggleRequests()">${Icons.render("eye")} عرض الكل</button>
+          <button class="btn btn-secondary btn-sm" data-action="pr-toggle-all">${Icons.render("eye")} عرض الكل</button>
         </div>
         ${incomingRequests.slice(0, 5).map(r => renderIncomingRequestRow(r)).join('')}
         ${incomingRequests.length > 5 ? `<div class="text-muted" style="margin-top:8px;font-size:12px">و ${incomingRequests.length - 5} طلبات أخرى...</div>` : ''}
@@ -1993,20 +1993,20 @@ window.Modules.procurement = function(container) {
           </div>
           <div class="form-group">
             <label>المورد</label>
-            <select id="p_supplier" onchange="Modules._pSupplierChanged()">
+            <select id="p_supplier" data-change="supplier-changed">
               <option value="">-- اختر المورد --</option>
               ${[...new Set(db.suppliers.map(s => s.name))].map(name => `<option value="${name}">${name}</option>`).join('')}
             </select>
           </div>
           <div class="form-group">
             <label>المادة</label>
-            <select id="p_material" onchange="Modules._pMaterialChanged()">
+            <select id="p_material" data-change="material-changed">
               <option value="">-- اختر المادة --</option>
             </select>
           </div>
           <div class="form-group">
             <label>الكمية</label>
-            <input type="number" id="p_qty" step="0.01" oninput="Modules._pRecalculate()" required />
+            <input type="number" id="p_qty" step="0.01" data-change="calc-p" required />
           </div>
           <div class="form-group">
             <label>الوحدة</label>
@@ -2014,11 +2014,11 @@ window.Modules.procurement = function(container) {
           </div>
           <div class="form-group">
             <label>سعر الوحدة</label>
-            <input type="number" id="p_price" step="0.01" oninput="Modules._pRecalculate()" required />
+            <input type="number" id="p_price" step="0.01" data-change="calc-p" required />
           </div>
           <div class="form-group">
             <label>العملة</label>
-            <select id="p_currency" onchange="Modules._pRecalculate()">
+            <select id="p_currency" data-change="calc-p">
               <option value="سعودي">سعودي</option>
               <option value="يمني">يمني</option>
             </select>
@@ -2030,7 +2030,7 @@ window.Modules.procurement = function(container) {
           </div>
         </form>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="Modules._addPurchase()">${Icons.render("save")} حفظ الفاتورة</button>
+          <button class="btn btn-primary" data-action="add-purchase">${Icons.render("save")} حفظ الفاتورة</button>
         </div>
       </div>
 
@@ -2343,28 +2343,28 @@ window.Modules.hr = function(container) {
       <div class="card" style="background:linear-gradient(135deg,var(--bg-card),var(--bg-darker));border:2px solid var(--primary)">
         <h3 style="margin-bottom:15px">${Icons.render("users")} وحدات الموارد البشرية والإدارة</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
-          <div class="hr-submenu-card active" data-target="registry" onclick="Modules._hrTab('registry')">
+          <div class="hr-submenu-card active" data-target="registry" data-action="hr-tab-registry">
             <div class="hr-submenu-icon">${Icons.render("users")}</div>
             <div class="hr-submenu-label">سجل الموظفين</div>
             <div class="hr-submenu-desc">${db.employeesLog.length} موظف في ${departments.length} قسم</div>
           </div>
 
-          <div class="hr-submenu-card" onclick="APP.navigate('orgtree')">
+          <div class="hr-submenu-card" data-action="nav-orgtree">
             <div class="hr-submenu-icon">${Icons.render("gitBranch")}</div>
             <div class="hr-submenu-label">الشجرة التفاعلية</div>
             <div class="hr-submenu-desc">شجرة الموظفين</div>
           </div>
-          <div class="hr-submenu-card" onclick="APP.navigate('orgchart')">
+          <div class="hr-submenu-card" data-action="nav-orgchart">
             <div class="hr-submenu-icon">${Icons.render("sitemap")}</div>
             <div class="hr-submenu-label">الهيكل التنظيمي</div>
             <div class="hr-submenu-desc">إحصائيات الأقسام</div>
           </div>
-          <div class="hr-submenu-card" onclick="APP.navigate('permissions')">
+          <div class="hr-submenu-card" data-action="nav-permissions">
             <div class="hr-submenu-icon">${Icons.render("key")}</div>
             <div class="hr-submenu-label">إدارة الصلاحيات</div>
             <div class="hr-submenu-desc">منح وإلغاء الصلاحيات</div>
           </div>
-          <div class="hr-submenu-card" onclick="APP.navigate('terminated')">
+          <div class="hr-submenu-card" data-action="nav-terminated">
             <div class="hr-submenu-icon">${Icons.render("x")}</div>
             <div class="hr-submenu-label">المنتهية عقودهم</div>
             <div class="hr-submenu-desc">سجل العقود المنتهية</div>
@@ -2390,7 +2390,7 @@ window.Modules.hr = function(container) {
             <div class="form-group"><label>تاريخ التعيين *</label><input type="date" id="e_hireDate" required /></div>
           </form>
           <div class="btn-row">
-            <button class="btn btn-primary" onclick="Modules._addEmployee()">${Icons.render("plus")} إضافة وحفظ</button>
+            <button class="btn btn-primary" data-action="add-employee">${Icons.render("plus")} إضافة وحفظ</button>
           </div>
         </div>
         ` : ''}
@@ -2398,7 +2398,7 @@ window.Modules.hr = function(container) {
         <div class="card">
           <h3>${Icons.render("users")} سجل الموظفين</h3>
           <div class="search-bar" style="margin-bottom:14px;max-width:320px">
-            <input type="text" id="deptSearch" placeholder="بحث عن إدارة..." oninput="Modules._filterDepts()" />
+            <input type="text" id="deptSearch" placeholder="بحث عن إدارة..." data-input="filter-depts" />
           </div>
           <div id="departmentsList">
             ${(() => {
@@ -2436,9 +2436,9 @@ window.Modules.hr = function(container) {
                   + '<td>'+statusBadge+'</td>'
                   + '<td style="white-space:nowrap">'
                   +   (isAdmin
-                        ? '<button class="btn btn-sm" onclick="Modules._editEmployee('+emp.id+')" title="تعديل">'+Icons.render("edit")+'</button> '
-                          + '<button class="btn btn-sm btn-warning" onclick="Modules._changeStatus('+emp.id+')" title="تغيير الحالة">'+Icons.render("refresh")+'</button> '
-                          + '<button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployee('+emp.id+')" title="حذف">'+Icons.render("trash")+'</button>'
+                        ? '<button class="btn btn-sm" data-action="edit-employee" data-eid="'+emp.id+')" title="تعديل">'+Icons.render("edit")+'</button> '
+                          + '<button class="btn btn-sm btn-warning" data-action="change-status" data-eid="'+emp.id+')" title="تغيير الحالة">'+Icons.render("refresh")+'</button> '
+                          + '<button class="btn btn-sm btn-danger" data-action="delete-employee" data-eid="'+emp.id+')" title="حذف">'+Icons.render("trash")+'</button>'
                         : '<span class="text-muted" style="font-size:11px">عرض</span>')
                   + '</td>'
                   + '</tr>';
@@ -2454,7 +2454,7 @@ window.Modules.hr = function(container) {
                 const totalSal = emps.reduce((s, e) => s + (e.salary + (e.allowances || 0)), 0);
                 
                 html += '<div class="dept-section" data-dept="'+cfg.key+'" style="margin-bottom:12px;border-radius:10px;overflow:hidden;border:1px solid var(--border)">';
-                html += '<div class="dept-section-header" onclick="Modules._toggleDeptSection('+idx+')" style="background:var(--bg-darker);padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all 0.2s">';
+                html += '<div class="dept-section-header" data-action="toggle-dept" data-didx="'+idx+')" style="background:var(--bg-darker);padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all 0.2s">';
                 html += '<span class="dept-arrow" id="dept-arrow-'+idx+'" style="transition:transform 0.3s;font-size:18px">▼</span>';
                 html += '<b style="font-size:15px;color:var(--primary);flex:1">'+cfg.label+'</b>';
                 html += '<span class="badge badge-info">'+emps.length+' موظف</span>';
@@ -2492,7 +2492,7 @@ window.Modules.hr = function(container) {
         <div class="modal-card" style="max-width:600px">
           <div class="modal-header">
             <h3>${Icons.render("edit")} تعديل بيانات الموظف</h3>
-            <button class="btn btn-sm" onclick="document.getElementById('editEmpModal').style.display='none'">${Icons.render("x")}</button>
+            <button class="btn btn-sm" data-action="modal-close">${Icons.render("x")}</button>
           </div>
           <div class="modal-body">
             <form id="editEmpForm" onsubmit="event.preventDefault(); Modules._saveEmployee();">
@@ -2510,8 +2510,8 @@ window.Modules.hr = function(container) {
             </form>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="document.getElementById('editEmpModal').style.display='none'">إغلاق</button>
-            <button class="btn btn-primary" onclick="Modules._saveEmployee()">${Icons.render("check")} حفظ التعديلات</button>
+            <button class="btn btn-secondary" data-action="modal-close">إغلاق</button>
+            <button class="btn btn-primary" data-action="save-employee">${Icons.render("check")} حفظ التعديلات</button>
           </div>
         </div>
       </div>
@@ -2754,11 +2754,11 @@ window.Modules.users = function(container) {
         </form>
         <div class="btn-row">
           ${editingUser ? `
-            <button class="btn btn-success" onclick="Modules._saveUser()">${Icons.render("save")} تحديث المستخدم</button>
-            <button class="btn btn-secondary" onclick="Modules._cancelUserEdit()">إلغاء</button>
+            <button class="btn btn-success" data-action="save-user">${Icons.render("save")} تحديث المستخدم</button>
+            <button class="btn btn-secondary" data-action="cancel-user-edit">إلغاء</button>
           ` : `
-            <button class="btn btn-primary" onclick="Modules._addUser()">${Icons.render("plus")} إضافة المستخدم</button>
-            <button class="btn btn-secondary" type="reset" onclick="document.getElementById('userForm').reset()">مسح</button>
+            <button class="btn btn-primary" data-action="add-user">${Icons.render("plus")} إضافة المستخدم</button>
+            <button class="btn btn-secondary" type="reset" data-action="reset-user-form">مسح</button>
           `}
         </div>
       </div>
@@ -2768,7 +2768,7 @@ window.Modules.users = function(container) {
           <h3>${Icons.render("users")} قائمة المستخدمين (${db.users.length})</h3>
           <div class="search-bar" style="margin:0">
             <span class="icon">${Icons.render("search")}</span>
-            <input type="text" id="userSearch" placeholder="بحث بالاسم أو الرقم الوظيفي..." oninput="Modules._filterUsers()" />
+            <input type="text" id="userSearch" placeholder="بحث بالاسم أو الرقم الوظيفي..." data-input="filter-users" />
           </div>
         </div>
         <table>
@@ -2792,8 +2792,8 @@ window.Modules.users = function(container) {
                 <td><span class="badge badge-${u.active ? 'success' : 'danger'}">${u.active ? 'نشط' : 'موقوف'}</span></td>
                 <td>
                   <div style="display:flex;gap:6px;flex-wrap:wrap">
-                    <button class="btn btn-primary btn-sm" onclick="Modules._editUser(${idx})" title="تعديل بيانات المستخدم">${Icons.render("edit")} تعديل</button>
-                    <button class="btn btn-warning btn-sm" onclick="Modules._toggleUser(${idx})" title="${u.active ? 'إيقاف الحساب مؤقتاً' : 'إعادة تفعيل الحساب'}">${u.active ? '⏸ إيقاف' : '▶ تفعيل'}</button>
+                    <button class="btn btn-primary btn-sm" data-action="edit-user" data-uidx="${idx})" title="تعديل بيانات المستخدم">${Icons.render("edit")} تعديل</button>
+                    <button class="btn btn-warning btn-sm" data-action="toggle-user" data-uidx="${idx})" title="${u.active ? 'إيقاف الحساب مؤقتاً' : 'إعادة تفعيل الحساب'}">${u.active ? '⏸ إيقاف' : '▶ تفعيل'}</button>
                   </div>
                 </td>
               </tr>
@@ -3036,7 +3036,7 @@ window.Modules.permissions = function(container) {
                 <td data-label="القسم">${u.department || '—'}</td>
                 <td data-label="صلاحيات مخصصة">${(u.customPermissions || []).length ? u.customPermissions.map(p => `<span class="badge badge-success" style="margin:2px">${allPages.find(ap => ap.id === p)?.label || p}</span>`).join('') : '<span class="text-muted">لا توجد</span>'}</td>
                 <td data-label="إجراءات">
-                  <button class="btn btn-sm btn-primary" onclick="Modules._editPermissions(${u.id})">${Icons.render("edit")} تعديل الصلاحيات</button>
+                  <button class="btn btn-sm btn-primary" data-action="edit-permissions" data-puid="${u.id})">${Icons.render("edit")} تعديل الصلاحيات</button>
                 </td>
               </tr>
             `).join('')}
@@ -3049,7 +3049,7 @@ window.Modules.permissions = function(container) {
         <div class="modal-card" style="max-width:700px">
           <div class="modal-header">
             <h3>${Icons.render("key")} تعديل صلاحيات المستخدم</h3>
-            <button class="btn btn-sm" onclick="document.getElementById('permissionsModal').style.display='none'">${Icons.render("x")}</button>
+            <button class="btn btn-sm" data-action="modal-close-pm">${Icons.render("x")}</button>
           </div>
           <div class="modal-body">
             <div id="permModalContent"></div>
@@ -3085,8 +3085,8 @@ window.Modules.permissions = function(container) {
         }).join('')}
       </div>
       <div class="btn-row" style="margin-top:20px">
-        <button class="btn btn-primary" onclick="Modules._savePermissions(${user.id})">${Icons.render("check")} حفظ الصلاحيات</button>
-        <button class="btn btn-secondary" onclick="document.getElementById('permissionsModal').style.display='none'">إلغاء</button>
+        <button class="btn btn-primary" data-action="save-permissions" data-spuid="${user.id})">${Icons.render("check")} حفظ الصلاحيات</button>
+        <button class="btn btn-secondary" data-action="modal-close-pm">إلغاء</button>
       </div>
     `;
     document.getElementById('permissionsModal').style.display = 'flex';
@@ -3213,9 +3213,9 @@ window.Modules.profile = function(container) {
             ${emp && emp.photo ? `<img src="${emp.photo}" style="width:100%;height:100%;object-fit:cover" />` : `<span style="font-size:48px;color:var(--text-muted)">${user.name.charAt(0)}</span>`}
           </div>
           ${canEdit && emp ? `
-            <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="Modules._handleFileUpload(this, 'photo', ${emp.id})" />
-            <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="document.getElementById('photo-input').click()">${Icons.render("upload")} تغيير الصورة</button>
-            ${emp.photo ? `<button class="btn btn-sm btn-danger" style="margin-top:4px" onclick="Modules._deleteEmployeeDocument(${emp.id}, 'photo')">${Icons.render("trash")} حذف</button>` : ''}
+            <input type="file" id="photo-input" accept="image/*" style="display:none" data-change="file-upload" data-type="photo" data-eid="${emp.id}" />
+            <button class="btn btn-sm btn-primary" style="margin-top:8px" data-action="file-trigger" data-target="photo-input">${Icons.render("upload")} تغيير الصورة</button>
+            ${emp.photo ? `<button class="btn btn-sm btn-danger" style="margin-top:4px" data-action="delete-doc" data-eid=" data-doctype="${emp.id}, 'photo')">${Icons.render("trash")} حذف</button>` : ''}
           ` : ''}
         </div>
         <div class="form-grid" style="flex:1;min-width:280px">
@@ -3246,7 +3246,7 @@ window.Modules.profile = function(container) {
         </div>
       </div>
       <div class="btn-row" style="margin-top:16px">
-        <button class="btn btn-secondary" onclick="Modules._changePassword()">${Icons.render("lock")} تغيير كلمة المرور</button>
+        <button class="btn btn-secondary" data-action="change-password">${Icons.render("lock")} تغيير كلمة المرور</button>
       </div>
     </div>
 
@@ -3299,9 +3299,9 @@ window.Modules.profile = function(container) {
             ${emp.idCardPhoto ? `<img src="${emp.idCardPhoto}" style="width:100%;height:100%;object-fit:contain" />` : `<span style="color:var(--text-muted);font-size:13px;text-align:center;padding:10px">صورة الهوية<br>(وجه أمامي)</span>`}
           </div>
           ${canEdit ? `
-            <input type="file" id="id-input" accept="image/*" style="display:none" onchange="Modules._handleFileUpload(this, 'idCardPhoto', ${emp.id})" />
-            <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="document.getElementById('id-input').click()">${Icons.render("upload")} رفع صورة الهوية</button>
-            ${emp.idCardPhoto ? `<button class="btn btn-sm btn-danger" style="margin-top:4px" onclick="Modules._deleteEmployeeDocument(${emp.id}, 'idCardPhoto')">${Icons.render("trash")} حذف</button>` : ''}
+            <input type="file" id="id-input" accept="image/*" style="display:none" data-change="file-upload" data-type="idCardPhoto" data-eid="${emp.id}" />
+            <button class="btn btn-sm btn-primary" style="margin-top:8px" data-action="file-trigger" data-target="id-input">${Icons.render("upload")} رفع صورة الهوية</button>
+            ${emp.idCardPhoto ? `<button class="btn btn-sm btn-danger" style="margin-top:4px" data-action="delete-doc" data-eid=" data-doctype="${emp.id}, 'idCardPhoto')">${Icons.render("trash")} حذف</button>` : ''}
           ` : ''}
         </div>
         <div class="form-grid" style="flex:1;min-width:280px">
@@ -3321,7 +3321,7 @@ window.Modules.profile = function(container) {
             <label>الجنسية</label>
             <input type="text" id="id_card_nationality" value="${(emp.idCardData && emp.idCardData.nationality) || ''}" ${canEdit ? '' : 'readonly'} placeholder="الجنسية" />
           </div>
-          ${canEdit ? `<div class="form-group" style="grid-column:1/-1"><button class="btn btn-primary" onclick="Modules._saveIDCardData(${emp.id})">${Icons.render("check")} حفظ بيانات الهوية</button></div>` : ''}
+          ${canEdit ? `<div class="form-group" style="grid-column:1/-1"><button class="btn btn-primary" data-action="save-idcard" data-eid="${emp.id})">${Icons.render("check")} حفظ بيانات الهوية</button></div>` : ''}
         </div>
       </div>
     </div>
@@ -3332,11 +3332,11 @@ window.Modules.profile = function(container) {
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         ${emp.cv ? `
           <a href="${emp.cv}" download="cv_${emp.empId}.png" class="btn btn-success">${Icons.render("download")} تحميل السيرة الذاتية</a>
-          ${canEdit ? `<button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployeeDocument(${emp.id}, 'cv')">${Icons.render("trash")} حذف</button>` : ''}
+          ${canEdit ? `<button class="btn btn-sm btn-danger" data-action="delete-doc" data-eid=" data-doctype="${emp.id}, 'cv')">${Icons.render("trash")} حذف</button>` : ''}
         ` : `<span class="text-muted">لم يتم رفع السيرة الذاتية بعد</span>`}
         ${canEdit ? `
-          <input type="file" id="cv-input" accept="image/*,.pdf" style="display:none" onchange="Modules._handleFileUpload(this, 'cv', ${emp.id})" />
-          <button class="btn btn-primary" onclick="document.getElementById('cv-input').click()">${Icons.render("upload")} رفع السيرة الذاتية</button>
+          <input type="file" id="cv-input" accept="image/*,.pdf" style="display:none" data-change="file-upload" data-type="cv" data-eid="${emp.id}" />
+          <button class="btn btn-primary" data-action="file-trigger" data-target="cv-input">${Icons.render("upload")} رفع السيرة الذاتية</button>
         ` : ''}
       </div>
     </div>
@@ -3350,12 +3350,12 @@ window.Modules.profile = function(container) {
           <div style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border-radius:8px">
             <a href="${cert.data}" target="_blank" class="btn btn-sm btn-secondary">${Icons.render("download")} ${cert.name}</a>
             <span class="text-muted" style="font-size:11px">${cert.uploadDate ? new Date(cert.uploadDate).toLocaleDateString('ar-EG') : ''}</span>
-            ${canEdit ? `<button class="btn btn-sm btn-danger" onclick="Modules._deleteEmployeeDocument(${emp.id}, 'certificate', ${i})">${Icons.render("trash")}</button>` : ''}
+            ${canEdit ? `<button class="btn btn-sm btn-danger" data-action="delete-doc" data-eid=" data-doctype="${emp.id}, 'certificate', ${i})">${Icons.render("trash")}</button>` : ''}
           </div>
         `).join('')}
         ${canEdit ? `
-          <input type="file" id="cert-input" accept="image/*,.pdf" style="display:none" onchange="Modules._handleFileUpload(this, 'certificate', ${emp.id})" />
-          <button class="btn btn-primary" onclick="document.getElementById('cert-input').click()">${Icons.render("upload")} رفع شهادة جديدة</button>
+          <input type="file" id="cert-input" accept="image/*,.pdf" style="display:none" data-change="file-upload" data-type="certificate" data-eid="${emp.id}" />
+          <button class="btn btn-primary" data-action="file-trigger" data-target="cert-input">${Icons.render("upload")} رفع شهادة جديدة</button>
         ` : ''}
       </div>
     </div>
@@ -3372,7 +3372,7 @@ window.Modules.profile = function(container) {
         </div>
       </div>
       <div class="btn-row">
-        <button class="btn btn-danger" onclick="Modules._terminateEmployee(${emp.id})">${Icons.render("x")} إنهاء التعاقد</button>
+        <button class="btn btn-danger" data-action="terminate-employee" data-eid="${emp.id})">${Icons.render("x")} إنهاء التعاقد</button>
       </div>
     </div>
     ` : ''}
@@ -3413,7 +3413,7 @@ window.Modules.profile = function(container) {
 
   if (myReqs.length === 0) {
     container.innerHTML += '<p class="text-muted" style="text-align:center;padding:20px">لم تقدم أي طلبات حتى الآن.</p>';
-    container.innerHTML += '<div style="text-align:center;margin-bottom:14px"><button class="btn btn-primary" onclick="APP.navigate(\'newRequest\')">' + Icons.render("plus") + ' قدم طلبك الأول</button></div>';
+    container.innerHTML += '<div style="text-align:center;margin-bottom:14px"><button class="btn btn-primary" data-action="nav-new-request">' + Icons.render("plus") + ' قدم طلبك الأول</button></div>';
   } else {
     container.innerHTML += '<table class="data-table"><thead><tr><th>رقم</th><th>النوع</th><th>الفئة</th><th>العنوان</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th><th></th></tr></thead><tbody>';
     myReqs.forEach(r => {
@@ -3426,13 +3426,13 @@ window.Modules.profile = function(container) {
       container.innerHTML += '<td class="text-muted" style="font-size:12px">' + new Date(r.createdAt).toLocaleDateString('ar-EG') + '</td>';
       container.innerHTML += '<td class="text-primary"><b>' + (r.amount ? r.amount.toLocaleString('ar-EG') + ' ر.ي' : '-') + '</b></td>';
       container.innerHTML += '<td><span class="badge ' + SelfService.STATUS_COLORS[r.status] + '">' + SelfService.STATUS_LABELS[r.status] + '</span></td>';
-      container.innerHTML += '<td><button class="btn btn-sm" onclick="Modules._viewRequest(\'' + r.id + '\')">' + Icons.render("eye") + '</button></td>';
+      container.innerHTML += '<td><button class="btn btn-sm" data-action="view-request" data-rid="\'' + r.id + '\')">' + Icons.render("eye") + '</button></td>';
       container.innerHTML += '</tr>';
     });
     container.innerHTML += '</tbody></table>';
     container.innerHTML += '<div style="text-align:center;margin-top:12px">';
-    container.innerHTML += '<button class="btn btn-primary" onclick="APP.navigate(\'newRequest\')">' + Icons.render("plus") + ' طلب جديد</button>';
-    container.innerHTML += '<button class="btn btn-secondary" onclick="APP.navigate(\'myRequests\')">' + Icons.render("inbox") + ' عرض الكل</button>';
+    container.innerHTML += '<button class="btn btn-primary" data-action="nav-new-request">' + Icons.render("plus") + ' طلب جديد</button>';
+    container.innerHTML += '<button class="btn btn-secondary" data-action="nav-my-requests">' + Icons.render("inbox") + ' عرض الكل</button>';
     container.innerHTML += '</div>';
   }
   container.innerHTML += '</div>';
@@ -3552,7 +3552,7 @@ window.Modules.terminated = function(container) {
               <td data-label="التاريخ">${(e.terminationStatus && e.terminationStatus.date) || '—'}</td>
               <td data-label="السبب">${(e.terminationStatus && e.terminationStatus.reason) || '—'}</td>
               <td data-label="سُجّل بواسطة" class="text-muted">${(e.terminationStatus && e.terminationStatus.recordedBy) || '—'}</td>
-              <td data-label="إجراء"><button class="btn btn-sm btn-success" onclick="Modules._reinstateEmployee(${e.id})">${Icons.render("refresh")} إعادة توظيف</button></td>
+              <td data-label="إجراء"><button class="btn btn-sm btn-success" data-action="reinstate-employee" data-eid2="${e.id})">${Icons.render("refresh")} إعادة توظيف</button></td>
             </tr>
           `).join('')}
         </tbody>
@@ -3735,7 +3735,7 @@ window.Modules.orgchart = function(container) {
             const mgr = employees.find(e => e.empId == d.managerId);
             const count = (deptEmployees[d.name] || []).length;
             return `
-            <div class="orgchart-card orgchart-manager-card" data-dept="${d.name}" onclick="Modules._toggleDept('${d.name}')" style="border-color:${d.color}">
+            <div class="orgchart-card orgchart-manager-card" data-dept="${d.name}" data-action="toggle-dept2" data-dname="${d.name}" style="border-color:${d.color}">
               <div class="org-icon-circle" style="background:${d.color}">${Icons.render(d.icon)}</div>
               <div class="org-name">${d.manager}</div>
               <div class="org-role" style="color:${d.color}">مدير ${d.name}</div>
@@ -3814,10 +3814,10 @@ window.Modules.orgchart = function(container) {
       <div class="card" style="text-align:center">
         <h3>${Icons.render("download")} تصدير الهيكل التنظيمي</h3>
         <div class="btn-row" style="justify-content:center">
-          <button class="btn btn-primary" onclick="Modules._exportOrgChart('pdf')">${Icons.render("pdf")} تصدير PDF</button>
-          <button class="btn btn-success" onclick="Modules._exportOrgChart('print')">${Icons.render("print")} طباعة</button>
-          <button class="btn btn-secondary" onclick="Modules._expandAllDepts()">${Icons.render("grid")} عرض كل الأقسام</button>
-          <button class="btn btn-secondary" onclick="Modules._collapseAllDepts()">${Icons.render("x")} إخفاء الكل</button>
+          <button class="btn btn-primary" data-action="orgchart-pdf">${Icons.render("pdf")} تصدير PDF</button>
+          <button class="btn btn-success" data-action="orgchart-print">${Icons.render("print")} طباعة</button>
+          <button class="btn btn-secondary" data-action="expand-all-depts">${Icons.render("grid")} عرض كل الأقسام</button>
+          <button class="btn btn-secondary" data-action="collapse-all-depts">${Icons.render("x")} إخفاء الكل</button>
         </div>
       </div>
     `;
@@ -4114,10 +4114,10 @@ window.Modules.orgtree = function(container) {
           <input type="text" id="orgtreeSearch" placeholder="ابحث بالاسم أو الرقم الوظيفي أو القسم..." value="${state.filter}">
         </div>
         <div class="orgtree-controls">
-          <button class="btn btn-icon" onclick="Modules._orgtreeZoom(0.2)" title="تكبير">${Icons.render("plus")}</button>
-          <button class="btn btn-icon" onclick="Modules._orgtreeZoom(-0.2)" title="تصغير">${Icons.render("minus")}</button>
-          <button class="btn btn-icon" onclick="Modules._orgtreeReset()" title="إعادة الضبط">${Icons.render("refresh")}</button>
-          <button class="btn btn-icon" onclick="Modules._orgtreeFit()" title="ملائمة الشاشة">${Icons.render("maximize")}</button>
+          <button class="btn btn-icon" data-action="orgtree-zoom-in" title="تكبير">${Icons.render("plus")}</button>
+          <button class="btn btn-icon" data-action="orgtree-zoom-out" title="تصغير">${Icons.render("minus")}</button>
+          <button class="btn btn-icon" data-action="orgtree-reset" title="إعادة الضبط">${Icons.render("refresh")}</button>
+          <button class="btn btn-icon" data-action="orgtree-fit" title="ملائمة الشاشة">${Icons.render("maximize")}</button>
         </div>
       </div>
 
@@ -4154,7 +4154,7 @@ window.Modules.orgtree = function(container) {
                   const color = getColor(n.department);
                   const isExpanded = state.expanded.has(n.id);
                   return `
-                    <g class="orgtree-node" data-id="${n.id}" transform="translate(${p.x},${p.y})" onclick="Modules._orgtreeSelect('${n.id}')">
+                    <g class="orgtree-node" data-id="${n.id}" transform="translate(${p.x},${p.y})" data-action="orgtree-select" data-nid="${n.id}">
                       <rect class="node-bg" x="-100" y="-30" width="200" height="80" rx="12" 
                         fill="${n.type === 'top' ? '#1e2d4f' : (n.type === 'manager' ? color : 'white')}"
                         stroke="${color}" stroke-width="2"/>
@@ -4379,7 +4379,7 @@ window.Modules.orgtree = function(container) {
               <span class="orgtree-detail-label">${Icons.render("users")} الفريق</span>
               <span class="orgtree-detail-value">${tree.links.filter(l => l.source === nodeId).length} أعضاء</span>
             </div>
-            <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="Modules._orgtreeToggle('${nodeId}')">
+            <button class="btn btn-primary" style="width:100%;margin-top:8px" data-action="orgtree-toggle" data-nid2="${nodeId}">
               ${state.expanded.has(nodeId) ? Icons.render("minus") + ' طي الفريق' : Icons.render("plus") + ' توسيع الفريق'}
             </button>
           ` : ''}
@@ -4517,37 +4517,37 @@ window.Modules.developer = window.Modules.settings = function(container) {
       <div class="card" style="background:linear-gradient(135deg, var(--bg-card), var(--bg-darker));border:2px solid var(--primary)">
         <h3>${Icons.render("settings")} أدوات المطور</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
-          <div class="dev-tool-card" onclick="Modules._dev_showTab('menus')">
+          <div class="dev-tool-card" data-action="dev-tab" data-tab="menus">
             <div class="dev-tool-icon">${Icons.render("list")}</div>
             <div class="dev-tool-label">إدارة القوائم</div>
             <div class="dev-tool-desc">إضافة/تعديل/حذف عناصر التنقل</div>
           </div>
-          <div class="dev-tool-card" onclick="Modules._dev_showTab('pages')">
+          <div class="dev-tool-card" data-action="dev-tab2" data-tab2="pages">
             <div class="dev-tool-icon">${Icons.render("fileText")}</div>
             <div class="dev-tool-label">إضافة صفحات</div>
             <div class="dev-tool-desc">صفحات HTML مخصصة برابط خاص</div>
           </div>
-          <div class="dev-tool-card" onclick="Modules._dev_showTab('theme')">
+          <div class="dev-tool-card" data-action="dev-tab2" data-tab2="theme">
             <div class="dev-tool-icon">${Icons.render("palette")}</div>
             <div class="dev-tool-label">الثيم والألوان</div>
             <div class="dev-tool-desc">تخصيص هوية المنصة</div>
           </div>
-          <div class="dev-tool-card" onclick="Modules._dev_showTab('fields')">
+          <div class="dev-tool-card" data-action="dev-tab2" data-tab2="fields">
             <div class="dev-tool-icon">${Icons.render("database")}</div>
             <div class="dev-tool-label">حقول مخصصة</div>
             <div class="dev-tool-desc">إضافة حقول للموظفين/المستخدمين</div>
           </div>
-          <div class="dev-tool-card" onclick="Modules._dev_showTab('links')">
+          <div class="dev-tool-card" data-action="dev-tab2" data-tab2="links">
             <div class="dev-tool-icon">${Icons.render("link")}</div>
             <div class="dev-tool-label">روابط وصور</div>
             <div class="dev-tool-desc">أزرار انتقالية لصفحات/روابط</div>
           </div>
-          <div class="dev-tool-card" onclick="Modules._dev_showTab('backup')">
+          <div class="dev-tool-card" data-action="dev-tab2" data-tab2="backup">
             <div class="dev-tool-icon">${Icons.render("save")}</div>
             <div class="dev-tool-label">النسخ الاحتياطي</div>
             <div class="dev-tool-desc">تصدير/استيراد البيانات</div>
           </div>
-          <div class="dev-tool-card" onclick="Modules._dev_showTab('danger')">
+          <div class="dev-tool-card" data-action="dev-tab2" data-tab2="danger">
             <div class="dev-tool-icon">${Icons.render("alert")}</div>
             <div class="dev-tool-label">منطقة الخطر</div>
             <div class="dev-tool-desc">إعادة ضبط وإجراءات حساسة</div>
@@ -4562,7 +4562,7 @@ window.Modules.developer = window.Modules.settings = function(container) {
         <div class="modal-card" style="max-width:500px">
           <div class="modal-header">
             <h3>${Icons.render("edit")} تعديل عنصر قائمة</h3>
-            <button class="btn btn-sm" onclick="document.getElementById('editMenuModal').style.display='none'">${Icons.render("x")}</button>
+            <button class="btn btn-sm" data-action="modal-close2">${Icons.render("x")}</button>
           </div>
           <div class="modal-body">
             <form id="editMenuForm">
@@ -4576,8 +4576,8 @@ window.Modules.developer = window.Modules.settings = function(container) {
             </form>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="document.getElementById('editMenuModal').style.display='none'">إلغاء</button>
-            <button class="btn btn-primary" onclick="Modules._dev_saveMenu()">حفظ</button>
+            <button class="btn btn-secondary" data-action="modal-close2">إلغاء</button>
+            <button class="btn btn-primary" data-action="dev-save-menu">حفظ</button>
           </div>
         </div>
       </div>
@@ -4587,7 +4587,7 @@ window.Modules.developer = window.Modules.settings = function(container) {
         <div class="modal-card" style="max-width:600px">
           <div class="modal-header">
             <h3>${Icons.render("plus")} إضافة صفحة مخصصة</h3>
-            <button class="btn btn-sm" onclick="document.getElementById('addPageModal').style.display='none'">${Icons.render("x")}</button>
+            <button class="btn btn-sm" data-action="modal-close2">${Icons.render("x")}</button>
           </div>
           <div class="modal-body">
             <form id="addPageForm">
@@ -4599,8 +4599,8 @@ window.Modules.developer = window.Modules.settings = function(container) {
             </form>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="document.getElementById('addPageModal').style.display='none'">إلغاء</button>
-            <button class="btn btn-primary" onclick="Modules._dev_savePage()">حفظ وإضافة للقائمة</button>
+            <button class="btn btn-secondary" data-action="modal-close2">إلغاء</button>
+            <button class="btn btn-primary" data-action="dev-save-page">حفظ وإضافة للقائمة</button>
           </div>
         </div>
       </div>
@@ -4653,7 +4653,7 @@ window.Modules.developer = window.Modules.settings = function(container) {
         <h3>${Icons.render("list")} القوائم المخصصة (الإضافية)</h3>
         <p class="text-muted" style="margin-bottom:12px">القوائم هنا تُضاف للقائمة الجانبية. كل قائمة لها رابط خاص يفتح صفحة مخصصة.</p>
         <div class="btn-row" style="margin-bottom:14px">
-          <button class="btn btn-primary" onclick="Modules._dev_addMenu()">${Icons.render("plus")} إضافة قائمة جديدة</button>
+          <button class="btn btn-primary" data-action="dev-add-menu">${Icons.render("plus")} إضافة قائمة جديدة</button>
         </div>
         <table class="data-table">
           <thead><tr><th>المعرف</th><th>الاسم</th><th>المجموعة</th><th>الصلاحيات</th><th>إجراءات</th></tr></thead>
@@ -4665,7 +4665,7 @@ window.Modules.developer = window.Modules.settings = function(container) {
                 <td><span class="badge badge-info">${m.group}</span></td>
                 <td>${(m.roles || []).join(', ')}</td>
                 <td>
-                  <button class="btn btn-sm btn-danger" onclick="Modules._dev_deleteMenu(${i})">${Icons.render("trash")}</button>
+                  <button class="btn btn-sm btn-danger" data-action="dev-delete-menu" data-dmi="${i})">${Icons.render("trash")}</button>
                 </td>
               </tr>
             `).join('')}
@@ -4700,7 +4700,7 @@ window.Modules.developer = window.Modules.settings = function(container) {
         <h3>${Icons.render("fileText")} الصفحات المخصصة</h3>
         <p class="text-muted" style="margin-bottom:12px">أنشئ صفحات HTML مخصصة واعرضها كأقسام في المنصة.</p>
         <div class="btn-row" style="margin-bottom:14px">
-          <button class="btn btn-primary" onclick="Modules._dev_showAddPage()">${Icons.render("plus")} صفحة جديدة</button>
+          <button class="btn btn-primary" data-action="dev-show-add-page">${Icons.render("plus")} صفحة جديدة</button>
         </div>
         <table class="data-table">
           <thead><tr><th>المعرف</th><th>الاسم</th><th>المجموعة</th><th>إجراءات</th></tr></thead>
@@ -4711,8 +4711,8 @@ window.Modules.developer = window.Modules.settings = function(container) {
                 <td>${p.label}</td>
                 <td><span class="badge badge-info">${p.group}</span></td>
                 <td>
-                  <button class="btn btn-sm" onclick="Modules._dev_previewPage('${p.id}')">${Icons.render("eye")}</button>
-                  <button class="btn btn-sm btn-danger" onclick="Modules._dev_deletePage(${i})">${Icons.render("trash")}</button>
+                  <button class="btn btn-sm" data-action="dev-preview-page" data-pid="'${p.id}')">${Icons.render("eye")}</button>
+                  <button class="btn btn-sm btn-danger" data-action="dev-delete-page" data-dpi="${i})">${Icons.render("trash")}</button>
                 </td>
               </tr>
             `).join('')}
@@ -4747,8 +4747,8 @@ window.Modules.developer = window.Modules.settings = function(container) {
           </div>
         </form>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="Modules._dev_saveTheme()">${Icons.render("save")} حفظ وتطبيق</button>
-          <button class="btn btn-secondary" onclick="Modules._dev_resetTheme()">إعادة الافتراضي</button>
+          <button class="btn btn-primary" data-action="dev-save-theme">${Icons.render("save")} حفظ وتطبيق</button>
+          <button class="btn btn-secondary" data-action="dev-reset-theme">إعادة الافتراضي</button>
         </div>
       </div>
     `;
@@ -4762,7 +4762,7 @@ window.Modules.developer = window.Modules.settings = function(container) {
         <h3>${Icons.render("database")} الحقول المخصصة</h3>
         <p class="text-muted" style="margin-bottom:12px">أضف حقولاً مخصصة (مثل: رقم الهاتف، البريد، تاريخ الميلاد) للموظفين أو المستخدمين.</p>
         <div class="btn-row" style="margin-bottom:14px">
-          <button class="btn btn-primary" onclick="Modules._dev_addField()">${Icons.render("plus")} حقل جديد</button>
+          <button class="btn btn-primary" data-action="dev-add-field">${Icons.render("plus")} حقل جديد</button>
         </div>
         <table class="data-table">
           <thead><tr><th>الاسم</th><th>المفتاح</th><th>النوع</th><th>الجدول</th><th>إجراءات</th></tr></thead>
@@ -4773,7 +4773,7 @@ window.Modules.developer = window.Modules.settings = function(container) {
                 <td><code>${f.key}</code></td>
                 <td><span class="badge badge-info">${f.type}</span></td>
                 <td><span class="badge">${f.table}</span></td>
-                <td><button class="btn btn-sm btn-danger" onclick="Modules._dev_deleteField(${i})">${Icons.render("trash")}</button></td>
+                <td><button class="btn btn-sm btn-danger" data-action="dev-delete-field" data-dfi="${i})">${Icons.render("trash")}</button></td>
               </tr>
             `).join('')}
           </tbody>
@@ -4790,7 +4790,7 @@ window.Modules.developer = window.Modules.settings = function(container) {
         <h3>${Icons.render("link")} الروابط السريعة</h3>
         <p class="text-muted" style="margin-bottom:12px">روابط انتقالية لصفحات داخلية أو خارجية. تظهر كأزرار في القوائم أو كأيقونات.</p>
         <div class="btn-row" style="margin-bottom:14px">
-          <button class="btn btn-primary" onclick="Modules._dev_addLink()">${Icons.render("plus")} رابط جديد</button>
+          <button class="btn btn-primary" data-action="dev-add-link">${Icons.render("plus")} رابط جديد</button>
         </div>
         <table class="data-table">
           <thead><tr><th>الاسم</th><th>النوع</th><th>الهدف</th><th>إجراءات</th></tr></thead>
@@ -4801,8 +4801,8 @@ window.Modules.developer = window.Modules.settings = function(container) {
                 <td><span class="badge badge-info">${l.type}</span></td>
                 <td><code style="font-size:11px">${(l.target || '').substring(0, 40)}</code></td>
                 <td>
-                  <button class="btn btn-sm" onclick="Modules._dev_testLink(${i})">${Icons.render("eye")}</button>
-                  <button class="btn btn-sm btn-danger" onclick="Modules._dev_deleteLink(${i})">${Icons.render("trash")}</button>
+                  <button class="btn btn-sm" data-action="dev-test-link" data-tli="${i})">${Icons.render("eye")}</button>
+                  <button class="btn btn-sm btn-danger" data-action="dev-delete-link" data-dli="${i})">${Icons.render("trash")}</button>
                 </td>
               </tr>
             `).join('')}
@@ -4817,9 +4817,9 @@ window.Modules.developer = window.Modules.settings = function(container) {
       <div class="card">
         <h3>${Icons.render("save")} النسخ الاحتياطي والاستعادة</h3>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="Exports.exportJSON(APP.getDB(), 'celein_backup')">${Icons.render("download")} تصدير نسخة احتياطية (JSON)</button>
-          <button class="btn btn-secondary" onclick="document.getElementById('restoreFile').click()">${Icons.render("upload")} استعادة من ملف</button>
-          <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="Modules._dev_restoreFile(event)" />
+          <button class="btn btn-primary" data-action="dev-export-json">${Icons.render("download")} تصدير نسخة احتياطية (JSON)</button>
+          <button class="btn btn-secondary" data-action="file-trigger" data-target="restoreFile">${Icons.render("upload")} استعادة من ملف</button>
+          <input type="file" id="restoreFile" accept=".json" style="display:none" data-change="restore-file" />
         </div>
         <p class="text-muted" style="margin-top:12px;font-size:13px">النسخ الاحتياطي يحفظ كل بيانات النظام (الموظفين، المستخدمين، الإعدادات، المبيعات، إلخ).</p>
       </div>
@@ -4832,9 +4832,9 @@ window.Modules.developer = window.Modules.settings = function(container) {
         <h3 style="color:#dc2626">${Icons.render("alert")} منطقة الخطر</h3>
         <p class="text-muted" style="margin-bottom:12px">إجراءات حساسة — قد تفقد البيانات. تأكد قبل التنفيذ.</p>
         <div class="btn-row" style="flex-direction:column;align-items:stretch;gap:8px">
-          <button class="btn btn-danger" onclick="Modules._dev_resetUsers()">${Icons.render("refresh")} إعادة ضبط أسماء وكلمات مرور المستخدمين الافتراضية</button>
-          <button class="btn btn-danger" onclick="Modules._dev_clearCustomizations()">حذف كل التخصيصات (القوائم، الصفحات، الحقول)</button>
-          <button class="btn btn-danger" onclick="Modules._dev_factoryReset()">إعادة ضبط المصنع (حذف كل البيانات)</button>
+          <button class="btn btn-danger" data-action="dev-reset-users">${Icons.render("refresh")} إعادة ضبط أسماء وكلمات مرور المستخدمين الافتراضية</button>
+          <button class="btn btn-danger" data-action="dev-clear-custom">حذف كل التخصيصات (القوائم، الصفحات، الحقول)</button>
+          <button class="btn btn-danger" data-action="dev-factory-reset">إعادة ضبط المصنع (حذف كل البيانات)</button>
         </div>
       </div>
     `;
@@ -5198,9 +5198,9 @@ window.Modules.purchaseRequest = function(container) {
       </div>
 
       <div class="tabs">
-        <div class="tab ${_activeTab === 'new' ? 'active' : ''}" onclick="Modules._prSwitchTab('new')">${Icons.render("plus")} طلب جديد</div>
-        <div class="tab ${_activeTab === 'machines' ? 'active' : ''}" onclick="Modules._prSwitchTab('machines')">${Icons.render("settings")} الآلات المعتمدة</div>
-        <div class="tab ${_activeTab === 'sent' ? 'active' : ''}" onclick="Modules._prSwitchTab('sent')">${Icons.render("clipboard")} طلباتي المرسلة (${userRequests.length})</div>
+        <div class="tab ${_activeTab === 'new' ? 'active' : ''}" data-action="pr-tab" data-tab="'new')">${Icons.render("plus")} طلب جديد</div>
+        <div class="tab ${_activeTab === 'machines' ? 'active' : ''}" data-action="pr-tab" data-tab="'machines')">${Icons.render("settings")} الآلات المعتمدة</div>
+        <div class="tab ${_activeTab === 'sent' ? 'active' : ''}" data-action="pr-tab" data-tab="'sent')">${Icons.render("clipboard")} طلباتي المرسلة (${userRequests.length})</div>
       </div>
 
       <div id="prContent"></div>
@@ -5218,7 +5218,7 @@ window.Modules.purchaseRequest = function(container) {
         <h3>${Icons.render("cart")} نوع الطلب</h3>
         <p class="text-muted" style="margin-bottom:18px">اختر نوع الطلب:</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
-          <div onclick="Modules._prStartRaw()" style="cursor:pointer;background:var(--bg);padding:32px 24px;border-radius:var(--radius);box-shadow:var(--shadow-out);transition:all 0.2s" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">
+          <div data-action="pr-start-raw" style="cursor:pointer;background:var(--bg);padding:32px 24px;border-radius:var(--radius);box-shadow:var(--shadow-out);transition:all 0.2s"  >
             <div style="text-align:center">
               <div style="width:80px;height:80px;background:var(--bg);box-shadow:var(--shadow-in-sm);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px">${Icons.render("cart", {size:36})}</div>
               <h3 style="border:none;padding:0;color:var(--primary);font-size:18px;justify-content:center">مواد خام</h3>
@@ -5226,7 +5226,7 @@ window.Modules.purchaseRequest = function(container) {
             </div>
           </div>
 
-          <div onclick="Modules._prStartSpare()" style="cursor:pointer;background:var(--bg);padding:32px 24px;border-radius:var(--radius);box-shadow:var(--shadow-out);transition:all 0.2s" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">
+          <div data-action="pr-start-spare" style="cursor:pointer;background:var(--bg);padding:32px 24px;border-radius:var(--radius);box-shadow:var(--shadow-out);transition:all 0.2s"  >
             <div style="text-align:center">
               <div style="width:80px;height:80px;background:var(--bg);box-shadow:var(--shadow-in-sm);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px">${Icons.render("settings", {size:36})}</div>
               <h3 style="border:none;padding:0;color:var(--primary);font-size:18px;justify-content:center">قطعة غيار</h3>
@@ -5253,7 +5253,7 @@ window.Modules.purchaseRequest = function(container) {
           `).join('')}
         </div>
         <div class="btn-row" style="margin-top:20px">
-          <button class="btn btn-primary" onclick="Modules._prStartSpare()">${Icons.render("plus")} طلب قطعة غيار</button>
+          <button class="btn btn-primary" data-action="pr-start-spare">${Icons.render("plus")} طلب قطعة غيار</button>
         </div>
       </div>
     `;
@@ -5272,7 +5272,7 @@ window.Modules.purchaseRequest = function(container) {
             <div class="icon">${Icons.render("clipboard")}</div>
             <h3>لا توجد طلبات بعد</h3>
             <p>قم بإنشاء طلب شراء جديد من تبويب "طلب جديد"</p>
-            <button class="btn btn-primary" style="margin-top:14px" onclick="Modules._prSwitchTab('new')">${Icons.render("plus")} إنشاء طلب</button>
+            <button class="btn btn-primary" style="margin-top:14px" data-action="pr-tab" data-tab="'new')">${Icons.render("plus")} إنشاء طلب</button>
           </div>
         </div>
       `;
@@ -5335,13 +5335,13 @@ window.Modules.purchaseRequest = function(container) {
 
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${r.status === 'pending' ? `
-            <button class="btn btn-primary btn-sm" onclick="Modules._prEditRequest(${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("edit")} تعديل</button>
-            <button class="btn btn-danger btn-sm" onclick="Modules._prCancelRequest(${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("close")} إلغاء الطلب</button>
+            <button class="btn btn-primary btn-sm" data-action="pr-edit" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("edit")} تعديل</button>
+            <button class="btn btn-danger btn-sm" data-action="pr-cancel" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("close")} إلغاء الطلب</button>
           ` : ''}
           ${r.status === 'pending' || r.status === 'seen' ? `
-            <button class="btn btn-warning btn-sm" onclick="Modules._prRemind(${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("bell")} تذكير (${r.reminders || 0})</button>
+            <button class="btn btn-warning btn-sm" data-action="pr-remind" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("bell")} تذكير (${r.reminders || 0})</button>
           ` : ''}
-          <button class="btn btn-secondary btn-sm" onclick="Modules._prViewRequest(${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("eye")} عرض</button>
+          <button class="btn btn-secondary btn-sm" data-action="pr-view" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("eye")} عرض</button>
         </div>
 
         ${r.processedBy ? `<div class="text-muted" style="margin-top:10px;font-size:12px">تم المعالجة بواسطة: ${r.processedBy} في ${r.processedDate}</div>` : ''}
@@ -5382,7 +5382,7 @@ window.Modules.purchaseRequest = function(container) {
       <div class="card">
         <div class="header-row">
           <h3>${Icons.render("cart")} طلب مواد خام</h3>
-          <button class="btn btn-secondary btn-sm" onclick="Modules._prSwitchTab('new')">${Icons.render("arrowRight")} رجوع</button>
+          <button class="btn btn-secondary btn-sm" data-action="pr-tab" data-tab="'new')">${Icons.render("arrowRight")} رجوع</button>
         </div>
         <div class="alert alert-info">
           ${Icons.render("info")}
@@ -5424,7 +5424,7 @@ window.Modules.purchaseRequest = function(container) {
                 <td><span class="text-muted">${m.unit} (${m.sample.packUnit})</span></td>
                 <td class="text-muted">${m.sample.name}</td>
                 <td><span class="text-primary"><b>${m.sample.pack.toLocaleString('ar-EG')}</b></span></td>
-                <td><input type="number" min="0" id="pr_raw_qty_${i}" value="0" oninput="Modules._prRecalculate()" style="width:120px;text-align:center;font-weight:700" /></td>
+                <td><input type="number" min="0" id="pr_raw_qty_${i}" value="0" data-change="calc-pr" style="width:120px;text-align:center;font-weight:700" /></td>
                 <td><input type="text" id="pr_raw_notes_${i}" placeholder="اختياري" style="width:100%" /></td>
               </tr>
             `).join('')}
@@ -5438,8 +5438,8 @@ window.Modules.purchaseRequest = function(container) {
         </div>
 
         <div class="btn-row">
-          <button class="btn btn-success" onclick="Modules._prSubmitRaw()">${Icons.render("upload")} إرسال الطلب إلى المشتريات</button>
-          <button class="btn btn-secondary" onclick="Modules._prSwitchTab('new')">إلغاء</button>
+          <button class="btn btn-success" data-action="pr-submit-raw">${Icons.render("upload")} إرسال الطلب إلى المشتريات</button>
+          <button class="btn btn-secondary" data-action="pr-tab" data-tab="'new')">إلغاء</button>
         </div>
       </div>
 
@@ -5677,7 +5677,7 @@ window.Modules.purchaseRequest = function(container) {
       <div class="card">
         <div class="header-row">
           <h3>${Icons.render("settings")} ${isEdit ? 'تعديل طلب قطعة غيار' : 'طلب قطعة غيار'}</h3>
-          <button class="btn btn-secondary btn-sm" onclick="Modules._prSwitchTab('${isEdit ? 'sent' : 'new'}')">${Icons.render("arrowRight")} رجوع</button>
+          <button class="btn btn-secondary btn-sm" data-action="pr-tab" data-tab="'${isEdit ? 'sent' : 'new'}')">${Icons.render("arrowRight")} رجوع</button>
         </div>
 
         <div class="alert alert-info">
@@ -5701,7 +5701,7 @@ window.Modules.purchaseRequest = function(container) {
         <div class="form-grid">
           <div class="form-group">
             <label>الآلة</label>
-            <select id="pr_spare_machine" onchange="Modules._prMachineChanged()">
+            <select id="pr_spare_machine" data-change="machine-changed">
               <option value="">-- اختر الآلة --</option>
               ${MACHINES.map(m => `<option value="${m}">${m}</option>`).join('')}
             </select>
@@ -5715,7 +5715,7 @@ window.Modules.purchaseRequest = function(container) {
         <div id="pr_spare_items_container"></div>
 
         <div class="btn-row" style="margin-top:14px">
-          <button class="btn btn-primary" onclick="Modules._prAddSpareItem()">${Icons.render("plus")} إضافة قطعة</button>
+          <button class="btn btn-primary" data-action="pr-add-spare-item">${Icons.render("plus")} إضافة قطعة</button>
         </div>
 
         <div class="form-group" style="margin-top:16px">
@@ -5724,8 +5724,8 @@ window.Modules.purchaseRequest = function(container) {
         </div>
 
         <div class="btn-row">
-          <button class="btn btn-success" onclick="Modules._prSubmitSpare(${isEdit ? editReq.id : 'null'})">${Icons.render("upload")} ${isEdit ? 'تحديث وإرسال' : 'إرسال الطلب إلى المشتريات'}</button>
-          <button class="btn btn-secondary" onclick="Modules._prSwitchTab('${isEdit ? 'sent' : 'new'}')">إلغاء</button>
+          <button class="btn btn-success" data-action="pr-submit-spare" data-sid="${isEdit ? editReq.id : 'null'})">${Icons.render("upload")} ${isEdit ? 'تحديث وإرسال' : 'إرسال الطلب إلى المشتريات'}</button>
+          <button class="btn btn-secondary" data-action="pr-tab" data-tab="'${isEdit ? 'sent' : 'new'}')">إلغاء</button>
         </div>
       </div>
 
@@ -5760,7 +5760,7 @@ window.Modules.purchaseRequest = function(container) {
     div.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <b style="color:var(--primary)">${Icons.render("settings")} القطعة #${idx+1}</b>
-        <button class="btn btn-danger btn-sm" onclick="this.closest('.spare-item-form').remove(); Modules._prRenumberItems();">${Icons.render("trash")} حذف</button>
+        <button class="btn btn-danger btn-sm" data-action="remove-spare-item">${Icons.render("trash")} حذف</button>
       </div>
 
       <div class="form-grid">
@@ -5798,17 +5798,17 @@ window.Modules.purchaseRequest = function(container) {
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:12px">
         <div>
           <label style="font-size:12px;font-weight:700;color:var(--text);display:block;margin-bottom:6px">${Icons.render("factory")} صورة الآلة</label>
-          <input type="file" accept="image/*" class="spare-photo-machine" onchange="Modules._prHandlePhoto(this, 'machinePhoto', ${idx})" />
+          <input type="file" accept="image/*" class="spare-photo-machine" data-change="spare-photo" data-ptype="machinePhoto" data-pidx="${idx}" />
           ${item.machinePhoto ? `<img src="${item.machinePhoto}" style="margin-top:6px;width:80px;height:80px;object-fit:cover;border-radius:6px;box-shadow:var(--shadow-in-sm)" />` : ''}
         </div>
         <div>
           <label style="font-size:12px;font-weight:700;color:var(--text);display:block;margin-bottom:6px">${Icons.render("settings")} صورة القطعة</label>
-          <input type="file" accept="image/*" class="spare-photo-part" onchange="Modules._prHandlePhoto(this, 'partPhoto', ${idx})" />
+          <input type="file" accept="image/*" class="spare-photo-part" data-change="spare-photo" data-ptype="partPhoto" data-pidx="${idx}" />
           ${item.partPhoto ? `<img src="${item.partPhoto}" style="margin-top:6px;width:80px;height:80px;object-fit:cover;border-radius:6px;box-shadow:var(--shadow-in-sm)" />` : ''}
         </div>
         <div>
           <label style="font-size:12px;font-weight:700;color:var(--text);display:block;margin-bottom:6px">${Icons.render("document")} لوحة بيانات الآلة</label>
-          <input type="file" accept="image/*" class="spare-photo-nameplate" onchange="Modules._prHandlePhoto(this, 'nameplatePhoto', ${idx})" />
+          <input type="file" accept="image/*" class="spare-photo-nameplate" data-change="spare-photo" data-ptype="nameplatePhoto" data-pidx="${idx}" />
           ${item.nameplatePhoto ? `<img src="${item.nameplatePhoto}" style="margin-top:6px;width:80px;height:80px;object-fit:cover;border-radius:6px;box-shadow:var(--shadow-in-sm)" />` : ''}
         </div>
       </div>
@@ -5993,11 +5993,11 @@ window.Modules.purchaseRequest = function(container) {
       <div class="modal" style="max-width:800px">
         <div class="modal-header">
           <h3>${Icons.render("eye")} تفاصيل الطلب</h3>
-          <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+          <button class="modal-close" data-action="modal-close">×</button>
         </div>
         <div class="modal-body">${html}</div>
         <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">إغلاق</button>
+          <button class="btn btn-secondary" data-action="modal-close">إغلاق</button>
         </div>
       </div>
     `;
@@ -6171,11 +6171,11 @@ window.Modules._showRequestModal = function(req) {
     <div class="modal" style="max-width:800px">
       <div class="modal-header">
         <h3>${window.Icons.render("eye")} تفاصيل الطلب ${req.code}</h3>
-        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+        <button class="modal-close" data-action="modal-close">×</button>
       </div>
       <div class="modal-body">${html}</div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">إغلاق</button>
+        <button class="btn btn-secondary" data-action="modal-close">إغلاق</button>
       </div>
     </div>
   `;
@@ -6189,11 +6189,11 @@ window.Modules._showRequestModalHtml = function(title, html) {
     <div class="modal" style="max-width:900px">
       <div class="modal-header">
         <h3>${title}</h3>
-        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+        <button class="modal-close" data-action="modal-close">×</button>
       </div>
       <div class="modal-body">${html}</div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">إغلاق</button>
+        <button class="btn btn-secondary" data-action="modal-close">إغلاق</button>
       </div>
     </div>
   `;
@@ -6241,7 +6241,7 @@ window.Modules.myRequests = function(container) {
     html += '<div class="card">';
     html += '<div class="header-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px">';
     html += '<h3>' + Icons.render("inbox") + ' طلباتي (' + myReqs.length + ')</h3>';
-    html += '<button class="btn btn-primary" onclick="APP.navigate(\'newRequest\')">' + Icons.render("plus") + ' طلب جديد</button></div>';
+    html += '<button class="btn btn-primary" data-action="nav-new-request">' + Icons.render("plus") + ' طلب جديد</button></div>';
 
     if (notifs.length > 0) {
       html += '<div class="alert alert-info" style="margin-bottom:14px"><span>' + Icons.render("bell") + '</span> <span><b>آخر الإشعارات:</b> ';
@@ -6253,7 +6253,7 @@ window.Modules.myRequests = function(container) {
       html += '<div class="empty-state" style="text-align:center;padding:30px">';
       html += '<div style="font-size:48px;color:var(--text-muted)">' + Icons.render("inbox") + '</div>';
       html += '<p style="color:var(--text-muted);margin-top:12px">لا توجد طلبات حتى الآن</p>';
-      html += '<button class="btn btn-primary" onclick="APP.navigate(\'newRequest\')" style="margin-top:12px">' + Icons.render("plus") + ' قدّم طلبك الأول</button></div>';
+      html += '<button class="btn btn-primary" data-action="nav-new-request" style="margin-top:12px">' + Icons.render("plus") + ' قدّم طلبك الأول</button></div>';
     } else {
       html += '<table class="data-table"><thead><tr><th>رقم الطلب</th><th>النوع</th><th>العنوان</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody>';
       myReqs.forEach(function(r) {
@@ -6264,9 +6264,9 @@ window.Modules.myRequests = function(container) {
         html += '<td class="text-muted">' + new Date(r.createdAt).toLocaleDateString('ar-EG') + '</td>';
         html += '<td class="text-primary"><b>' + (r.amount ? r.amount.toLocaleString('ar-EG') + ' ر.ي' : '-') + '</b></td>';
         html += '<td><span class="badge ' + (SelfService.STATUS_COLORS[r.status] || 'badge-info') + '">' + esc(SelfService.STATUS_LABELS[r.status] || r.status) + '</span></td>';
-        html += '<td><button class="btn btn-sm" onclick="Modules._viewRequest(\'' + r.id + '\')" title="عرض">' + Icons.render("eye") + '</button>';
+        html += '<td><button class="btn btn-sm" data-action="view-request" data-rid="\'' + r.id + '\')" title="عرض">' + Icons.render("eye") + '</button>';
         if (['draft','pending_manager','pending_admin','pending_dept','pending_gm'].indexOf(r.status) >= 0) {
-          html += ' <button class="btn btn-sm btn-danger" onclick="Modules._cancelRequest(\'' + r.id + '\')" title="إلغاء">' + Icons.render("x") + '</button>';
+          html += ' <button class="btn btn-sm btn-danger" data-action="cancel-request" data-rid="\'' + r.id + '\')" title="إلغاء">' + Icons.render("x") + '</button>';
         }
         html += '</td></tr>';
       });
@@ -6279,7 +6279,7 @@ window.Modules.myRequests = function(container) {
     html += '<div class="modal-card" style="background:var(--bg-card);border-radius:12px;padding:20px;max-width:700px;width:90%;max-height:80vh;overflow:auto">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">';
     html += '<h3 id="requestDetailTitle" style="margin:0">تفاصيل الطلب</h3>';
-    html += '<button class="btn btn-sm" onclick="document.getElementById(\'requestDetailModal\').style.display=\'none\'">' + Icons.render("x") + '</button></div>';
+    html += '<button class="btn btn-sm" data-action="modal-close2">' + Icons.render("x") + '</button></div>';
     html += '<div id="requestDetailBody"></div></div></div>';
 
     container.innerHTML = html;
@@ -6357,7 +6357,7 @@ window.Modules.newRequest = function(container) {
     html += '<h3>' + Icons.render("plus") + ' اختيار نوع الطلب</h3>';
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">';
     SelfService.REQUEST_TYPES.forEach(function(t) {
-      html += '<div class="request-type-card" onclick="Modules._selectRequestType(\'' + t.id + '\')">';
+      html += '<div class="request-type-card" data-action="select-req-type" data-tid="\'' + t.id + '\')">';
       html += '<div class="request-type-icon">' + Icons.render(t.icon) + '</div>';
       html += '<div class="request-type-label">' + esc(t.label) + '</div>';
       html += '<div class="request-type-dept">' + esc(t.dept) + ' - ' + t.subTypes.length + ' فئة</div>';
@@ -6381,7 +6381,7 @@ window.Modules.newRequest = function(container) {
     html += '<h3>' + Icons.render(type.icon) + ' ' + esc(type.label) + '</h3>';
     html += '<p class="text-muted" style="margin-bottom:14px">' + specialNote + '</p>';
     html += '<div class="form-group"><label>الفئة الفرعية *</label>';
-    html += '<select id="req_subType" required onchange="Modules._onSubTypeChange(\'' + typeId + '\')">';
+    html += '<select id="req_subType" required data-change="subtype-change" data-typeid="\'' + typeId + '\')">';
     html += '<option value="">-- اختر الفئة --</option>';
     type.subTypes.forEach(function(st) {
       html += '<option value="' + st.id + '">' + esc(st.label) + '</option>';
@@ -6423,8 +6423,8 @@ window.Modules.newRequest = function(container) {
     html += '<div class="form-group" style="grid-column: span 2"><label>ملاحظات إضافية (اختياري)</label><textarea id="req_description" rows="2" placeholder="أي تفاصيل إضافية"></textarea></div>';
     html += '</form>';
     html += '<div class="btn-row" style="margin-top:14px">';
-    html += '<button class="btn btn-secondary" onclick="document.getElementById(\'newRequestForm\').style.display=\'none\'">' + Icons.render("x") + ' إلغاء</button>';
-    html += '<button class="btn btn-primary" onclick="Modules._submitRequest(\'' + typeId + '\', \'' + subTypeId + '\')">' + Icons.render("send") + ' تقديم الطلب</button>';
+    html += '<button class="btn btn-secondary" data-action="modal-close2">' + Icons.render("x") + ' إلغاء</button>';
+    html += '<button class="btn btn-primary" data-action="submit-request"\'' + typeId + '\', \'' + subTypeId + '\')">' + Icons.render("send") + ' تقديم الطلب</button>';
     html += '</div>';
 
     document.getElementById('subTypeForm').innerHTML = html;
@@ -6518,9 +6518,9 @@ window.Modules.incomingRequests = function(container) {
         html += '<td class="text-primary"><b>' + (r.amount ? r.amount.toLocaleString('ar-EG') + ' ر.ي' : '-') + '</b></td>';
         html += '<td class="text-muted">' + new Date(r.createdAt).toLocaleDateString('ar-EG') + '</td>';
         html += '<td>';
-        html += '<button class="btn btn-sm" onclick="Modules._viewRequest(\'' + r.id + '\')" title="عرض">' + Icons.render("eye") + '</button> ';
-        html += '<button class="btn btn-sm btn-success" onclick="Modules._approveRequest(\'' + r.id + '\')" title="اعتماد">' + Icons.render("check") + '</button> ';
-        html += '<button class="btn btn-sm btn-danger" onclick="Modules._rejectRequestUI(\'' + r.id + '\')" title="رفض">' + Icons.render("x") + '</button>';
+        html += '<button class="btn btn-sm" data-action="view-request" data-rid="\'' + r.id + '\')" title="عرض">' + Icons.render("eye") + '</button> ';
+        html += '<button class="btn btn-sm btn-success" data-action="approve-request" data-rid="\'' + r.id + '\')" title="اعتماد">' + Icons.render("check") + '</button> ';
+        html += '<button class="btn btn-sm btn-danger" data-action="reject-request" data-rid="\'' + r.id + '\')" title="رفض">' + Icons.render("x") + '</button>';
         html += '</td></tr>';
       });
       html += '</tbody></table>';
@@ -6591,7 +6591,7 @@ window.Modules.myDashboard = function(container) {
   html += '<tr><td class="text-muted">تاريخ التعيين</td><td>' + esc(emp.hireDate || '-') + '</td></tr>';
   html += '<tr><td class="text-muted">رقم الهاتف</td><td>' + esc(emp.phone || '-') + '</td></tr>';
   html += '</table>';
-  html += '<div class="btn-row" style="margin-top:12px"><button class="btn btn-sm" onclick="APP.navigate(\'profile\')">' + Icons.render("edit") + ' تعديل بياناتي</button></div>';
+  html += '<div class="btn-row" style="margin-top:12px"><button class="btn btn-sm" data-action="nav-profile2">' + Icons.render("edit") + ' تعديل بياناتي</button></div>';
   html += '</div>';
 
   html += '<div class="card"><h3>' + Icons.render("fileText") + ' رواتبي الشهرية</h3>';
@@ -6683,10 +6683,222 @@ window.Modules.salarySlip = function(container) {
   html += '<p style="margin:4px 0 0 0" class="text-muted">فقط ' + toArabicWords(net) + ' ريال يمني</p>';
   html += '</div>';
   html += '<div class="btn-row" style="margin-top:14px">';
-  html += '<button class="btn btn-primary" onclick="window.print()">' + Icons.render("printer") + ' طباعة</button>';
+  html += '<button class="btn btn-primary" data-action="print-page2">' + Icons.render("printer") + ' طباعة</button>';
   html += '</div></div>';
 
   container.innerHTML = html;
 };
 
 console.log('Self-service modules v2 loaded (string concat only)');
+
+
+// ============================================================
+// GLOBAL EVENT DELEGATION - NO INLINE onclick/oninput/onchange
+// All module interactions go through data-* attributes
+// ============================================================
+(function() {
+  document.addEventListener('click', function(e) {
+    var el = e.target.closest('[data-action]');
+    if (!el) return;
+    var action = el.dataset.action;
+
+    // --- Pricing ---
+    if (action === 'save-pricing') { Modules._savePricing && Modules._savePricing(); return; }
+
+    // --- Vouchers ---
+    if (action === 'add-voucher') { Modules._addVoucher && Modules._addVoucher(); return; }
+    if (action === 'delete-voucher') { var idx = parseInt(el.dataset.vidx); Modules._deleteVoucher && Modules._deleteVoucher(idx); return; }
+
+    // --- Sales ---
+    if (action === 'export-sales') { Modules.exportTable && Modules.exportTable('salesReps', 'أداء_المناديب'); return; }
+
+    // --- Agents ---
+    if (action === 'delete-agent') { var idx = parseInt(el.dataset.aidx); Modules._deleteAgent && Modules._deleteAgent(idx); return; }
+    if (action === 'add-agent') { Modules._addAgent && Modules._addAgent(); return; }
+
+    // --- Lab ---
+    if (action === 'add-lab') { Modules._addLab && Modules._addLab(); return; }
+    if (action === 'delete-lab') { var idx = parseInt(el.dataset.lidx); Modules._deleteLab && Modules._deleteLab(idx); return; }
+
+    // --- Cash Flow (in modules2.js already has its own delegation) ---
+    if (['add-incoming','add-outgoing','auto-post','view-alerts','add-customer-credit',
+         'edit-credit','unblock-credit','receive-payment','resolve-alert',
+         'mark-read','delete-flow','close-modal'].indexOf(action) !== -1) { return; /* handled by module */ }
+
+    // --- Procurement / Purchase Requests ---
+    if (action === 'pr-view-incoming') { var pidx = parseInt(el.dataset.pidx); Modules._prViewIncoming && Modules._prViewIncoming(pidx); return; }
+    if (action === 'pr-approve') { var pidx = parseInt(el.dataset.pidx); Modules._prApprove && Modules._prApprove(pidx); return; }
+    if (action === 'pr-reject') { var pidx = parseInt(el.dataset.pidx); Modules._prReject && Modules._prReject(pidx); return; }
+    if (action === 'pr-toggle-all') { Modules._prToggleRequests && Modules._prToggleRequests(); return; }
+    if (action === 'add-purchase') { Modules._addPurchase && Modules._addPurchase(); return; }
+
+    // --- HR Tabs ---
+    if (action === 'hr-tab-registry') { Modules._hrTab && Modules._hrTab('registry'); return; }
+    if (action === 'nav-orgtree') { APP.navigate && APP.navigate('orgtree'); return; }
+    if (action === 'nav-orgchart') { APP.navigate && APP.navigate('orgchart'); return; }
+    if (action === 'nav-permissions') { APP.navigate && APP.navigate('permissions'); return; }
+    if (action === 'nav-terminated') { APP.navigate && APP.navigate('terminated'); return; }
+
+    // --- HR Employees ---
+    if (action === 'add-employee') { Modules._addEmployee && Modules._addEmployee(); return; }
+    if (action === 'edit-employee') { Modules._editEmployee && Modules._editEmployee(el.dataset.eid); return; }
+    if (action === 'change-status') { Modules._changeStatus && Modules._changeStatus(el.dataset.eid); return; }
+    if (action === 'delete-employee') { Modules._deleteEmployee && Modules._deleteEmployee(el.dataset.eid); return; }
+    if (action === 'toggle-dept') { Modules._toggleDeptSection && Modules._toggleDeptSection(parseInt(el.dataset.didx)); return; }
+    if (action === 'save-employee') { Modules._saveEmployee && Modules._saveEmployee(); return; }
+
+    // --- HR Users ---
+    if (action === 'save-user') { Modules._saveUser && Modules._saveUser(); return; }
+    if (action === 'cancel-user-edit') { Modules._cancelUserEdit && Modules._cancelUserEdit(); return; }
+    if (action === 'add-user') { Modules._addUser && Modules._addUser(); return; }
+    if (action === 'edit-user') { Modules._editUser && Modules._editUser(parseInt(el.dataset.uidx)); return; }
+    if (action === 'toggle-user') { Modules._toggleUser && Modules._toggleUser(parseInt(el.dataset.uidx)); return; }
+    if (action === 'edit-permissions') { Modules._editPermissions && Modules._editPermissions(parseInt(el.dataset.puid)); return; }
+    if (action === 'save-permissions') { Modules._savePermissions && Modules._savePermissions(parseInt(el.dataset.spuid)); return; }
+    if (action === 'reset-user-form') { var uf = document.getElementById('userForm'); if (uf) uf.reset(); return; }
+
+    // --- Profile ---
+    if (action === 'change-password') { Modules._changePassword && Modules._changePassword(); return; }
+    if (action === 'save-idcard') { Modules._saveIDCardData && Modules._saveIDCardData(parseInt(el.dataset.eid)); return; }
+    if (action === 'terminate-employee') { Modules._terminateEmployee && Modules._terminateEmployee(parseInt(el.dataset.eid)); return; }
+    if (action === 'nav-new-request') { APP.navigate && APP.navigate('newRequest'); return; }
+
+    // --- Documents ---
+    if (action === 'delete-doc') {
+      Modules._deleteEmployeeDocument && Modules._deleteEmployeeDocument(parseInt(el.dataset.eid), el.dataset.doctype);
+      return;
+    }
+
+    // --- Spare Requests ---
+    if (action === 'pr-start-spare') { Modules._prStartSpare && Modules._prStartSpare(); return; }
+    if (action === 'pr-tab') { Modules._prSwitchTab && Modules._prSwitchTab(el.dataset.tab); return; }
+    if (action === 'pr-edit') { Modules._prEditRequest && Modules._prEditRequest(parseInt(el.dataset.pidx)); return; }
+    if (action === 'pr-cancel') { Modules._prCancelRequest && Modules._prCancelRequest(parseInt(el.dataset.pidx)); return; }
+    if (action === 'pr-remind') { Modules._prRemind && Modules._prRemind(parseInt(el.dataset.pidx)); return; }
+    if (action === 'pr-view') { Modules._prViewRequest && Modules._prViewRequest(parseInt(el.dataset.pidx)); return; }
+    if (action === 'pr-submit-raw') { Modules._prSubmitRaw && Modules._prSubmitRaw(); return; }
+    if (action === 'pr-add-spare-item') { Modules._prAddSpareItem && Modules._prAddSpareItem(); return; }
+    if (action === 'pr-submit-spare') { Modules._prSubmitSpare && Modules._prSubmitSpare(el.dataset.sid === 'null' ? null : el.dataset.sid); return; }
+    if (action === 'remove-spare-item') { var f = el.closest('.spare-item-form'); if (f) f.remove(); Modules._prRenumberItems && Modules._prRenumberItems(); return; }
+
+    // --- Self-service ---
+    if (action === 'view-request') { Modules._viewRequest && Modules._viewRequest(el.dataset.rid); return; }
+    if (action === 'cancel-request') { Modules._cancelRequest && Modules._cancelRequest(el.dataset.rid); return; }
+    if (action === 'approve-request') { Modules._approveRequest && Modules._approveRequest(el.dataset.rid); return; }
+    if (action === 'reject-request') { Modules._rejectRequestUI && Modules._rejectRequestUI(el.dataset.rid); return; }
+    if (action === 'select-req-type') { Modules._selectRequestType && Modules._selectRequestType(el.dataset.tid); return; }
+    if (action === 'submit-request') { Modules._submitRequest && Modules._submitRequest(el.dataset.typeid, el.dataset.subtypeid); return; }
+
+    // --- Reports ---
+    if (action === 'export-pdf') { Modules.exportToPDF && Modules.exportToPDF(); return; }
+    if (action === 'export-excel') { Modules.exportToExcel && Modules.exportToExcel(); return; }
+    if (action === 'export-backup') { Modules.exportBackup && Modules.exportBackup(); return; }
+    if (action === 'print-page') { window.print && window.print(); return; }
+
+    // --- File trigger (opens file input) ---
+    if (action === 'file-trigger') { var target = el.dataset.target; var inp = document.getElementById(target); if (inp) inp.click(); return; }
+
+    // --- Modal close ---
+    if (action === 'modal-close') {
+      var m = el.closest('.modal-overlay') || el.closest('.modal-content') ||
+              el.closest('[class*="modal"]') || el.closest('[id*="modal"]') ||
+              el.closest('#editEmpModal') || el.closest('#permissionsModal') ||
+              el.closest('#requestDetailModal') || el.closest('#newRequestForm') ||
+              el.closest('.modal');
+      if (m) { m.style.display = 'none'; return; }
+      // Handle specific target
+      var target = el.dataset.target;
+      if (target) { var specific = document.getElementById(target); if (specific) specific.style.display = 'none'; }
+      return;
+    }
+
+    // --- Dev tools ---
+    if (action === 'dev-save-menu') { Modules._dev_saveMenu && Modules._dev_saveMenu(); return; }
+    if (action === 'dev-save-page') { Modules._dev_savePage && Modules._dev_savePage(); return; }
+    if (action === 'dev-add-menu') { Modules._dev_addMenu && Modules._dev_addMenu(); return; }
+    if (action === 'dev-delete-menu') { Modules._dev_deleteMenu && Modules._dev_deleteMenu(el.dataset.dmi); return; }
+    if (action === 'dev-show-add-page') { Modules._dev_showAddPage && Modules._dev_showAddPage(); return; }
+    if (action === 'dev-preview-page') { Modules._dev_previewPage && Modules._dev_previewPage(el.dataset.pid); return; }
+    if (action === 'dev-delete-page') { Modules._dev_deletePage && Modules._dev_deletePage(el.dataset.dpi); return; }
+    if (action === 'dev-save-theme') { Modules._dev_saveTheme && Modules._dev_saveTheme(); return; }
+    if (action === 'dev-reset-theme') { Modules._dev_resetTheme && Modules._dev_resetTheme(); return; }
+    if (action === 'dev-add-field') { Modules._dev_addField && Modules._dev_addField(); return; }
+    if (action === 'dev-delete-field') { Modules._dev_deleteField && Modules._dev_deleteField(el.dataset.dfi); return; }
+    if (action === 'dev-add-link') { Modules._dev_addLink && Modules._dev_addLink(); return; }
+    if (action === 'dev-test-link') { Modules._dev_testLink && Modules._dev_testLink(el.dataset.tli); return; }
+    if (action === 'dev-delete-link') { Modules._dev_deleteLink && Modules._dev_deleteLink(el.dataset.dli); return; }
+    if (action === 'dev-export-json') { Exports.exportJSON && Exports.exportJSON(APP.getDB(), 'celein_backup'); return; }
+    if (action === 'dev-reset-users') { Modules._dev_resetUsers && Modules._dev_resetUsers(); return; }
+    if (action === 'dev-clear-custom') { Modules._dev_clearCustomizations && Modules._dev_clearCustomizations(); return; }
+    if (action === 'dev-factory-reset') { Modules._dev_factoryReset && Modules._dev_factoryReset(); return; }
+    if (action === 'dev-tab2') { Modules._dev_showTab && Modules._dev_showTab(el.dataset.tab2); return; }
+    // --- Org chart ---
+    if (action === 'orgchart-pdf') { Modules._exportOrgChart && Modules._exportOrgChart('pdf'); return; }
+    if (action === 'orgchart-print') { Modules._exportOrgChart && Modules._exportOrgChart('print'); return; }
+    if (action === 'expand-all-depts') { Modules._expandAllDepts && Modules._expandAllDepts(); return; }
+    if (action === 'collapse-all-depts') { Modules._collapseAllDepts && Modules._collapseAllDepts(); return; }
+    // --- Org tree ---
+    if (action === 'orgtree-zoom-in') { Modules._orgtreeZoom && Modules._orgtreeZoom(0.2); return; }
+    if (action === 'orgtree-zoom-out') { Modules._orgtreeZoom && Modules._orgtreeZoom(-0.2); return; }
+    if (action === 'orgtree-reset') { Modules._orgtreeReset && Modules._orgtreeReset(); return; }
+    if (action === 'orgtree-fit') { Modules._orgtreeFit && Modules._orgtreeFit(); return; }
+    if (action === 'orgtree-select') { Modules._orgtreeSelect && Modules._orgtreeSelect(el.dataset.nid); return; }
+    if (action === 'orgtree-toggle') { Modules._orgtreeToggle && Modules._orgtreeToggle(el.dataset.nid3); return; }
+    if (action === 'toggle-dept2') { Modules._toggleDept && Modules._toggleDept(el.dataset.dname); return; }
+    if (action === 'toggle-dept') { Modules._toggleDeptSection && Modules._toggleDeptSection(parseInt(el.dataset.didx)); return; }
+    // --- Procurement ---
+    if (action === 'export-inventory') { Modules.exportTable && Modules.exportTable('inventory', 'جرد_المخزون'); return; }
+    if (action === 'pr-start-raw') { Modules._prStartRaw && Modules._prStartRaw(); return; }
+    // --- HR ---
+    if (action === 'reinstate-employee') { Modules._reinstateEmployee && Modules._reinstateEmployee(parseInt(el.dataset.eid2)); return; }
+    // --- Self-service nav ---
+    if (action === 'nav-my-requests') { APP.navigate && APP.navigate('myRequests'); return; }
+    if (action === 'nav-profile2') { APP.navigate && APP.navigate('profile'); return; }
+    if (action === 'modal-close-pm') { var pm = document.getElementById('permissionsModal'); if (pm) pm.style.display = 'none'; return; }
+    if (action === 'modal-close2') {
+      var candidates = ['permissionsModal','editMenuModal','addPageModal','requestDetailModal','newRequestForm'];
+      candidates.forEach(function(id) { var m = document.getElementById(id); if (m) m.style.display = 'none'; });
+      return;
+    }
+    if (action === 'do-auto-post') { Modules._doAutoPost && Modules._doAutoPost(); return; }
+    if (action === 'print-page2') { window.print && window.print(); return; }
+
+  });
+
+  // --- INPUT delegation (data-input attributes) ---
+  document.addEventListener('input', function(e) {
+    var el = e.target;
+    var inp = el.dataset.input;
+    if (!inp) return;
+    if (inp === 'filter-depts') { Modules._filterDepts && Modules._filterDepts(); return; }
+    if (inp === 'filter-users') { Modules._filterUsers && Modules._filterUsers(); return; }
+  });
+
+  // --- CHANGE delegation (data-change attributes) ---
+  document.addEventListener('change', function(e) {
+    var el = e.target;
+    var chg = el.dataset.change;
+    if (!chg) return;
+    if (chg === 'calc-p') { Modules._pRecalculate && Modules._pRecalculate(); return; }
+    if (chg === 'calc-pr') { Modules._prRecalculate && Modules._prRecalculate(); return; }
+    if (chg === 'supplier-changed') { Modules._pSupplierChanged && Modules._pSupplierChanged(); return; }
+    if (chg === 'material-changed') { Modules._pMaterialChanged && Modules._pMaterialChanged(); return; }
+    if (chg === 'machine-changed') { Modules._prMachineChanged && Modules._prMachineChanged(); return; }
+    if (chg === 'subtype-change') {
+      Modules._onSubTypeChange && Modules._onSubTypeChange(el.dataset.typeid);
+      return;
+    }
+    if (chg === 'file-upload') {
+      Modules._handleFileUpload && Modules._handleFileUpload(el, el.dataset.type, parseInt(el.dataset.eid));
+      return;
+    }
+    if (chg === 'restore-file') {
+      Modules._dev_restoreFile && Modules._dev_restoreFile(e);
+      return;
+    }
+    if (chg === 'spare-photo') {
+      Modules._prHandlePhoto && Modules._prHandlePhoto(el, el.dataset.ptype, parseInt(el.dataset.pidx));
+      return;
+    }
+  });
+})();
