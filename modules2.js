@@ -545,6 +545,128 @@ window.Modules.sales = function(container) {
         <canvas id="chartReps" height="100"></canvas>
       </div>
 
+      <!-- ===== إدارة المناديب ===== -->
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("users")} إدارة المناديب</h3>
+          <button class="btn btn-primary btn-sm" data-action="add-rep-form">${Icons.render("plus")} إضافة مندوب</button>
+        </div>
+        <div id="addRepForm" style="display:none;background:var(--bg-darker);padding:16px;border-radius:12px;margin-bottom:16px">
+          <h4 style="margin-top:0">${Icons.render("plus")} إضافة مندوب جديد</h4>
+          <div class="form-grid" style="grid-template-columns:repeat(4,1fr)">
+            <div class="form-group"><label>اسم المندوب</label><input type="text" id="rep_name" placeholder="اسم كامل" required /></div>
+            <div class="form-group"><label>الرمز</label><input type="text" id="rep_code" placeholder="رمز مختصر" required /></div>
+            <div class="form-group"><label>المركبة</label>
+              <select id="rep_vehicle"><option value="دباب">دباب</option><option value="دينة">دينة</option><option value="فان">فان</option></select>
+            </div>
+            <div class="form-group"><label>الرصيد الافتتاحي (ر.ي)</label><input type="number" id="rep_balance" value="0" min="0" /></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" data-action="save-rep">${Icons.render("save")} حفظ</button>
+            <button class="btn btn-secondary" data-action="cancel-rep-form">إلغاء</button>
+          </div>
+        </div>
+        <div id="editRepForm" style="display:none;background:var(--bg-darker);padding:16px;border-radius:12px;margin-bottom:16px">
+          <h4 style="margin-top:0">${Icons.render("edit")} تعديل المندوب</h4>
+          <input type="hidden" id="edit_rep_id" />
+          <div class="form-grid" style="grid-template-columns:repeat(4,1fr)">
+            <div class="form-group"><label>اسم المندوب</label><input type="text" id="edit_rep_name" placeholder="اسم كامل" required /></div>
+            <div class="form-group"><label>الرمز</label><input type="text" id="edit_rep_code" placeholder="رمز مختصر" required /></div>
+            <div class="form-group"><label>المركبة</label>
+              <select id="edit_rep_vehicle"><option value="دباب">دباب</option><option value="دينة">دينة</option><option value="فان">فان</option></select>
+            </div>
+            <div class="form-group"><label>الرصيد الافتتاحي (ر.ي)</label><input type="number" id="edit_rep_balance" value="0" min="0" /></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" data-action="update-rep">${Icons.render("save")} تحديث</button>
+            <button class="btn btn-secondary" data-action="cancel-rep-form">إلغاء</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>الاسم</th><th>الرمز</th><th>المركبة</th><th>الرصيد الافتتاحي</th><th>إجمالي المبيعات</th><th>إجمالي التحصيل</th><th>المديونية</th><th>إجراءات</th></tr>
+          </thead>
+          <tbody>
+            ${db.salesReps.map(r => {
+              const summary = DB.salesRepSummary(r.code, db);
+              return `<tr id="rep_row_${r.id}">
+                <td><b>${r.name}</b></td>
+                <td><span class="badge badge-info">${r.code}</span></td>
+                <td>${r.vehicle || '-'}</td>
+                <td>${(r.openingBalance||0).toLocaleString('ar-EG')}</td>
+                <td class="text-success">${((summary.credit||0)+(summary.cash||0)).toLocaleString('ar-EG')}</td>
+                <td class="text-primary">${(summary.collection||0).toLocaleString('ar-EG')}</td>
+                <td class="text-danger"><b>${(summary.balance||0).toLocaleString('ar-EG')}</b></td>
+                <td>
+                  <button class="btn btn-warning btn-sm" data-action="edit-rep" data-rep-id="${r.id}">${Icons.render("edit")}</button>
+                  <button class="btn btn-danger btn-sm" data-action="delete-rep" data-rep-id="${r.id}" data-rep-name="${r.name}">${Icons.render("trash")}</button>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ===== تسجيل التحصيل ===== -->
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("collection")} تسجيل تحصيل نقدي</h3>
+        </div>
+        <div class="form-grid" style="grid-template-columns:repeat(4,1fr)">
+          <div class="form-group">
+            <label>التاريخ</label>
+            <input type="date" id="col_date" value="${new Date().toISOString().split('T')[0]}" />
+          </div>
+          <div class="form-group">
+            <label>المندوب</label>
+            <select id="col_rep">
+              <option value="">-- اختر --</option>
+              ${db.salesReps.map(r => `<option value="${r.code}">${r.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>المبلغ المحصل (ر.ي)</label>
+            <input type="number" id="col_amount" min="1" placeholder="أدخل المبلغ" />
+          </div>
+          <div class="form-group">
+            <label>ملاحظة</label>
+            <input type="text" id="col_note" placeholder="اختياري" />
+          </div>
+        </div>
+        <div id="colPreview" class="alert" style="display:none;margin-top:8px"></div>
+        <div class="btn-row">
+          <button class="btn btn-success" data-action="submit-collection">${Icons.render("check")} تسجيل التحصيل</button>
+        </div>
+      </div>
+
+      <!-- ===== سجل التحصيل ===== -->
+      <div class="card">
+        <h3>${Icons.render("collection")} سجل التحصيل</h3>
+        <table>
+          <thead>
+            <tr><th>التاريخ</th><th>المندوب</th><th>المبلغ (ر.ي)</th><th>ملاحظة</th></tr>
+          </thead>
+          <tbody>
+            ${((db.collectionLog||[]).length > 0 ? db.collectionLog.slice().reverse() : []).map(c => {
+              const rep = db.salesReps.find(r => r.code === c.repCode);
+              return `<tr>
+                <td>${c.date}</td>
+                <td><b>${rep ? rep.name : c.repCode}</b></td>
+                <td class="text-success"><b>${(c.amount||0).toLocaleString('ar-EG')}</b></td>
+                <td class="text-muted">${c.note||'-'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+          <tfoot>
+            <tr style="background:var(--bg-darker);font-weight:700">
+              <td colspan="2">الإجمالي المحصل</td>
+              <td class="text-success">${((db.collectionLog||[]).reduce((s,c)=>s+(c.amount||0),0)).toLocaleString('ar-EG')}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
       <div class="card">
         <h3>${Icons.render("document")} سجل مبيعات تفصيلي</h3>
         <div class="search-bar">
@@ -830,6 +952,83 @@ window.Modules.sales = function(container) {
       const txt = tr.dataset.search.toLowerCase();
       tr.style.display = txt.includes(q) ? '' : 'none';
     });
+  };
+
+  // --- Rep Management ---
+  Modules._saveRep = function() {
+    var name = document.getElementById('rep_name').value.trim();
+    var code = document.getElementById('rep_code').value.trim();
+    var vehicle = document.getElementById('rep_vehicle').value;
+    var balance = parseFloat(document.getElementById('rep_balance').value) || 0;
+    if (!name || !code) { alert('يرجى إدخال الاسم والرمز'); return; }
+    var db2 = APP.getDB();
+    if (!db2.salesReps) db2.salesReps = [];
+    if (db2.salesReps.find(r => r.code === code)) { alert('رمز المندوب موجود مسبقاً!'); return; }
+    db2.salesReps.push({ id: Date.now(), name, code, vehicle, openingBalance: balance, notes: '' });
+    APP.saveDB(db2);
+    alert(Icons.render('check') + ' تم إضافة المندوب بنجاح');
+    Modules.sales && Modules.sales(container);
+  };
+
+  Modules._editRep = function(id) {
+    var db2 = APP.getDB();
+    var rep = db2.salesReps.find(r => r.id === id);
+    if (!rep) return;
+    document.getElementById('edit_rep_id').value = id;
+    document.getElementById('edit_rep_name').value = rep.name;
+    document.getElementById('edit_rep_code').value = rep.code;
+    document.getElementById('edit_rep_vehicle').value = rep.vehicle || 'دباب';
+    document.getElementById('edit_rep_balance').value = rep.openingBalance || 0;
+    var f = document.getElementById('editRepForm');
+    if (f) { f.style.display = 'block'; }
+    var af = document.getElementById('addRepForm');
+    if (af) af.style.display = 'none';
+    document.getElementById('edit_rep_name').focus();
+  };
+
+  Modules._updateRep = function() {
+    var id = parseInt(document.getElementById('edit_rep_id').value);
+    var name = document.getElementById('edit_rep_name').value.trim();
+    var code = document.getElementById('edit_rep_code').value.trim();
+    var vehicle = document.getElementById('edit_rep_vehicle').value;
+    var balance = parseFloat(document.getElementById('edit_rep_balance').value) || 0;
+    if (!name || !code) { alert('يرجى إدخال الاسم والرمز'); return; }
+    var db2 = APP.getDB();
+    var rep = db2.salesReps.find(r => r.id === id);
+    if (!rep) return;
+    rep.name = name; rep.code = code; rep.vehicle = vehicle; rep.openingBalance = balance;
+    APP.saveDB(db2);
+    alert(Icons.render('check') + ' تم تحديث بيانات المندوب');
+    Modules.sales && Modules.sales(container);
+  };
+
+  Modules._deleteRep = function(id, name) {
+    if (!confirm('هل أنت متأكد من حذف المندوب \u201c' + name + '\u201d؟ هذا الإجراء لا يمكن التراجع عنه.')) return;
+    var db2 = APP.getDB();
+    db2.salesReps = db2.salesReps.filter(r => r.id !== id);
+    APP.saveDB(db2);
+    alert(Icons.render('check') + ' تم حذف المندوب');
+    Modules.sales && Modules.sales(container);
+  };
+
+  // --- Collections ---
+  Modules._submitCollection = function() {
+    var date = document.getElementById('col_date').value;
+    var repCode = document.getElementById('col_rep').value;
+    var amount = parseFloat(document.getElementById('col_amount').value) || 0;
+    var note = document.getElementById('col_note').value.trim();
+    if (!repCode || !amount || amount <= 0) { alert('يرجى اختيار المندوب وإدخال المبلغ'); return; }
+    var db2 = APP.getDB();
+    if (!db2.collectionLog) db2.collectionLog = [];
+    db2.collectionLog.push({ date: date || new Date().toISOString().split('T')[0], repCode, amount, note });
+    db2.salesLog.push({
+      date: date || new Date().toISOString().split('T')[0],
+      repCode: repCode, qty: 0, credit: 0, cash: 0, collection: amount,
+      customerName: '-', notes: 'تحصيل نقدي - ' + (note || 'بدون ملاحظة')
+    });
+    APP.saveDB(db2);
+    alert(Icons.render('check') + ' تم تسجيل التحصيل بنجاح!\nالمحصل: ' + amount.toLocaleString('ar-EG') + ' ر.ي');
+    Modules.sales && Modules.sales(container);
   };
 
   render();
@@ -6804,6 +7003,14 @@ console.log('Self-service modules v2 loaded (string concat only)');
     if (action === 'delete-voucher') { var idx = parseInt(el.dataset.vidx); Modules._deleteVoucher && Modules._deleteVoucher(idx); return; }
 
     // --- Sales ---
+    // --- Sales Rep Management ---
+    if (action === 'add-rep-form') { var f = document.getElementById('addRepForm'); if(f) f.style.display = f.style.display==='none'?'block':'none'; var ef = document.getElementById('editRepForm'); if(ef) ef.style.display='none'; return; }
+    if (action === 'cancel-rep-form') { var af = document.getElementById('addRepForm'); var ef = document.getElementById('editRepForm'); if(af) af.style.display='none'; if(ef) ef.style.display='none'; return; }
+    if (action === 'save-rep') { Modules._saveRep && Modules._saveRep(); return; }
+    if (action === 'update-rep') { Modules._updateRep && Modules._updateRep(); return; }
+    if (action === 'edit-rep') { var id = parseInt(el.dataset.repId); Modules._editRep && Modules._editRep(id); return; }
+    if (action === 'delete-rep') { var id = parseInt(el.dataset.repId); var name = el.dataset.repName; Modules._deleteRep && Modules._deleteRep(id, name); return; }
+    if (action === 'submit-collection') { Modules._submitCollection && Modules._submitCollection(); return; }
     if (action === 'export-sales') { Modules.exportTable && Modules.exportTable('salesReps', 'أداء_المناديب'); return; }
 
     // --- Agents ---

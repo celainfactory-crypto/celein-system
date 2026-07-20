@@ -21,21 +21,30 @@ window.Modules.dashboard = function(container) {
       print: () => window.print()
     });
 
-    // حساب بيانات كل مندوب
+    // Match user to their repCode by name
+    const myName = (user.name || '').trim();
+    const myRep = (db.salesReps || []).find(r =>
+      r.name === myName || r.code === myName || r.name.includes(myName.split(' ')[0])
+    );
+    const myRepCode = myRep ? myRep.code : null;
+
+    // If we found a matching rep, filter to show ONLY their data
     const today = new Date().toISOString().split('T')[0];
     const monthStart = today.substring(0, 7) + '-01';
-    const repStats = (db.salesReps || []).map(rep => {
-      const repSales = (db.salesLog || []).filter(s => s.repCode === rep.code);
-      const monthSales = repSales.filter(s => s.date >= monthStart);
-      const totalSales = repSales.reduce((sum, s) => sum + (s.cash || 0) + (s.credit || 0), 0);
-      const monthAmt = monthSales.reduce((sum, s) => sum + (s.cash || 0) + (s.credit || 0), 0);
-      const monthCash = monthSales.reduce((sum, s) => sum + (s.cash || 0), 0);
-      const monthCredit = monthSales.reduce((sum, s) => sum + (s.credit || 0), 0);
-      const monthColl = monthSales.reduce((sum, s) => sum + (s.collection || 0), 0);
-      const balance = (rep.openingBalance || 0) + totalSales;
-      const custCredits = (db.customerCredits || []).filter(c => (c.notes || '').includes(rep.code));
-      return { ...rep, totalSales, monthAmt, monthCash, monthCredit, monthColl, balance, custCount: custCredits.length };
-    });
+    const repStats = myRepCode
+      ? (db.salesReps || []).filter(rep => rep.code === myRepCode).map(rep => {
+          const repSales = (db.salesLog || []).filter(s => s.repCode === rep.code);
+          const monthSales = repSales.filter(s => s.date >= monthStart);
+          const totalSales = repSales.reduce((sum, s) => sum + (s.cash || 0) + (s.credit || 0), 0);
+          const monthAmt = monthSales.reduce((sum, s) => sum + (s.cash || 0) + (s.credit || 0), 0);
+          const monthCash = monthSales.reduce((sum, s) => sum + (s.cash || 0), 0);
+          const monthCredit = monthSales.reduce((sum, s) => sum + (s.credit || 0), 0);
+          const monthColl = monthSales.reduce((sum, s) => sum + (s.collection || 0), 0);
+          const balance = (rep.openingBalance || 0) + totalSales;
+          const custCredits = (db.customerCredits || []).filter(c => (c.notes || '').includes(rep.code));
+          return { ...rep, totalSales, monthAmt, monthCash, monthCredit, monthColl, balance, custCount: custCredits.length };
+        })
+      : [];
 
     const grandMonth = repStats.reduce((s, r) => s + r.monthAmt, 0);
     const grandColl = repStats.reduce((s, r) => s + r.monthColl, 0);
@@ -121,7 +130,7 @@ window.Modules.dashboard = function(container) {
             <tr><th>التاريخ</th><th>المندوب</th><th>العميل</th><th>النقدي</th><th>الآجل</th><th>التحصيل</th><th>ملاحظة</th></tr>
           </thead>
           <tbody>
-            ${(db.salesLog || []).slice(-30).reverse().map(s => `
+            ${(db.salesLog || []).filter(s => s.repCode === myRepCode).slice(-30).reverse().map(s => `
               <tr>
                 <td>${s.date}</td>
                 <td><b>${s.repCode}</b></td>
