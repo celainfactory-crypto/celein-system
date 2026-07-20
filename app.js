@@ -142,7 +142,7 @@ window.APP = (function () {
           <button class="login-btn" id="loginBtnReal" onclick="window.APP && window.APP.doLogin();">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.54 - PWA Enabled</div>
+          <div class="login-version-tag">v18.55 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -519,6 +519,7 @@ window.APP = (function () {
       // ===============================================
       { id: "costs",         group: "المالية",            icon: "money",     label: "التكاليف الفعلية",       roles: ["admin","vice_executive","accountant","production"] },
       { id: "pricing",       group: "المالية",            icon: "priceTag",  label: "الأسعار",               roles: ["admin","vice_executive","accountant"] },
+      { id: "cashflow",      group: "المالية",            icon: "wallet",    label: "التدفقات النقدية",       roles: ["admin","vice_executive","accountant"] },
       // ===============================================
       // 7. الموارد البشرية
       // ===============================================

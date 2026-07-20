@@ -213,7 +213,53 @@ window.SEED = {
   terminatedEmployees: [],
 
   // === طلبات الشراء (من الإنتاج إلى المشتريات) ===
-  purchaseRequests: []
+  purchaseRequests: [],
+
+  // === حسابات النقدية (التدفقات النقدية) ===
+  cashAccounts: [
+    { id: "safe", name: "صندوق المصنع", type: "safe", openingBalance: 500000, currentBalance: 500000, currency: "ر.ي", notes: "الصندوق الرئيسي" },
+    { id: "bank", name: "البنك", type: "bank", openingBalance: 2000000, currentBalance: 2000000, currency: "ر.ي", notes: "الحساب البنكي الرئيسي" }
+  ],
+
+  // === سجل التدفقات النقدية ===
+  // type: incoming | outgoing
+  // category: sales_cash | agent_collection | receipt | purchase | expense | salary | transfer
+  // source: link to original record (saleId, receiptId, etc.)
+  cashFlowLog: [
+    // Sample opening entries from June sales data
+    { id: "cf001", date: "2026-06-01", type: "incoming", category: "sales_cash", amount: 186000, source: "مندوب: عبدالعزيز - مبيعات نقدية", ref: "sales", notes: "تحويل تلقائي من سجل المبيعات", accountId: "safe", createdBy: "system" },
+    { id: "cf002", date: "2026-06-01", type: "incoming", category: "agent_collection", amount: 520000, source: "مندوب: عبدالعزيز - تحصيل", ref: "sales", notes: "تحصيل نقدي من العملاء", accountId: "safe", createdBy: "system" },
+    { id: "cf003", date: "2026-02", type: "outgoing", category: "salary", amount: 2500000, source: "رواتب الموظفين - فبراير 2026", ref: "hr", notes: "صرف رواتب شهر فبراير", accountId: "bank", createdBy: "accountant" },
+    { id: "cf004", date: "2026-03", type: "outgoing", category: "salary", amount: 2500000, source: "رواتب الموظفين - مارس 2026", ref: "hr", notes: "صرف رواتب شهر مارس", accountId: "bank", createdBy: "accountant" },
+    { id: "cf005", date: "2026-04", type: "outgoing", category: "salary", amount: 2500000, source: "رواتب الموظفين - أبريل 2026", ref: "hr", notes: "صرف رواتب شهر أبريل", accountId: "bank", createdBy: "accountant" },
+    { id: "cf006", date: "2026-05", type: "outgoing", category: "salary", amount: 2500000, source: "رواتب الموظفين - مايو 2026", ref: "hr", notes: "صرف رواتب شهر مايو", accountId: "bank", createdBy: "accountant" },
+    { id: "cf007", date: "2026-06", type: "outgoing", category: "salary", amount: 2500000, source: "رواتب الموظفين - يونيو 2026", ref: "hr", notes: "صرف رواتب شهر يونيو", accountId: "bank", createdBy: "accountant" }
+  ],
+
+  // === سقوف الائتمان للعملاء ===
+  // limit: الحد الأقصى للشراء بالأجل، currentBalance: المبلغ المستحق حالياً
+  // blocked: true = محظور البيع بالأجل لهذا العميل حتى التسوية
+  customerCredits: [
+    { id: "cr001", customerName: "الزبون العام - صنعاء", creditLimit: 5000000, currentBalance: 1200000, blocked: false, lastPayment: "2026-06-10", notes: "" },
+    { id: "cr002", customerName: "الزبون العام - عدن", creditLimit: 3000000, currentBalance: 800000, blocked: false, lastPayment: "2026-06-08", notes: "" },
+    { id: "cr003", customerName: "الزبون العام - تعز", creditLimit: 2000000, currentBalance: 2100000, blocked: true, lastPayment: "2026-05-15", notes: "تجاوز سقف الائتمان - في انتظار التسوية" },
+    { id: "cr004", customerName: "الزبون العام - الحديدة", creditLimit: 1500000, currentBalance: 600000, blocked: false, lastPayment: "2026-06-05", notes: "" },
+    { id: "cr005", customerName: "زبون جملة - صنعاء", creditLimit: 8000000, currentBalance: 3500000, blocked: false, lastPayment: "2026-06-01", notes: "" }
+  ],
+
+  // === سجل المقبوضات (صرف من العملاء) ===
+  // هذا يُستخدم لإضافة تحصيل يدوي من العملاء
+  receiptsLog: [
+    { id: "rcp001", date: "2026-06-01", customerId: "cr001", customerName: "الزبون العام - صنعاء", amount: 520000, paymentMethod: "cash", collectedBy: "عبدالعزيز", notes: "تحصيل نقدي", accountId: "safe", createdBy: "system" },
+    { id: "rcp002", date: "2026-06-02", customerId: "cr002", customerName: "الزبون العام - عدن", amount: 460900, paymentMethod: "cash", collectedBy: "عبدالعزيز", notes: "تحصيل نقدي", accountId: "safe", createdBy: "system" }
+  ],
+
+  // === تنبيهات الائتمان (الغير مقروءة) ===
+  creditAlerts: [
+    { id: "alert001", date: "2026-06-15", customerId: "cr003", customerName: "الزبون العام - تعز",
+      alertType: "limit_exceeded", message: "تجاوز سقف الائتمان! الرصيد الحالي 2,100,000 ر.ي exceeds الحد 2,000,000 ر.ي",
+      read: false, resolved: false, resolvedBy: null, resolvedAt: null, action: null }
+  ]
 };
 
 // === v18.6 BUILD 1783881359 - FORCE NETLIFY DEPLOY ===

@@ -579,7 +579,140 @@ window.Modules.sales = function(container) {
           </table>
         </div>
       </div>
+
+      <!-- بطاقة البيع الآجل مع فحص الائتمان -->
+      <div class="card">
+        <h3>${Icons.render("credit")} إضافة بيع آجل (متابعة العملاء)</h3>
+        <div id="creditSaleAlert" class="alert alert-danger" style="display:none"></div>
+        <form class="form-grid" id="creditSaleForm">
+          <div class="form-group">
+            <label>اسم العميل</label>
+            <select id="cs_customer">
+              <option value="">-- اختر العميل --</option>
+              ${(db.customerCredits || []).map(c => {
+                const over = c.currentBalance > c.creditLimit;
+                return `<option value="${c.customerName}" ${c.blocked ? 'disabled' : ''}>
+                  ${c.customerName} ${c.blocked ? '⛔ محظور' : over ? '⚠️ تجاوز' : ''}
+                </option>`;
+              }).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>المندوب المسؤول</label>
+            <select id="cs_rep">
+              <option value="">-- اختر المندوب --</option>
+              ${db.salesReps.map(r => `<option value="${r.code}">${r.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>المبلغ (ر.ي)</label>
+            <input type="number" id="cs_amount" min="1" placeholder="أدخل مبلغ البيع الآجل" />
+          </div>
+          <div class="form-group">
+            <label>تاريخ البيع</label>
+            <input type="date" id="cs_date" value="${new Date().toISOString().split('T')[0]}" />
+          </div>
+          <div class="form-group" style="grid-column: span 2">
+            <label>ملاحظات</label>
+            <input type="text" id="cs_notes" placeholder="ملاحظات إضافية (اختياري)" />
+          </div>
+          <div id="csCreditInfo" class="form-group" style="grid-column: span 2"></div>
+        </form>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="csSubmitBtn">${Icons.render("check")} تسجيل البيع الآجل</button>
+        </div>
+      </div>
     `;
+
+    // Credit info preview when customer selected
+    const csCustomer = document.getElementById('cs_customer');
+    const csAmount = document.getElementById('cs_amount');
+    const csInfo = document.getElementById('csCreditInfo');
+    const csAlert = document.getElementById('creditSaleAlert');
+    const csSubmitBtn = document.getElementById('csSubmitBtn');
+
+    function updateCreditInfo() {
+      const custName = csCustomer.value;
+      const amount = parseFloat(csAmount.value) || 0;
+      if (!custName || !amount) { csInfo.innerHTML = ''; return; }
+      const cust = (db.customerCredits || []).find(c => c.customerName === custName);
+      if (!cust) return;
+      const newBal = cust.currentBalance + amount;
+      const over = newBal > cust.creditLimit;
+      csInfo.innerHTML = `
+        <div class="alert ${cust.blocked ? 'alert-danger' : over ? 'alert-warning' : 'alert-success'}">
+          <b>${cust.customerName}</b><br>
+          سقف الائتمان: <b>${cust.creditLimit.toLocaleString('ar-EG')}</b> ر.ي | 
+          الرصيد الحالي: <b>${cust.currentBalance.toLocaleString('ar-EG')}</b> ر.ي<br>
+          بعد البيع: <b>${newBal.toLocaleString('ar-EG')}</b> ر.ي
+          ${cust.blocked ? '<br><b>⛔ العميل محظور - لا يمكن البيع!</b>' :
+            over ? '<br><b>⚠️ سيتم تجاوز سقف الائتمان - سيتم إرسال تنبيه!</b>' :
+            '<br><✅ الرصيد ضمن السقف المسموح'}
+        </div>
+      `;
+    }
+
+    csCustomer.addEventListener('change', updateCreditInfo);
+    csAmount.addEventListener('input', updateCreditInfo);
+
+    csSubmitBtn.addEventListener('click', function() {
+      const custName = csCustomer.value;
+      const repCode = document.getElementById('cs_rep').value;
+      const amount = parseFloat(document.getElementById('cs_amount').value);
+      const date = document.getElementById('cs_date').value;
+      const notes = document.getElementById('cs_notes').value;
+
+      if (!custName || !repCode || !amount || !date) {
+        alert('يرجى تعبئة جميع الحقول المطلوبة');
+        return;
+      }
+
+      const db2 = APP.getDB();
+      if (!db2.customerCredits) db2.customerCredits = [];
+      let cust = db2.customerCredits.find(c => c.customerName === custName);
+
+      // If customer not in credit system, create record
+      if (!cust) {
+        const limit = parseFloat(prompt('هذا العميل غير مسجل في نظام الائتمان. أدخل سقف الائتمان (ر.ي):') || '0');
+        if (!limit || limit <= 0) { alert('تم الإلغاء - يجب تحديد سقف ائتمان'); return; }
+        cust = { id: 'cr' + Date.now(), customerName: custName, creditLimit: limit, currentBalance: 0, blocked: false, lastPayment: null, notes: '' };
+        db2.customerCredits.push(cust);
+      }
+
+      const newBalance = cust.currentBalance + amount;
+      cust.currentBalance = newBalance;
+
+      // Auto-block if exceeded
+      if (newBalance > cust.creditLimit && !cust.blocked) {
+        cust.blocked = true;
+        db2.creditAlerts = db2.creditAlerts || [];
+        db2.creditAlerts.push({
+          id: 'alert' + Date.now(),
+          date: new Date().toISOString().split('T')[0],
+          customerId: cust.id,
+          customerName: cust.customerName,
+          alertType: 'limit_exceeded',
+          message: `تجاوز سقف الائتمان! المبلغ الجديد ${newBalance.toLocaleString('ar-EG')} ر.ي exceeds الحد ${cust.creditLimit.toLocaleString('ar-EG')} ر.ي`,
+          read: false, resolved: false, resolvedBy: null, resolvedAt: null, action: null
+        });
+      }
+
+      // Add to sales log as credit sale
+      const rep = db2.salesReps.find(r => r.code === repCode);
+      db2.salesLog.push({
+        date, repCode,
+        qty: 0,
+        credit: amount,
+        cash: 0,
+        collection: 0,
+        customerName: custName,
+        notes: 'بيع آجل - ' + notes
+      });
+
+      APP.saveDB(db2);
+      alert(Icons.render('check') + ' تم تسجيل البيع الآجل بنجاح!\n' + (newBalance > cust.creditLimit ? '⚠️ تم تجاوز سقف الائتمان - تم إرسال تنبيه.' : 'OK'));
+      render();
+    });
 
     setTimeout(() => {
       new Chart(document.getElementById('chartReps'), {
@@ -739,6 +872,852 @@ window.Modules.agents = function(container) {
     APP.saveDB(db);
     render();
   };
+
+  render();
+};
+
+/* ============ التدفقات النقدية ============ */
+window.Modules.cashflow = function(container) {
+  const db = APP.getDB();
+
+  Exports.register("cashflow", {
+    label: "التدفقات النقدية",
+    pdf: () => {
+      const accounts = db.cashAccounts;
+      const log = db.cashFlowLog;
+      const incoming = log.filter(l => l.type === 'incoming');
+      const outgoing = log.filter(l => l.type === 'outgoing');
+      const headers = ['التاريخ', 'النوع', 'التصنيف', 'المصدر', 'المبلغ', 'ملاحظات'];
+      const rows = log.map(l => [l.date, l.type === 'incoming' ? 'وارد' : 'صادر',
+        window.ICFG.categoryLabels[l.category] || l.category,
+        l.source, l.amount.toLocaleString('ar-EG'), l.notes || '-']);
+      const footer = ['', '', '', 'الإجمالي',
+        { v: (incoming.reduce((s,l)=>s+l.amount,0) - outgoing.reduce((s,l)=>s+l.amount,0)).toLocaleString('ar-EG'), cls: 'text-primary' }, ''];
+      const html = Exports.rowsToHTMLTable(['الحساب', 'الرصيد الافتتاحي', 'الحالي'],
+        accounts.map(a => [a.name, a.openingBalance.toLocaleString('ar-EG'),
+          { v: a.currentBalance.toLocaleString('ar-EG'), cls: a.currentBalance >= 0 ? 'text-success' : 'text-danger' }]),
+        { title: 'حسابات النقدية' }) +
+        Exports.rowsToHTMLTable(headers, rows, { title: 'سجل التدفقات النقدية', footerRow: [footer] });
+      Exports.exportPDF("التدفقات النقدية", html, "cashflow");
+    },
+    excel: () => {
+      const headers = ['التاريخ', 'النوع', 'التصنيف', 'المصدر', 'المبلغ', 'ملاحظات'];
+      const rows = db.cashFlowLog.map(l => [l.date, l.type === 'incoming' ? 'وارد' : 'صادر',
+        window.ICFG.categoryLabels[l.category] || l.category, l.source, l.amount, l.notes || '']);
+      Exports.exportExcel(Exports.rowsToHTMLTable(headers, rows, { title: 'سجل التدفقات النقدية' }), "cashflow");
+    },
+    csv: () => {
+      const headers = ['التاريخ', 'النوع', 'التصنيف', 'المصدر', 'المبلغ', 'ملاحظات'];
+      const rows = db.cashFlowLog.map(l => [l.date, l.type, l.category, l.source, l.amount, l.notes || '']);
+      Exports.exportCSV(Exports.rowsToCSV(headers, rows), "cashflow");
+    },
+    json: () => Exports.exportJSON({ cashAccounts: db.cashAccounts, cashFlowLog: db.cashFlowLog, customerCredits: db.customerCredits }, "cashflow_data"),
+    print: () => window.print()
+  });
+
+  function calcBalance(accountId) {
+    const acc = db.cashAccounts.find(a => a.id === accountId);
+    if (!acc) return 0;
+    const incoming = db.cashFlowLog.filter(l => l.accountId === accountId && l.type === 'incoming').reduce((s,l)=>s+l.amount,0);
+    const outgoing = db.cashFlowLog.filter(l => l.accountId === accountId && l.type === 'outgoing').reduce((s,l)=>s+l.amount,0);
+    return acc.openingBalance + incoming - outgoing;
+  }
+
+  function totalBalance() {
+    return db.cashAccounts.reduce((s, a) => s + calcBalance(a.id), 0);
+  }
+
+  function addFlowEntry(entry) {
+    const db2 = APP.getDB();
+    const newEntry = Object.assign({ id: 'cf' + Date.now(), createdBy: (APP.getUser() || {}).name || 'unknown' }, entry);
+    db2.cashFlowLog.push(newEntry);
+    APP.saveDB(db2);
+  }
+
+  function render() {
+    const incoming = db.cashFlowLog.filter(l => l.type === 'incoming');
+    const outgoing = db.cashFlowLog.filter(l => l.type === 'outgoing');
+    const totalIn = incoming.reduce((s,l)=>s+l.amount,0);
+    const totalOut = outgoing.reduce((s,l)=>s+l.amount,0);
+    const netCashFlow = totalIn - totalOut;
+    const unreadAlerts = db.creditAlerts.filter(a => !a.read && !a.resolved);
+    const blockedCustomers = db.customerCredits.filter(c => c.blocked);
+    const today = new Date().toISOString().split('T')[0];
+
+    container.innerHTML = `
+      <div class="alert alert-warning" id="cfAlertBanner" style="${unreadAlerts.length === 0 ? 'display:none' : ''}">
+        <span>${Icons.render("alert")}</span>
+        <b>${unreadAlerts.length} تنبيه ائتمان غير مقروء</b> — يوجد عملاء تجاوزوا سقف الائتمان
+        <button class="btn btn-sm btn-warning" data-action="view-alerts" style="margin-right:8px">عرض التنبيهات</button>
+      </div>
+
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("wallet")} التدفقات النقدية — ملخص لحظي</h3>
+          <div>
+            <button class="btn btn-primary btn-sm" data-action="add-incoming">${Icons.render("plus")} إضافة وارد</button>
+            <button class="btn btn-danger btn-sm" data-action="add-outgoing">${Icons.render("minus")} إضافة مصروف</button>
+            <button class="btn btn-secondary btn-sm" data-action="auto-post">${Icons.render("sync")} ترحيل تلقائي</button>
+          </div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">إجمالي الوارد</div>
+            <div class="stat-value text-success">${totalIn.toLocaleString('ar-EG')}</div>
+            <div class="stat-sub">ر.ي</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">إجمالي الصارف</div>
+            <div class="stat-value text-danger">${totalOut.toLocaleString('ar-EG')}</div>
+            <div class="stat-sub">ر.ي</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">صافي التدفق النقدي</div>
+            <div class="stat-value ${netCashFlow >= 0 ? 'text-success' : 'text-danger'}">${netCashFlow.toLocaleString('ar-EG')}</div>
+            <div class="stat-sub">ر.ي</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">رصيد حسابات النقدية</div>
+            <div class="stat-value text-primary">${totalBalance().toLocaleString('ar-EG')}</div>
+            <div class="stat-sub">ر.ي</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("bank")} حسابات النقدية</h3>
+          <button class="btn btn-sm" data-action="manage-accounts">${Icons.render("settings")} إدارة الحسابات</button>
+        </div>
+        <table>
+          <thead><tr><th>الحساب</th><th>النوع</th><th>الرصيد الافتتاحي</th><th>الوارد</th><th>الصارف</th><th class="text-primary">الرصيد الحالي</th></tr></thead>
+          <tbody>
+            ${db.cashAccounts.map(a => {
+              const inA = incoming.filter(l=>l.accountId===a.id).reduce((s,l)=>s+l.amount,0);
+              const outA = outgoing.filter(l=>l.accountId===a.id).reduce((s,l)=>s+l.amount,0);
+              const bal = calcBalance(a.id);
+              return `<tr>
+                <td><b>${a.name}</b></td>
+                <td><span class="badge badge-info">${a.type==='safe'?'صندوق':'بنك'}</span></td>
+                <td>${a.openingBalance.toLocaleString('ar-EG')}</td>
+                <td class="text-success">${inA.toLocaleString('ar-EG')}</td>
+                <td class="text-danger">${outA.toLocaleString('ar-EG')}</td>
+                <td class="text-primary"><b>${bal.toLocaleString('ar-EG')}</b></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("credit")} سقوف الائتمان والعملاء</h3>
+          <div>
+            <button class="btn btn-sm" data-action="add-customer-credit">${Icons.render("plus")} إضافة عميل</button>
+            <button class="btn btn-sm btn-warning" data-action="view-alerts" id="alertBtn">${Icons.render("alert")} التنبيهات (${unreadAlerts.length})</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>العميل</th><th>سقف الائتمان</th><th>الرصيد المستحق</th><th>النسبة</th><th>الحالة</th><th>آخر دفعة</th><th>إجراء</th></tr></thead>
+            <tbody>
+              ${db.customerCredits.map(c => {
+                const pct = c.creditLimit > 0 ? Math.round((c.currentBalance / c.creditLimit) * 100) : 0;
+                const overLimit = c.currentBalance > c.creditLimit;
+                return `<tr data-cust-id="${c.id}">
+                  <td><b>${c.customerName}</b></td>
+                  <td>${c.creditLimit.toLocaleString('ar-EG')}</td>
+                  <td class="${overLimit ? 'text-danger' : 'text-warning'}"><b>${c.currentBalance.toLocaleString('ar-EG')}</b></td>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <div style="flex:1;background:#eee;height:8px;border-radius:4px;max-width:100px">
+                        <div style="width:${Math.min(pct,100)}%;background:${overLimit?'#c62828':pct>70?'#ef6c00':'#2e7d32'};height:100%;border-radius:4px"></div>
+                      </div>
+                      <span>${pct}%</span>
+                    </div>
+                  </td>
+                  <td>${c.blocked
+                    ? `<span class="badge badge-danger">محظور</span>`
+                    : overLimit
+                      ? `<span class="badge badge-warning">تجاوز!</span>`
+                      : `<span class="badge badge-success">سليم</span>`}
+                  </td>
+                  <td class="text-muted">${c.lastPayment || '-'}</td>
+                  <td>
+                    <button class="btn btn-xs btn-outline" data-action="edit-credit" data-cid="${c.id}">${Icons.render("edit")}</button>
+                    ${c.blocked ? `<button class="btn btn-xs btn-success" data-action="unblock-credit" data-cid="${c.id}">فك الحظر</button>` : ''}
+                    <button class="btn btn-xs btn-outline" data-action="receive-payment" data-cid="${c.id}">${Icons.render("money")} استلام</button>
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render("list")} سجل التدفقات النقدية</h3>
+          <div class="search-bar">
+            <span class="icon">${Icons.render("search")}</span>
+            <input type="text" id="cfSearch" placeholder="ابحث..." oninput="Modules._filterCashFlow()" />
+            <select id="cfTypeFilter" onchange="Modules._filterCashFlow()" style="padding:6px 10px;border-radius:20px;border:1px solid #ddd;margin-right:8px">
+              <option value="">الكل</option>
+              <option value="incoming">وارد فقط</option>
+              <option value="outgoing">صادر فقط</option>
+            </select>
+            <select id="cfAccFilter" onchange="Modules._filterCashFlow()" style="padding:6px 10px;border-radius:20px;border:1px solid #ddd;margin-right:8px">
+              <option value="">كل الحسابات</option>
+              ${db.cashAccounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div style="max-height:500px;overflow-y:auto">
+          <table id="cfTable">
+            <thead>
+              <tr>
+                <th>التاريخ</th><th>النوع</th><th>التصنيف</th><th>المصدر</th><th>المبلغ</th><th>الحساب</th><th>ملاحظات</th><th>إجراء</th>
+              </tr>
+            </thead>
+            <tbody id="cfTbody">
+              ${db.cashFlowLog.slice().reverse().map(l => {
+                const acc = db.cashAccounts.find(a => a.id === l.accountId);
+                return `<tr data-search="${l.date} ${l.source} ${l.notes} ${l.category}" data-type="${l.type}" data-acc="${l.accountId}">
+                  <td>${l.date}</td>
+                  <td>${l.type === 'incoming'
+                    ? `<span class="badge badge-success">وارد</span>`
+                    : `<span class="badge badge-danger">صادر</span>`}
+                  </td>
+                  <td class="text-muted">${window.ICFG.categoryLabels[l.category] || l.category}</td>
+                  <td>${l.source}</td>
+                  <td class="${l.type==='incoming'?'text-success':'text-danger'}"><b>${l.amount.toLocaleString('ar-EG')}</b></td>
+                  <td>${acc ? acc.name : l.accountId}</td>
+                  <td class="text-muted">${l.notes || '-'}</td>
+                  <td>
+                    ${l.createdBy === 'system'
+                      ? `<span class="badge badge-info">تلقائي</span>`
+                      : `<button class="btn btn-xs btn-outline" data-action="delete-flow" data-fid="${l.id}">${Icons.render("trash")}</button>`}
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Modal: Add Incoming -->
+      <div id="modalIncoming" class="modal" style="display:none">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>${Icons.render("plus")} إضافة قيد وارد</h3>
+            <button class="close" data-action="close-modal">×</button>
+          </div>
+          <form id="formIncoming" class="form-stack">
+            <div class="form-group">
+              <label>التاريخ</label>
+              <input type="date" id="cf_date_in" value="${today}" required />
+            </div>
+            <div class="form-group">
+              <label>المصدر</label>
+              <input type="text" id="cf_src_in" placeholder="مثال: تحصيل من عميل - صنعاء" required />
+            </div>
+            <div class="form-group">
+              <label>التصنيف</label>
+              <select id="cf_cat_in">
+                <option value="receipt">استلام دفعة</option>
+                <option value="sales_cash">مبيعات نقدية</option>
+                <option value="agent_collection">تحصيل مندوب</option>
+                <option value="transfer">تحويل بنكي</option>
+                <option value="other_in">أخرى</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>المبلغ (ر.ي)</label>
+              <input type="number" id="cf_amt_in" min="1" required />
+            </div>
+            <div class="form-group">
+              <label>الحساب</label>
+              <select id="cf_acc_in">
+                ${db.cashAccounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>ملاحظات</label>
+              <input type="text" id="cf_note_in" />
+            </div>
+            <div class="btn-row">
+              <button type="submit" class="btn btn-primary">${Icons.render("check")} تسجيل القيد</button>
+              <button type="button" class="btn btn-secondary" data-action="close-modal">إلغاء</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modal: Add Outgoing -->
+      <div id="modalOutgoing" class="modal" style="display:none">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>${Icons.render("minus")} إضافة قيد مصروف</h3>
+            <button class="close" data-action="close-modal">×</button>
+          </div>
+          <form id="formOutgoing" class="form-stack">
+            <div class="form-group">
+              <label>التاريخ</label>
+              <input type="date" id="cf_date_out" value="${today}" required />
+            </div>
+            <div class="form-group">
+              <label>المصدر</label>
+              <input type="text" id="cf_src_out" placeholder="مثال: مشتريات مواد خام" required />
+            </div>
+            <div class="form-group">
+              <label>التصنيف</label>
+              <select id="cf_cat_out">
+                <option value="purchase">مشتريات</option>
+                <option value="expense">مصاريف تشغيلية</option>
+                <option value="salary">رواتب</option>
+                <option value="maintenance">صيانة</option>
+                <option value="transfer">تحويل بنكي</option>
+                <option value="other_out">أخرى</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>المبلغ (ر.ي)</label>
+              <input type="number" id="cf_amt_out" min="1" required />
+            </div>
+            <div class="form-group">
+              <label>الحساب</label>
+              <select id="cf_acc_out">
+                ${db.cashAccounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>ملاحظات</label>
+              <input type="text" id="cf_note_out" />
+            </div>
+            <div class="btn-row">
+              <button type="submit" class="btn btn-danger">${Icons.render("check")} تسجيل القيد</button>
+              <button type="button" class="btn btn-secondary" data-action="close-modal">إلغاء</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modal: Auto-Post from Sales -->
+      <div id="modalAutoPost" class="modal" style="display:none">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>${Icons.render("sync")} ترحيل تلقائي من المبيعات</h3>
+            <button class="close" data-action="close-modal">×</button>
+          </div>
+          <p class="text-muted">سيتم إنشاء قيود واردة في سجل التدفقات لكل سجل تحصيل في قائمة المبيعات.</p>
+          <div class="form-group">
+            <label>الشهر</label>
+            <input type="month" id="cf_ap_month" value="2026-06" />
+          </div>
+          <div class="form-group">
+            <label>الحساب المستهدف</label>
+            <select id="cf_ap_account">
+              ${db.cashAccounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>نوع الترحيل</label>
+            <select id="cf_ap_type">
+              <option value="all">كل المبيعات النقدية + التحصيل</option>
+              <option value="collection">التحصيل فقط</option>
+              <option value="cash">المبيعات النقدية فقط</option>
+            </select>
+          </div>
+          <div id="cfApPreview" class="alert alert-info" style="display:none"></div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="Modules._doAutoPost()">${Icons.render("sync")} بدء الترحيل</button>
+            <button type="button" class="btn btn-secondary" data-action="close-modal">إلغاء</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Credit Alerts -->
+      <div id="modalAlerts" class="modal" style="display:none">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>${Icons.render("alert")} تنبيهات الائتمان</h3>
+            <button class="close" data-action="close-modal">×</button>
+          </div>
+          <div id="cfAlertsList">
+            ${unreadAlerts.length === 0
+              ? `<div class="alert alert-success">لا توجد تنبيهات جديدة</div>`
+              : unreadAlerts.map(a => `
+                <div class="alert alert-warning" data-alert-id="${a.id}" style="margin-bottom:10px">
+                  <b>${a.customerName}</b><br>
+                  ${a.message}<br>
+                  <small class="text-muted">${a.date}</small>
+                  <div style="margin-top:8px">
+                    <button class="btn btn-xs btn-success" data-action="resolve-alert" data-aid="${a.id}">تم التسوية</button>
+                    <button class="btn btn-xs btn-secondary" data-action="mark-read" data-aid="${a.id}">قراءة فقط</button>
+                  </div>
+                </div>
+              `).join('')}
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-secondary" data-action="close-modal">إغلاق</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Edit Credit -->
+      <div id="modalEditCredit" class="modal" style="display:none">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 id="ecTitle">${Icons.render("edit")} تعديل بيانات العميل</h3>
+            <button class="close" data-action="close-modal">×</button>
+          </div>
+          <form id="formEditCredit" class="form-stack">
+            <input type="hidden" id="ec_id" />
+            <div class="form-group">
+              <label>اسم العميل</label>
+              <input type="text" id="ec_name" required />
+            </div>
+            <div class="form-group">
+              <label>سقف الائتمان (ر.ي)</label>
+              <input type="number" id="ec_limit" min="0" required />
+            </div>
+            <div class="form-group">
+              <label>الرصيد المستحق (ر.ي)</label>
+              <input type="number" id="ec_balance" min="0" required />
+            </div>
+            <div class="form-group">
+              <label>آخر دفعة</label>
+              <input type="date" id="ec_lastpay" />
+            </div>
+            <div class="form-group">
+              <label>ملاحظات</label>
+              <input type="text" id="ec_notes" />
+            </div>
+            <div class="btn-row">
+              <button type="submit" class="btn btn-primary">${Icons.render("check")} حفظ التعديلات</button>
+              <button type="button" class="btn btn-secondary" data-action="close-modal">إلغاء</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modal: Receive Payment -->
+      <div id="modalReceivePayment" class="modal" style="display:none">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>${Icons.render("money")} استلام دفعة من عميل</h3>
+            <button class="close" data-action="close-modal">×</button>
+          </div>
+          <form id="formReceivePayment" class="form-stack">
+            <input type="hidden" id="rp_cid" />
+            <div class="form-group">
+              <label>العميل</label>
+              <input type="text" id="rp_cname" readonly />
+            </div>
+            <div class="form-group">
+              <label>المبلغ المستحق</label>
+              <input type="text" id="rp_due" readonly />
+            </div>
+            <div class="form-group">
+              <label>المبلغ المسدد (ر.ي)</label>
+              <input type="number" id="rp_amount" min="1" required />
+            </div>
+            <div class="form-group">
+              <label>تاريخ الاستلام</label>
+              <input type="date" id="rp_date" value="${today}" required />
+            </div>
+            <div class="form-group">
+              <label>طريقة الدفع</label>
+              <select id="rp_method">
+                <option value="cash">نقدي</option>
+                <option value="bank">تحويل بنكي</option>
+                <option value="check">شيك</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>ملاحظات</label>
+              <input type="text" id="rp_notes" />
+            </div>
+            <div class="btn-row">
+              <button type="submit" class="btn btn-success">${Icons.render("check")} تأكيد الاستلام</button>
+              <button type="button" class="btn btn-secondary" data-action="close-modal">إلغاء</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+  }
+
+  // === Category labels (shared) ===
+  window.ICFG = window.ICFG || {};
+  window.ICFG.categoryLabels = {
+    sales_cash: 'مبيعات نقدية',
+    agent_collection: 'تحصيل مندوب',
+    receipt: 'استلام دفعة',
+    transfer: 'تحويل',
+    purchase: 'مشتريات',
+    expense: 'مصاريف تشغيلية',
+    salary: 'رواتب',
+    maintenance: 'صيانة',
+    other_in: 'أخرى - وارد',
+    other_out: 'أخرى - صادر'
+  };
+
+  // === Filter ===
+  Modules._filterCashFlow = function() {
+    const q = document.getElementById('cfSearch').value.toLowerCase();
+    const typeF = document.getElementById('cfTypeFilter').value;
+    const accF = document.getElementById('cfAccFilter').value;
+    document.querySelectorAll('#cfTbody tr').forEach(tr => {
+      const matchQ = tr.dataset.search.toLowerCase().includes(q);
+      const matchT = !typeF || tr.dataset.type === typeF;
+      const matchA = !accF || tr.dataset.acc === accF;
+      tr.style.display = (matchQ && matchT && matchA) ? '' : 'none';
+    });
+  };
+
+  // === Add Incoming ===
+  Modules._addIncoming = function() {
+    const db2 = APP.getDB();
+    const date = document.getElementById('cf_date_in').value;
+    const source = document.getElementById('cf_src_in').value;
+    const category = document.getElementById('cf_cat_in').value;
+    const amount = +document.getElementById('cf_amt_in').value;
+    const accountId = document.getElementById('cf_acc_in').value;
+    const notes = document.getElementById('cf_note_in').value;
+    const user = APP.getUser() || {};
+
+    addFlowEntry({ date, type: 'incoming', category, amount, source, accountId, notes, createdBy: user.name });
+    window.CF.closeModals();
+    render();
+  };
+
+  // === Add Outgoing ===
+  Modules._addOutgoing = function() {
+    const db2 = APP.getDB();
+    const date = document.getElementById('cf_date_out').value;
+    const source = document.getElementById('cf_src_out').value;
+    const category = document.getElementById('cf_cat_out').value;
+    const amount = +document.getElementById('cf_amt_out').value;
+    const accountId = document.getElementById('cf_acc_out').value;
+    const notes = document.getElementById('cf_note_out').value;
+    const user = APP.getUser() || {};
+
+    addFlowEntry({ date, type: 'outgoing', category, amount, source, accountId, notes, createdBy: user.name });
+    window.CF.closeModals();
+    render();
+  };
+
+  // === Auto-Post from Sales ===
+  Modules._openAutoPost = function() {
+    document.getElementById('modalAutoPost').style.display = 'flex';
+  };
+
+  Modules._doAutoPost = function() {
+    const db2 = APP.getDB();
+    const month = document.getElementById('cf_ap_month').value; // e.g. "2026-06"
+    const accountId = document.getElementById('cf_ap_account').value;
+    const postType = document.getElementById('cf_ap_type').value;
+    const user = APP.getUser() || {};
+    const today2 = new Date().toISOString().split('T')[0];
+
+    // Filter sales log by month
+    const monthSales = db2.salesLog.filter(s => s.date && s.date.startsWith(month));
+    let added = 0;
+
+    monthSales.forEach(s => {
+      const rep = db2.salesReps.find(r => r.code === s.repCode);
+      const repName = rep ? rep.name : s.repCode;
+
+      // Post cash sales
+      if ((postType === 'all' || postType === 'cash') && s.cash > 0) {
+        db2.cashFlowLog.push({
+          id: 'cf' + Date.now() + '_cash' + added,
+          date: s.date,
+          type: 'incoming',
+          category: 'sales_cash',
+          amount: s.cash,
+          source: `مندوب: ${repName} - مبيعات نقدية`,
+          accountId,
+          notes: `ترحيل تلقائي من سجل المبيعات`,
+          createdBy: 'system'
+        });
+        added++;
+      }
+
+      // Post collections
+      if ((postType === 'all' || postType === 'collection') && s.collection > 0) {
+        db2.cashFlowLog.push({
+          id: 'cf' + Date.now() + '_col' + added,
+          date: s.date,
+          type: 'incoming',
+          category: 'agent_collection',
+          amount: s.collection,
+          source: `مندوب: ${repName} - تحصيل`,
+          accountId,
+          notes: `ترحيل تلقائي من سجل المبيعات`,
+          createdBy: 'system'
+        });
+        added++;
+      }
+    });
+
+    if (added === 0) {
+      alert('لا توجد بيانات مبيعات للتحويل في هذا الشهر.');
+      return;
+    }
+
+    APP.saveDB(db2);
+    window.CF.closeModals();
+    render();
+    alert(`${Icons.render("check")} تمترحيل ${added} قيد بنجاح من سجل المبيعات.`);
+  };
+
+  // === Credit Management ===
+  Modules._checkCreditAndBlock = function(customerName, amount) {
+    const db2 = APP.getDB();
+    let customer = db2.customerCredits.find(c => c.customerName === customerName);
+    if (!customer) return null; // no credit record, allow
+    const newBalance = customer.currentBalance + amount;
+    if (newBalance > customer.creditLimit) {
+      return { blocked: true, customer, newBalance };
+    }
+    return { blocked: false, customer, newBalance };
+  };
+
+  Modules._addCreditAlert = function(customerId, customerName, message) {
+    const db2 = APP.getDB();
+    const today2 = new Date().toISOString().split('T')[0];
+    db2.creditAlerts.push({
+      id: 'alert' + Date.now(),
+      date: today2,
+      customerId,
+      customerName,
+      alertType: 'limit_exceeded',
+      message,
+      read: false,
+      resolved: false,
+      resolvedBy: null,
+      resolvedAt: null,
+      action: null
+    });
+    APP.saveDB(db2);
+  };
+
+  Modules._openEditCredit = function(customerId) {
+    const customer = db.customerCredits.find(c => c.id === customerId);
+    if (!customer) return;
+    document.getElementById('ec_id').value = customer.id;
+    document.getElementById('ec_name').value = customer.customerName;
+    document.getElementById('ec_limit').value = customer.creditLimit;
+    document.getElementById('ec_balance').value = customer.currentBalance;
+    document.getElementById('ec_lastpay').value = customer.lastPayment || '';
+    document.getElementById('ec_notes').value = customer.notes || '';
+    document.getElementById('modalEditCredit').style.display = 'flex';
+  };
+
+  Modules._saveEditCredit = function() {
+    const db2 = APP.getDB();
+    const id = document.getElementById('ec_id').value;
+    const customer = db2.customerCredits.find(c => c.id === id);
+    if (!customer) return;
+    customer.customerName = document.getElementById('ec_name').value;
+    customer.creditLimit = +document.getElementById('ec_limit').value;
+    customer.currentBalance = +document.getElementById('ec_balance').value;
+    customer.lastPayment = document.getElementById('ec_lastpay').value || null;
+    customer.notes = document.getElementById('ec_notes').value;
+    // Auto-block if over limit
+    if (customer.currentBalance > customer.creditLimit) {
+      if (!customer.blocked) {
+        customer.blocked = true;
+        Modules._addCreditAlert(customer.id, customer.customerName,
+          `تم تجاوز سقف الائتمان! الرصيد ${customer.currentBalance.toLocaleString('ar-EG')} ر.ي exceeds الحد ${customer.creditLimit.toLocaleString('ar-EG')} ر.ي`);
+      }
+    }
+    APP.saveDB(db2);
+    window.CF.closeModals();
+    render();
+  };
+
+  Modules._openReceivePayment = function(customerId) {
+    const customer = db.customerCredits.find(c => c.id === customerId);
+    if (!customer) return;
+    document.getElementById('rp_cid').value = customer.id;
+    document.getElementById('rp_cname').value = customer.customerName;
+    document.getElementById('rp_due').value = customer.currentBalance.toLocaleString('ar-EG') + ' ر.ي';
+    document.getElementById('rp_amount').value = '';
+    document.getElementById('modalReceivePayment').style.display = 'flex';
+  };
+
+  Modules._confirmReceivePayment = function() {
+    const db2 = APP.getDB();
+    const cid = document.getElementById('rp_cid').value;
+    const customer = db2.customerCredits.find(c => c.id === cid);
+    if (!customer) return;
+    const amount = +document.getElementById('rp_amount').value;
+    const date = document.getElementById('rp_date').value;
+    const method = document.getElementById('rp_method').value;
+    const notes = document.getElementById('rp_notes').value;
+    const user = APP.getUser() || {};
+
+    if (amount <= 0) { alert('أدخل مبلغاً صحيحاً'); return; }
+
+    // Update customer balance
+    customer.currentBalance = Math.max(0, customer.currentBalance - amount);
+    customer.lastPayment = date;
+    // Auto-unblock if now within limit
+    if (customer.currentBalance <= customer.creditLimit && customer.blocked) {
+      customer.blocked = false;
+    }
+
+    // Add cash flow entry
+    db2.cashFlowLog.push({
+      id: 'cf' + Date.now(),
+      date,
+      type: 'incoming',
+      category: 'receipt',
+      amount,
+      source: `استلام دفعة من: ${customer.customerName}`,
+      ref: 'receipt',
+      notes: `طريقة الدفع: ${method}${notes ? ' - ' + notes : ''}`,
+      accountId: 'safe',
+      createdBy: user.name
+    });
+
+    // Add to receipts log
+    db2.receiptsLog.push({
+      id: 'rcp' + Date.now(),
+      date,
+      customerId: cid,
+      customerName: customer.customerName,
+      amount,
+      paymentMethod: method,
+      collectedBy: user.name,
+      notes,
+      accountId: 'safe',
+      createdBy: user.name
+    });
+
+    APP.saveDB(db2);
+    window.CF.closeModals();
+    render();
+  };
+
+  Modules._unblockCredit = function(customerId) {
+    if (!confirm('هل تريد فك الحظر عن هذا العميل؟\nيجب التأكد من تسوية المبالغ المستحقة أولاً.')) return;
+    const db2 = APP.getDB();
+    const customer = db2.customerCredits.find(c => c.id === customerId);
+    if (customer) {
+      customer.blocked = false;
+      APP.saveDB(db2);
+      render();
+    }
+  };
+
+  Modules._resolveAlert = function(alertId) {
+    const db2 = APP.getDB();
+    const alert = db2.creditAlerts.find(a => a.id === alertId);
+    if (!alert) return;
+    alert.resolved = true;
+    alert.read = true;
+    const user = APP.getUser() || {};
+    alert.resolvedBy = user.name;
+    alert.resolvedAt = new Date().toISOString().split('T')[0];
+    // Unblock the customer
+    const customer = db2.customerCredits.find(c => c.id === alert.customerId);
+    if (customer) customer.blocked = false;
+    APP.saveDB(db2);
+    render();
+  };
+
+  Modules._markAlertRead = function(alertId) {
+    const db2 = APP.getDB();
+    const alert = db2.creditAlerts.find(a => a.id === alertId);
+    if (alert) { alert.read = true; APP.saveDB(db2); }
+    render();
+  };
+
+  Modules._deleteFlow = function(flowId) {
+    if (!confirm('حذف هذا القيد؟')) return;
+    const db2 = APP.getDB();
+    const idx = db2.cashFlowLog.findIndex(l => l.id === flowId);
+    if (idx !== -1) { db2.cashFlowLog.splice(idx, 1); APP.saveDB(db2); }
+    render();
+  };
+
+  Modules._addCustomerCredit = function() {
+    const db2 = APP.getDB();
+    const name = prompt('اسم العميل الجديد:');
+    if (!name) return;
+    const limit = parseFloat(prompt('سقف الائتمان (ر.ي):') || '0');
+    if (isNaN(limit)) return;
+    db2.customerCredits.push({
+      id: 'cr' + Date.now(),
+      customerName: name,
+      creditLimit: limit,
+      currentBalance: 0,
+      blocked: false,
+      lastPayment: null,
+      notes: ''
+    });
+    APP.saveDB(db2);
+    render();
+  };
+
+  // === Global click handler for this module ===
+  window.CF = {
+    closeModals: function() {
+      ['modalIncoming','modalOutgoing','modalAutoPost','modalAlerts','modalEditCredit','modalReceivePayment'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+    }
+  };
+
+  // Delegate click events for this module
+  container.addEventListener('click', function(e) {
+    const action = e.target.dataset.action;
+    if (!action) return;
+
+    switch(action) {
+      case 'add-incoming':
+        document.getElementById('modalIncoming').style.display = 'flex'; break;
+      case 'add-outgoing':
+        document.getElementById('modalOutgoing').style.display = 'flex'; break;
+      case 'auto-post':
+        Modules._openAutoPost(); break;
+      case 'view-alerts':
+        document.getElementById('modalAlerts').style.display = 'flex'; break;
+      case 'add-customer-credit':
+        Modules._addCustomerCredit(); break;
+      case 'edit-credit':
+        Modules._openEditCredit(e.target.dataset.cid); break;
+      case 'unblock-credit':
+        Modules._unblockCredit(e.target.dataset.cid); break;
+      case 'receive-payment':
+        Modules._openReceivePayment(e.target.dataset.cid); break;
+      case 'resolve-alert':
+        Modules._resolveAlert(e.target.dataset.aid); break;
+      case 'mark-read':
+        Modules._markAlertRead(e.target.dataset.aid); break;
+      case 'delete-flow':
+        Modules._deleteFlow(e.target.dataset.fid); break;
+      case 'close-modal':
+        window.CF.closeModals(); break;
+    }
+  });
+
+  // Form submissions
+  setTimeout(() => {
+    const formIn = document.getElementById('formIncoming');
+    if (formIn) formIn.addEventListener('submit', function(e) { e.preventDefault(); Modules._addIncoming(); });
+    const formOut = document.getElementById('formOutgoing');
+    if (formOut) formOut.addEventListener('submit', function(e) { e.preventDefault(); Modules._addOutgoing(); });
+    const formEC = document.getElementById('formEditCredit');
+    if (formEC) formEC.addEventListener('submit', function(e) { e.preventDefault(); Modules._saveEditCredit(); });
+    const formRP = document.getElementById('formReceivePayment');
+    if (formRP) formRP.addEventListener('submit', function(e) { e.preventDefault(); Modules._confirmReceivePayment(); });
+  }, 50);
 
   render();
 };
