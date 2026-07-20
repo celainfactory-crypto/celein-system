@@ -142,7 +142,7 @@ window.APP = (function () {
           <button class="login-btn" id="loginBtnReal" data-action="do-login">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.59 - PWA Enabled</div>
+          <div class="login-version-tag">v18.60 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -190,12 +190,14 @@ window.APP = (function () {
     currentUser = user;
     DB.setSession(user);
     showMainApp();
+    window.doLogin = doLogin; // make globally accessible
   }
 
   function logout() {
     DB.clearSession();
     currentUser = null;
     showLogin();
+    window.logout = logout; // make globally accessible
   }
 
   function getCurrentUser() {
@@ -729,10 +731,10 @@ document.addEventListener('click', function(e) {
   switch(action) {
     case 'toggle-password': window.togglePasswordGlobal(); break;
     case 'toggle-sidebar': window.toggleSidebarGlobal(); break;
-    case 'do-login': doLogin(); break;
+    case 'do-login': window.doLogin(); break;
     case 'install-pwa': if (window.APP && window.APP.installPWA) window.APP.installPWA(); break;
     case 'show-export-menu': if (window.APP && window.APP.showExportMenu) window.APP.showExportMenu(e); break;
-    case 'logout': logout(); break;
+    case 'logout': window.logout(); break;
     case 'nav-profile': if (window.APP && window.APP.navigate) window.APP.navigate('profile'); break;
     case 'nav': if (window.APP && window.APP.navigate) window.APP.navigate(el.dataset.page); break;
     case 'do-export': if (window.APP && window.APP.doExport) window.APP.doExport(el.dataset.type); break;
