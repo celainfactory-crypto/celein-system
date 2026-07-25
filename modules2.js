@@ -1040,7 +1040,6 @@ window.Modules.mySales = function(container) {
   const db = APP.getDB();
   const user = APP.getUser();
 
-  // Find this rep by repId (exact) then fallback to name
   const myRep = user.repId
     ? ((db.salesReps || []).find(r => r.id === user.repId))
     : ((db.salesReps || []).find(r =>
@@ -1050,16 +1049,22 @@ window.Modules.mySales = function(container) {
       ));
   const myRepCode = myRep ? myRep.code : null;
 
+  // Export
   Exports.register("mySales", {
     label: "مبيعاتي",
     pdf: () => {
-      const myLog = (db.salesLog || []).filter(s => s.repCode === myRepCode);
-      const rows = myLog.map(s => [s.date, s.customerName || '-', s.qty, (s.cash||0).toLocaleString('ar-EG'), (s.credit||0).toLocaleString('ar-EG'), (s.collection||0).toLocaleString('ar-EG')]);
-      const html = `<h2>${myRep ? myRep.name : 'مندوب'}</h2>` + Exports.rowsToHTMLTable(['التاريخ','العميل','الكمية','نقدي','آجل','تحصيل'], rows, { title: 'سجل مبيعاتي' });
-      Exports.exportPDF("مبيعاتي", html, "mySales");
+      const log = (db.salesLog || []).filter(s => s.repCode === myRepCode);
+      const rows = log.map(s => [s.date, s.customerName||'-', s.qty, (s.cash||0).toLocaleString('ar-EG'), (s.credit||0).toLocaleString('ar-EG'), (s.collection||0).toLocaleString('ar-EG')]);
+      Exports.exportPDF("مبيعاتي", Exports.rowsToHTMLTable(['التاريخ','العميل','الكمية','نقدي','آجل','تحصيل'], rows, { title: myRep ? myRep.name : 'مندوب' }), "mySales");
     },
-    excel: () => Exports.exportExcel(Exports.rowsToHTMLTable(['التاريخ','العميل','الكمية','نقدي','آجل','تحصيل'], (db.salesLog || []).filter(s => s.repCode === myRepCode).map(s => [s.date, s.customerName||'-', s.qty, s.cash||0, s.credit||0, s.collection||0]), { title: 'مبيعاتي' }), "mySales"),
-    csv: () => Exports.exportCSV([['التاريخ','العميل','الكمية','نقدي','آجل','تحصيل']].concat((db.salesLog || []).filter(s => s.repCode === myRepCode).map(s => [s.date, s.customerName||'-', s.qty, s.cash||0, s.credit||0, s.collection||0])), "mySales"),
+    excel: () => {
+      const log = (db.salesLog || []).filter(s => s.repCode === myRepCode);
+      Exports.exportExcel(Exports.rowsToHTMLTable(['التاريخ','العميل','الكمية','نقدي','آجل','تحصيل'], log.map(s => [s.date, s.customerName||'-', s.qty, s.cash||0, s.credit||0, s.collection||0]), { title: 'مبيعاتي' }), "mySales");
+    },
+    csv: () => {
+      const log = (db.salesLog || []).filter(s => s.repCode === myRepCode);
+      Exports.exportCSV([['التاريخ','العميل','الكمية','نقدي','آجل','تحصيل']].concat(log.map(s => [s.date, s.customerName||'-', s.qty, s.cash||0, s.credit||0, s.collection||0])), "mySales");
+    },
     json: () => Exports.exportJSON({ mySales: (db.salesLog || []).filter(s => s.repCode === myRepCode) }, "mySales_data"),
     print: () => window.print()
   });
@@ -1069,62 +1074,133 @@ window.Modules.mySales = function(container) {
     return;
   }
 
+  // Compute KPIs
   const myLog = (db.salesLog || []).filter(s => s.repCode === myRepCode);
-  const myEntries = myLog.filter(s => s.entries && s.entries.length > 0);
-  const totalQty = myLog.reduce((s, r) => s + (r.qty || 0), 0);
-  const totalCash = myLog.reduce((s, r) => s + (r.cash || 0), 0);
-  const totalCredit = myLog.reduce((s, r) => s + (r.credit || 0), 0);
-  const totalColl = myLog.reduce((s, r) => s + (r.collection || 0), 0);
-  const myBalance = (myRep.openingBalance || 0) + myLog.reduce((s, r) => s + (r.cash || 0) + (r.credit || 0), 0) - totalColl;
+  const myCollLog = (db.collectionLog || []).filter(c => c.repCode === myRepCode);
+  const myCusts = (db.repCustomers || []).filter(c => c.repCode === myRepCode);
+
+  const totalQty = myLog.reduce((s,r) => s+(r.qty||0), 0);
+  const totalCash = myLog.reduce((s,r) => s+(r.cash||0), 0);
+  const totalCredit = myLog.reduce((s,r) => s+(r.credit||0), 0);
+  const totalColl = myLog.reduce((s,r) => s+(r.collection||0), 0);
+  const totalColl2 = myCollLog.reduce((s,r) => s+(r.amount||0), 0);
+  const myDebt = totalCredit - totalColl - totalColl2;
+  const myCustDebt = myCusts.reduce((s,c) => s+(c.debt||0), 0);
+
+  const today = new Date().toISOString().split('T')[0];
+
+  // Customer dropdown for sales form
+  const custOpts = myCusts.map(c => `<option value="${c.name}" data-id="${c.id}">${c.name}${c.market ? ' - ' + c.market : ''}</option>`).join('');
+  // Product rows
+  const prodRows = db.products.map((p, i) => {
+    const price = (db.pricing.find(pr => pr.code === p.code) || {}).retailPrice || 0;
+    return `<tr>
+      <td><b>${p.name}</b><br><small class="text-muted">${p.size} | ${p.packaging}</small></td>
+      <td><input type="number" id="rs_qty_${i}" value="0" min="0" data-idx="${i}" data-action="rs-qty" style="width:80px;text-align:center;font-weight:700" /></td>
+      <td><input type="number" id="rs_price_${i}" value="${price}" data-idx="${i}" data-action="rs-price" style="width:90px;text-align:center" /></td>
+      <td id="rs_sub_${i}" style="text-align:center;font-weight:700;color:var(--primary)">0</td>
+      <td><input type="number" id="rs_cash_${i}" value="0" min="0" data-idx="${i}" data-action="rs-cash" style="width:90px;text-align:center" /></td>
+      <td><input type="number" id="rs_credit_${i}" value="0" min="0" data-idx="${i}" data-action="rs-credit" style="width:90px;text-align:center" /></td>
+    </tr>`;
+  }).join('');
 
   container.innerHTML = `
     <div class="alert alert-info">
       ${Icons.render('info')}
-      <span>مرحباً <b>${myRep.name}</b> — سجل مبيعاتك الشخصية. الكميات المباعة والسيولة محدّثة لحظياً.</span>
+      <span>مرحباً <b>${myRep ? myRep.name : user.name}</b> — هذا حسابك كمندوب مبيعات. كل البيانات المسجلة خاصة بك ولا يراها أحد سواك.</span>
     </div>
 
-    <div class="kpi-grid">
-      <div class="kpi-card info">
-        <div class="label"><span class="ic">${Icons.render('box')}</span> إجمالي الكمية المباعة</div>
-        <div class="value">${totalQty.toLocaleString('ar-EG')}</div>
-        <div class="delta">كرتون</div>
-      </div>
-      <div class="kpi-card success">
-        <div class="label"><span class="ic">${Icons.render('cash')}</span> إجمالي المبيعات النقدية</div>
-        <div class="value">${(totalCash/1000).toFixed(0)}K</div>
-        <div class="delta">ريال يمني</div>
-      </div>
-      <div class="kpi-card warning">
-        <div class="label"><span class="ic">${Icons.render('credit')}</span> إجمالي المبيعات الآجلة</div>
-        <div class="value">${(totalCredit/1000).toFixed(0)}K</div>
-        <div class="delta">ريال يمني</div>
-      </div>
-      <div class="kpi-card danger">
-        <div class="label"><span class="ic">${Icons.render('debt')}</span> مديونيتي</div>
-        <div class="value">${(myBalance/1000).toFixed(0)}K</div>
-        <div class="delta">ريال يمني</div>
+    <!-- Tabs -->
+    <div class="tabs" style="margin-bottom:16px">
+      <button class="tab-btn active" data-action="rs-tab" data-tab="summary">${Icons.render('dashboard')} ملخص</button>
+      <button class="tab-btn" data-action="rs-tab" data-tab="customers">${Icons.render('users')} عملائي</button>
+      <button class="tab-btn" data-action="rs-tab" data-tab="sale">${Icons.render('truck')} تسجيل بيع</button>
+      <button class="tab-btn" data-action="rs-tab" data-tab="collect">${Icons.render('cash')} تحصيل</button>
+      <button class="tab-btn" data-action="rs-tab" data-tab="log">${Icons.render('document')} السجل</button>
+    </div>
+
+    <!-- ===== Tab: ملخص ===== -->
+    <div id="rs-tab-summary">
+      <div class="kpi-grid">
+        <div class="kpi-card info">
+          <div class="label"><span class="ic">${Icons.render('box')}</span> إجمالي الكمية المباعة</div>
+          <div class="value">${totalQty.toLocaleString('ar-EG')}</div>
+          <div class="delta">كرتون</div>
+        </div>
+        <div class="kpi-card success">
+          <div class="label"><span class="ic">${Icons.render('cash')}</span> المبيعات النقدية</div>
+          <div class="value">${(totalCash/1000).toFixed(0)}K</div>
+          <div class="delta">ريال</div>
+        </div>
+        <div class="kpi-card warning">
+          <div class="label"><span class="ic">${Icons.render('credit')}</span> المبيعات الآجلة</div>
+          <div class="value">${(totalCredit/1000).toFixed(0)}K</div>
+          <div class="delta">ريال</div>
+        </div>
+        <div class="kpi-card danger">
+          <div class="label"><span class="ic">${Icons.render('debt')}</span> إجمالي المديونية</div>
+          <div class="value">${(Math.max(myDebt, 0)/1000).toFixed(0)}K</div>
+          <div class="delta">ريال</div>
+        </div>
+        <div class="kpi-card success">
+          <div class="label"><span class="ic">${Icons.render('collection')}</span> إجمالي التحصيل</div>
+          <div class="value">${((totalColl+totalColl2)/1000).toFixed(0)}K</div>
+          <div class="delta">ريال</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label"><span class="ic">${Icons.render('users')}</span> عدد العملاء</div>
+          <div class="value">${myCusts.length}</div>
+          <div class="delta">عميل</div>
+        </div>
       </div>
     </div>
 
-    <div class="card" style="margin-top:20px">
-      <h3>${Icons.render("plus")} تسجيل عملية بيع جديدة</h3>
-      <form id="repSaleForm">
-        <div class="form-grid" style="grid-template-columns:repeat(4,1fr)">
+    <!-- ===== Tab: العملاء ===== -->
+    <div id="rs-tab-customers" style="display:none">
+      <div class="card">
+        <div class="header-row">
+          <h3>${Icons.render('users')} عملائي (${myCusts.length})</h3>
+          <button class="btn btn-primary" data-action="rs-add-customer">${Icons.render('plus')} إضافة عميل</button>
+        </div>
+        <div style="max-height:400px;overflow-y:auto">
+          ${myCusts.length === 0 ? `<div class="empty-state"><p>لا يوجد عملاء. أضف عميل جديد للبدء.</p></div>` : `
+          <table>
+            <thead><tr><th>الاسم</th><th>السوق/المنطقة</th><th>الهاتف</th><th>الرصيد (آجل)</th><th>ملاحظة</th><th>إجراء</th></tr></thead>
+            <tbody>
+              ${myCusts.map(c => `
+                <tr>
+                  <td><b>${c.name}</b></td>
+                  <td>${c.market || '-'}</td>
+                  <td>${c.phone || '-'}</td>
+                  <td class="${(c.debt||0)>0 ? 'text-danger' : 'text-success'}">${((c.debt||0)).toLocaleString('ar-EG')} ر.ي</td>
+                  <td class="text-muted">${c.notes || '-'}</td>
+                  <td>
+                    <button class="btn btn-sm btn-secondary" data-action="rs-edit-customer" data-id="${c.id}">${Icons.render('edit')} تعديل</button>
+                    <button class="btn btn-sm btn-danger" data-action="rs-del-customer" data-id="${c.id}">${Icons.render('trash')} حذف</button>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>`}
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Tab: تسجيل بيع ===== -->
+    <div id="rs-tab-sale" style="display:none">
+      <div class="card">
+        <h3>${Icons.render('truck')} تسجيل عملية بيع جديدة</h3>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr">
           <div class="form-group">
             <label>التاريخ</label>
-            <input type="date" id="rs_date" value="${new Date().toISOString().split('T')[0]}" />
+            <input type="date" id="rs_date" value="${today}" />
           </div>
           <div class="form-group">
-            <label>العميل / السوق</label>
-            <input type="text" id="rs_customer" placeholder="اسم العميل أو السوق" required />
-          </div>
-          <div class="form-group">
-            <label>نوع البيع</label>
-            <select id="rs_type">
-              <option value="cash">نقدي فقط</option>
-              <option value="mixed">نقدي + آجل</option>
-              <option value="credit">آجل فقط</option>
-            </select>
+            <label>العميل</label>
+            <div style="display:flex;gap:6px">
+              <input type="text" id="rs_cust_name" list="rs_cust_list" placeholder="اختر أو اكتب اسم العميل" style="flex:1" />
+              <datalist id="rs_cust_list">${custOpts}</datalist>
+              <button class="btn btn-sm" data-action="rs-new-cust-btn" title="عميل جديد">${Icons.render('plus')}</button>
+            </div>
           </div>
           <div class="form-group">
             <label>ملاحظة</label>
@@ -1132,29 +1208,15 @@ window.Modules.mySales = function(container) {
           </div>
         </div>
 
-        <h4 style="margin-top:16px;margin-bottom:10px">${Icons.render("box")} الأصناف</h4>
+        <h4 style="margin-top:16px;margin-bottom:8px">${Icons.render('box')} الأصناف</h4>
         <div style="overflow-x:auto">
           <table style="min-width:700px">
-            <thead>
-              <tr><th>الصنف</th><th>الكمية (كرتون)</th><th>السعر (ر.ي)</th><th>الإجمالي</th><th>نقدي</th><th>آجل</th></tr>
-            </thead>
-            <tbody>
-              ${db.products.map((p, i) => {
-                const price = (db.pricing.find(pr => pr.code === p.code) || {}).retailPrice || 0;
-                return `<tr>
-                  <td><b>${p.name}</b><br><small class="text-muted">${p.size} | ${p.packaging}</small></td>
-                  <td><input type="number" id="rs_qty_${i}" min="0" value="0" data-idx="${i}" data-action="rs-qty" style="width:85px;text-align:center;font-weight:700" /></td>
-                  <td><input type="number" id="rs_price_${i}" value="${price}" data-idx="${i}" data-action="rs-price" style="width:95px;text-align:center" /></td>
-                  <td id="rs_sub_${i}" style="text-align:center;font-weight:700;color:var(--primary)">0</td>
-                  <td><input type="number" id="rs_cash_${i}" min="0" value="0" data-idx="${i}" data-action="rs-cash" style="width:95px;text-align:center" /></td>
-                  <td><input type="number" id="rs_credit_${i}" min="0" value="0" data-idx="${i}" data-action="rs-credit" style="width:95px;text-align:center" /></td>
-                </tr>`;
-              }).join('')}
-            </tbody>
+            <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th>نقدي</th><th>آجل</th></tr></thead>
+            <tbody>${prodRows}</tbody>
             <tfoot>
               <tr style="background:var(--bg-darker);font-weight:700">
                 <td colspan="3">الإجمالي</td>
-                <td id="rs_total" style="text-align:center;font-size:1.15em;color:var(--primary)">0</td>
+                <td id="rs_total" style="text-align:center;font-size:1.2em;color:var(--primary)">0</td>
                 <td id="rs_totalCash" style="text-align:center;color:#2e7d32">0</td>
                 <td id="rs_totalCredit" style="text-align:center;color:#c62828">0</td>
               </tr>
@@ -1162,50 +1224,127 @@ window.Modules.mySales = function(container) {
           </table>
         </div>
 
-        <div class="form-grid" style="margin-top:12px;grid-template-columns:repeat(3,1fr)">
-          <div class="form-group"><label>إجمالي النقدي</label><input type="text" id="rs_dispCash" readonly style="font-weight:700;color:#2e7d32" /></div>
-          <div class="form-group"><label>إجمالي الآجل</label><input type="text" id="rs_dispCredit" readonly style="font-weight:700;color:#c62828" /></div>
-          <div class="form-group"><label>الإجمالي الكلي</label><input type="text" id="rs_dispTotal" readonly style="font-weight:700;color:var(--primary)" /></div>
+        <div class="form-grid" style="grid-template-columns:repeat(3,1fr);margin-top:12px">
+          <div class="form-group"><label>إجمالي النقدي</label><input type="text" id="rs_dispCash" readonly style="font-weight:700;color:#2e7d32" value="0 ر.ي" /></div>
+          <div class="form-group"><label>إجمالي الآجل</label><input type="text" id="rs_dispCredit" readonly style="font-weight:700;color:#c62828" value="0 ر.ي" /></div>
+          <div class="form-group"><label>الإجمالي الكلي</label><input type="text" id="rs_dispTotal" readonly style="font-weight:700;color:var(--primary)" value="0 ر.ي" /></div>
         </div>
 
         <div class="btn-row" style="margin-top:14px">
-          <button type="button" class="btn btn-primary" data-action="rs-submit">${Icons.render("check")} تسجيل البيع</button>
-          <button type="button" class="btn btn-secondary" data-action="rs-reset">مسح</button>
+          <button class="btn btn-primary" data-action="rs-submit">${Icons.render('check')} تسجيل البيع</button>
+          <button class="btn btn-secondary" data-action="rs-reset">${Icons.render('refresh')} مسح</button>
         </div>
-      </form>
+      </div>
     </div>
 
-    <div class="card" style="margin-top:20px">
-      <h3>${Icons.render("document")} سجل مبيعاتي (${myLog.length} عملية)</h3>
-      <div style="max-height:500px;overflow-y:auto">
-        <table>
-          <thead>
-            <tr><th>التاريخ</th><th>العميل</th><th>الكمية</th><th>النقدي</th><th>الآجل</th><th>ملاحظة</th></tr>
-          </thead>
-          <tbody>
-            ${myLog.slice().reverse().map(s => `
-              <tr>
-                <td>${s.date}</td>
-                <td><b>${s.customerName || '-'}</b></td>
-                <td class="text-primary">${(s.qty||0).toLocaleString('ar-EG')}</td>
-                <td class="text-success">${(s.cash||0).toLocaleString('ar-EG')}</td>
-                <td class="text-warning">${(s.credit||0).toLocaleString('ar-EG')}</td>
-                <td class="text-muted">${s.notes || '-'}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
+    <!-- ===== Tab: تحصيل ===== -->
+    <div id="rs-tab-collect" style="display:none">
+      <div class="card">
+        <h3>${Icons.render('cash')} تسجيل تحصيل من عميل</h3>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr">
+          <div class="form-group">
+            <label>التاريخ</label>
+            <input type="date" id="col_date" value="${today}" />
+          </div>
+          <div class="form-group">
+            <label>العميل</label>
+            <select id="col_customer">
+              <option value="">-- اختر العميل --</option>
+              ${myCusts.filter(c => (c.debt||0) > 0).map(c => `<option value="${c.name}" data-id="${c.id}">${c.name} (${((c.debt||0)).toLocaleString('ar-EG')} ر.ي)</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>المبلغ المحصل (ر.ي)</label>
+            <input type="number" id="col_amount" min="1" placeholder="0" />
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:8px">
+          <label>ملاحظة</label>
+          <input type="text" id="col_notes" placeholder="اختياري" />
+        </div>
+        <div class="btn-row" style="margin-top:14px">
+          <button class="btn btn-success" data-action="rs-submit-collection">${Icons.render('check')} تسجيل التحصيل</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h3>${Icons.render('document')} سجل التحصيل (${myCollLog.length})</h3>
+        <div style="max-height:350px;overflow-y:auto">
+          ${myCollLog.length === 0 ? `<div class="empty-state"><p>لا يوجد تحصيلات مسجلة.</p></div>` : `
+          <table>
+            <thead><tr><th>التاريخ</th><th>العميل</th><th>المبلغ</th><th>ملاحظة</th></tr></thead>
+            <tbody>
+              ${myCollLog.slice().reverse().map(c => `
+                <tr>
+                  <td>${c.date}</td>
+                  <td><b>${c.customerName || '-'}</b></td>
+                  <td class="text-success">${(c.amount||0).toLocaleString('ar-EG')} ر.ي</td>
+                  <td class="text-muted">${c.notes || '-'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>`}
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Tab: السجل ===== -->
+    <div id="rs-tab-log" style="display:none">
+      <div class="card">
+        <h3>${Icons.render('document')} سجل المبيعات (${myLog.length} عملية)</h3>
+        <div style="max-height:500px;overflow-y:auto">
+          ${myLog.length === 0 ? `<div class="empty-state"><p>لا يوجد مبيعات مسجلة.</p></div>` : `
+          <table>
+            <thead><tr><th>التاريخ</th><th>العميل</th><th>الكمية</th><th>النقدي</th><th>الآجل</th><th>التحصيل</th><th>ملاحظة</th></tr></thead>
+            <tbody>
+              ${myLog.slice().reverse().map(s => `
+                <tr>
+                  <td>${s.date}</td>
+                  <td><b>${s.customerName || '-'}</b></td>
+                  <td class="text-primary">${(s.qty||0).toLocaleString('ar-EG')}</td>
+                  <td class="text-success">${(s.cash||0).toLocaleString('ar-EG')}</td>
+                  <td class="text-warning">${(s.credit||0).toLocaleString('ar-EG')}</td>
+                  <td class="text-info">${(s.collection||0).toLocaleString('ar-EG')}</td>
+                  <td class="text-muted">${s.notes || '-'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>`}
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Add/Edit Customer -->
+    <div id="rs-customer-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.5);align-items:center;justify-content:center">
+      <div class="card" style="width:min(480px,95vw);max-height:90vh;overflow-y:auto">
+        <div class="header-row" style="margin-bottom:16px">
+          <h3 id="rcm_title">${Icons.render('plus')} إضافة عميل</h3>
+          <button class="btn btn-sm btn-secondary" data-action="rs-close-customer-modal">${Icons.render('x')}</button>
+        </div>
+        <input type="hidden" id="rcm_id" value="" />
+        <div class="form-group"><label>اسم العميل *</label><input type="text" id="rcm_name" placeholder="اسم العميل أو اسم السوق" required /></div>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr">
+          <div class="form-group"><label>السوق / المنطقة</label><input type="text" id="rcm_market" placeholder="مثال: شارع الزبري" /></div>
+          <div class="form-group"><label>رقم الهاتف</label><input type="text" id="rcm_phone" placeholder="اختياري" /></div>
+        </div>
+        <div class="form-group"><label>ملاحظة</label><input type="text" id="rcm_notes" placeholder="اختياري" /></div>
+        <div class="btn-row" style="margin-top:14px">
+          <button class="btn btn-primary" data-action="rs-save-customer">${Icons.render('check')} حفظ</button>
+          <button class="btn btn-secondary" data-action="rs-close-customer-modal">إلغاء</button>
+        </div>
       </div>
     </div>
   `;
 
-  // --- Rep Sale JS ---
+  // State
   const rsProds = db.products.map((p, i) => ({
-    qty: 0, price: (db.pricing.find(pr => pr.code === p.code) || {}).retailPrice || 0,
+    qty: 0,
+    price: (db.pricing.find(pr => pr.code === p.code) || {}).retailPrice || 0,
     subtotal: 0, cash: 0, credit: 0
   }));
 
   window.__RS = window.__RS || {};
   window.__RS.prods = rsProds;
+  window.__RS.myRepCode = myRepCode;
+  window.__RS.myCusts = myCusts;
 
   function rsCalc() {
     let total = 0, tCash = 0, tCredit = 0;
@@ -1224,9 +1363,9 @@ window.Modules.mySales = function(container) {
     var tt = document.getElementById('rs_dispTotal');
     if (tt) tt.value = (tCash + tCredit).toLocaleString('ar-EG') + ' ر.ي';
   }
-
   window.__RS.calc = rsCalc;
 
+  // Product input listeners
   db.products.forEach((p, i) => {
     setTimeout(() => {
       var qEl = document.getElementById('rs_qty_' + i);
@@ -1241,10 +1380,9 @@ window.Modules.mySales = function(container) {
   });
 
   window.__RS.submit = function() {
-    var date = document.getElementById('rs_date').value;
-    var customer = document.getElementById('rs_customer').value.trim();
-    var notes = document.getElementById('rs_notes').value.trim();
-    var type = document.getElementById('rs_type').value;
+    var date = document.getElementById('rs_date') ? document.getElementById('rs_date').value : today;
+    var customer = document.getElementById('rs_cust_name') ? document.getElementById('rs_cust_name').value.trim() : '';
+    var notes = document.getElementById('rs_notes') ? document.getElementById('rs_notes').value.trim() : '';
     if (!customer) { alert('يرجى إدخال اسم العميل'); return; }
     var hasItems = rsProds.some(p => p.qty > 0 || p.cash > 0 || p.credit > 0);
     if (!hasItems) { alert('يرجى إدخال أصناف على الأقل'); return; }
@@ -1256,9 +1394,20 @@ window.Modules.mySales = function(container) {
       entries.push({ code: db.products[i].code, name: db.products[i].name, qty: p.qty, price: p.price, subtotal: p.subtotal, cash: p.cash, credit: p.credit });
     });
     var db2 = APP.getDB();
-    db2.salesLog.push({ date, repCode: myRepCode, qty: totalQty, credit: totalCredit, cash: totalCash, collection: 0, customerName: customer, notes: 'مبيعاتي - ' + notes, entries, type });
+    db2.salesLog = db2.salesLog || [];
+    db2.salesLog.push({ date, repCode: myRepCode, qty: totalQty, credit: totalCredit, cash: totalCash, collection: 0, customerName: customer, notes, entries });
+    // Update customer debt if credit sale
+    if (totalCredit > 0) {
+      var cust = (db2.repCustomers || []).find(c => c.repCode === myRepCode && c.name === customer);
+      if (cust) {
+        cust.debt = (cust.debt || 0) + totalCredit;
+      } else {
+        if (!db2.repCustomers) db2.repCustomers = [];
+        db2.repCustomers.push({ id: Date.now(), repCode: myRepCode, name: customer, debt: totalCredit, market: '', phone: '', notes: '' });
+      }
+    }
     APP.saveDB(db2);
-    alert(Icons.render('check') + ' تم تسجيل البيع بنجاح!\nالكمية: ' + totalQty + ' | النقدي: ' + totalCash.toLocaleString('ar-EG') + ' | الآجل: ' + totalCredit.toLocaleString('ar-EG'));
+    alert('تم تسجيل البيع بنجاح!\nالعميل: ' + customer + '\nالكمية: ' + totalQty + ' كرتون\nالنقدي: ' + totalCash.toLocaleString('ar-EG') + ' ر.ي\nالآجل: ' + totalCredit.toLocaleString('ar-EG') + ' ر.ي');
     window.__RS.reset && window.__RS.reset();
     Modules.mySales && Modules.mySales(container);
   };
@@ -1273,10 +1422,111 @@ window.Modules.mySales = function(container) {
       var cr = document.getElementById('rs_credit_' + i);
       if (q) q.value = 0; if (pr) pr.value = p.price; if (c) c.value = 0; if (cr) cr.value = 0;
     });
-    document.getElementById('rs_customer').value = '';
-    document.getElementById('rs_notes').value = '';
-    document.getElementById('rs_type').value = 'cash';
+    var cn = document.getElementById('rs_cust_name');
+    var nt = document.getElementById('rs_notes');
+    if (cn) cn.value = ''; if (nt) nt.value = '';
     rsCalc();
+  };
+
+  // Customer modal helpers
+  window.__RS.openCustomerModal = function(editId) {
+    var modal = document.getElementById('rs-customer-modal');
+    if (!modal) return;
+    var title = document.getElementById('rcm_title');
+    var idIn = document.getElementById('rcm_id');
+    var nameIn = document.getElementById('rcm_name');
+    var marketIn = document.getElementById('rcm_market');
+    var phoneIn = document.getElementById('rcm_phone');
+    var notesIn = document.getElementById('rcm_notes');
+    if (title) title.innerHTML = Icons.render('plus') + ' إضافة عميل';
+    if (idIn) idIn.value = '';
+    if (nameIn) nameIn.value = '';
+    if (marketIn) marketIn.value = '';
+    if (phoneIn) phoneIn.value = '';
+    if (notesIn) notesIn.value = '';
+    if (editId) {
+      var db2 = APP.getDB();
+      var cust = (db2.repCustomers || []).find(c => c.id === editId);
+      if (cust && cust.repCode === myRepCode) {
+        if (title) title.innerHTML = Icons.render('edit') + ' تعديل عميل';
+        if (idIn) idIn.value = cust.id;
+        if (nameIn) nameIn.value = cust.name;
+        if (marketIn) marketIn.value = cust.market || '';
+        if (phoneIn) phoneIn.value = cust.phone || '';
+        if (notesIn) notesIn.value = cust.notes || '';
+      }
+    }
+    modal.style.display = 'flex';
+    setTimeout(() => { if (nameIn) nameIn.focus(); }, 100);
+  };
+
+  window.__RS.closeCustomerModal = function() {
+    var modal = document.getElementById('rs-customer-modal');
+    if (modal) modal.style.display = 'none';
+  };
+
+  window.__RS.saveCustomer = function() {
+    var id = document.getElementById('rcm_id') ? document.getElementById('rcm_id').value : '';
+    var name = document.getElementById('rcm_name') ? document.getElementById('rcm_name').value.trim() : '';
+    var market = document.getElementById('rcm_market') ? document.getElementById('rcm_market').value.trim() : '';
+    var phone = document.getElementById('rcm_phone') ? document.getElementById('rcm_phone').value.trim() : '';
+    var notes = document.getElementById('rcm_notes') ? document.getElementById('rcm_notes').value.trim() : '';
+    if (!name) { alert('يرجى إدخال اسم العميل'); return; }
+    var db2 = APP.getDB();
+    if (!db2.repCustomers) db2.repCustomers = [];
+    if (id) {
+      var cust = db2.repCustomers.find(c => c.id === parseInt(id));
+      if (cust && cust.repCode === myRepCode) {
+        cust.name = name; cust.market = market; cust.phone = phone; cust.notes = notes;
+      }
+    } else {
+      db2.repCustomers.push({ id: Date.now(), repCode: myRepCode, name, market, phone, notes, debt: 0 });
+    }
+    APP.saveDB(db2);
+    window.__RS.closeCustomerModal();
+    Modules.mySales && Modules.mySales(container);
+  };
+
+  window.__RS.delCustomer = function(id) {
+    if (!confirm('هل أنت متأكد من حذف هذا العميل؟')) return;
+    var db2 = APP.getDB();
+    db2.repCustomers = (db2.repCustomers || []).filter(c => !(c.id === id && c.repCode === myRepCode));
+    APP.saveDB(db2);
+    Modules.mySales && Modules.mySales(container);
+  };
+
+  window.__RS.submitCollection = function() {
+    var date = document.getElementById('col_date') ? document.getElementById('col_date').value : today;
+    var sel = document.getElementById('col_customer');
+    var customer = sel ? sel.value : '';
+    var amount = parseFloat(document.getElementById('col_amount') ? document.getElementById('col_amount').value : 0) || 0;
+    var notes = document.getElementById('col_notes') ? document.getElementById('col_notes').value.trim() : '';
+    if (!customer) { alert('يرجى اختيار العميل'); return; }
+    if (amount <= 0) { alert('يرجى إدخال مبلغ صحيح'); return; }
+    var db2 = APP.getDB();
+    db2.collectionLog = db2.collectionLog || [];
+    db2.collectionLog.push({ date, repCode: myRepCode, customerName: customer, amount, notes });
+    // Update customer debt
+    var cust = (db2.repCustomers || []).find(c => c.repCode === myRepCode && c.name === customer);
+    if (cust) {
+      cust.debt = Math.max((cust.debt || 0) - amount, 0);
+    }
+    // Also add collection to latest credit sale for this customer
+    var lastCredit = (db2.salesLog || []).filter(s => s.repCode === myRepCode && s.customerName === customer && (s.credit||0) > 0).pop();
+    if (lastCredit) lastCredit.collection = (lastCredit.collection||0) + amount;
+    APP.saveDB(db2);
+    alert('تم تسجيل التحصيل بنجاح!\nالعميل: ' + customer + '\nالمبلغ: ' + amount.toLocaleString('ar-EG') + ' ر.ي');
+    Modules.mySales && Modules.mySales(container);
+  };
+
+  // Tab switcher
+  window.__RS.switchTab = function(tab) {
+    ['summary','customers','sale','collect','log'].forEach(t => {
+      var el = document.getElementById('rs-tab-' + t);
+      if (el) el.style.display = t === tab ? 'block' : 'none';
+      var btn = document.querySelector('[data-tab="' + t + '"]');
+      if (btn) btn.classList.toggle('active', t === tab);
+    });
   };
 };
 

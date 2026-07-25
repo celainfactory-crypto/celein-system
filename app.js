@@ -146,7 +146,7 @@ window.APP = (function () {
           <button class="login-btn" id="loginBtnReal" data-action="do-login">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.70 - PWA Enabled</div>
+          <div class="login-version-tag">v18.71 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -746,6 +746,43 @@ document.addEventListener('click', function(e) {
       var m = e.target.closest('.modal-overlay') || e.target.closest('.modal-content') ||
               e.target.closest('[class*="modal"]') || e.target.closest('[id*="Modal"]');
       if (m) m.style.display = 'none';
+      break;
+    // === mySales delegation ===
+    case 'rs-tab':
+      if (window.__RS && window.__RS.switchTab) window.__RS.switchTab(el.dataset.tab);
+      break;
+    case 'rs-submit':
+      if (window.__RS && window.__RS.submit) window.__RS.submit();
+      break;
+    case 'rs-reset':
+      if (window.__RS && window.__RS.reset) window.__RS.reset();
+      break;
+    case 'rs-qty':
+    case 'rs-price':
+    case 'rs-cash':
+    case 'rs-credit':
+      if (window.__RS && window.__RS.calc) window.__RS.calc();
+      break;
+    case 'rs-add-customer':
+      if (window.__RS && window.__RS.openCustomerModal) window.__RS.openCustomerModal();
+      break;
+    case 'rs-edit-customer':
+      if (window.__RS && window.__RS.openCustomerModal) window.__RS.openCustomerModal(parseInt(el.dataset.id));
+      break;
+    case 'rs-del-customer':
+      if (window.__RS && window.__RS.delCustomer) window.__RS.delCustomer(parseInt(el.dataset.id));
+      break;
+    case 'rs-close-customer-modal':
+      if (window.__RS && window.__RS.closeCustomerModal) window.__RS.closeCustomerModal();
+      break;
+    case 'rs-save-customer':
+      if (window.__RS && window.__RS.saveCustomer) window.__RS.saveCustomer();
+      break;
+    case 'rs-submit-collection':
+      if (window.__RS && window.__RS.submitCollection) window.__RS.submitCollection();
+      break;
+    case 'rs-new-cust-btn':
+      if (window.__RS && window.__RS.openCustomerModal) window.__RS.openCustomerModal();
       break;
   }
 });
