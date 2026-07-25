@@ -21,11 +21,14 @@ window.Modules.dashboard = function(container) {
       print: () => window.print()
     });
 
-    // Match user to their repCode by name
-    const myName = (user.name || '').trim();
-    const myRep = (db.salesReps || []).find(r =>
-      r.name === myName || r.code === myName || r.name.includes(myName.split(' ')[0])
-    );
+    // Match user to their rep by repId (exact, then fallback to name)
+    const myRep = user.repId
+      ? ((db.salesReps || []).find(r => r.id === user.repId))
+      : ((db.salesReps || []).find(r =>
+          r.name === (user.name || '').trim() ||
+          r.code === (user.name || '').trim() ||
+          (user.name || '').includes(r.name.split(' ')[0])
+        ));
     const myRepCode = myRep ? myRep.code : null;
 
     // If we found a matching rep, filter to show ONLY their data
