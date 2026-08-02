@@ -8236,7 +8236,7 @@ console.log('Self-service modules v2 loaded (string concat only)');
             '</div>' +
             '<div class="ss-req-status">' +
               '<span class="badge ' + badgeClass + '">' + statusLabel + '</span>' +
-              (canCancel ? '<button class="btn btn-danger btn-xs" data-action="ss-cancel-request" data-id="' + req.id + '" onclick="event.stopPropagation()">' + Icons.render('x') + ' إلغاء</button>' : '') +
+              (canCancel ? '<button class="btn btn-danger btn-xs" data-action="ss-cancel-request" data-id="' + req.id + '" data-stop-propagation="true">' + Icons.render('x') + ' إلغاء</button>' : '') +
             '</div>' +
           '</div>' +
           detailsHtml +
