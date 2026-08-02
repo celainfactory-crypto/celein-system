@@ -146,7 +146,7 @@ window.APP = (function () {
           <button class="login-btn" id="loginBtnReal" data-action="do-login">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.71 - PWA Enabled</div>
+          <div class="login-version-tag">v18.72 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -439,7 +439,7 @@ window.APP = (function () {
             <a href="#" data-action="nav" data-page="salarySlip" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('fileText')} كشف الراتب</a>
             <a href="#" data-action="nav" data-page="myRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('inbox')} طلباتي</a>
             <a href="#" data-action="nav" data-page="newRequest" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--primary);color:#fff;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('plus')} طلب جديد</a>
-            ${['admin','executive','chairman','hr_manager','production','accountant'].includes(currentUser.role) ? `<a href="#" data-action="nav" data-page="incomingRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--warning);color:#000;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('incoming')} الطلبات الواردة</a>` : ''}
+            ${['admin','executive','chairman','hr_manager','production','accountant'].includes(currentUser.role) ? `<a href="#" data-action="nav" data-page="incomingRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--warning);color:#000;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('incoming')} الطلبات الواردة <span id="ss_incoming_badge" style="background:#fff;color:#000;border-radius:50%;width:18px;height:18px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700">0</span></a>` : ''}
             <a href="#" data-action="nav" data-page="profile" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('user')} ملفي</a>
           </div>
           <main class="content" id="content"></main>
@@ -452,6 +452,22 @@ window.APP = (function () {
     `;
     renderNav();
     navigate("dashboard");
+    // Update incoming badge
+    try {
+      var _db = APP.getDB();
+      var _user = window.currentUser || APP.getCurrentUser();
+      var _emp = (_db.employeesLog || []).find(function(e) { return e.empId === _user.empId; }) || {};
+      var _allReqs = _db.requests || [];
+      var _cnt = _allReqs.filter(function(r) {
+        if (r.status === 'pending_manager') { var _re = (_db.employeesLog || []).find(function(e) { return e.empId === r.employeeId; }); return _re && _re.managerId === _emp.id; }
+        if (r.status === 'pending_admin' && (_user.role === 'hr_manager' || _user.role === 'admin' || _user.role === 'vice_executive')) return true;
+        if (r.status === 'pending_gm' && (_user.role === 'admin' || _user.role === 'vice_executive' || _user.role === 'executive' || _user.role === 'chairman')) return true;
+        if (r.status === 'pending_dept') return true;
+        return false;
+      }).length;
+      var _badge = document.getElementById('ss_incoming_badge');
+      if (_badge) { _badge.textContent = _cnt; _badge.style.display = _cnt > 0 ? 'inline-flex' : 'none'; }
+    } catch(e) {}
     // Re-trigger update check so the banner survives the body.innerHTML reset
     setTimeout(() => performUpdateCheck(), 100);
   }
@@ -784,5 +800,134 @@ document.addEventListener('click', function(e) {
     case 'rs-new-cust-btn':
       if (window.__RS && window.__RS.openCustomerModal) window.__RS.openCustomerModal();
       break;
+
+    // === Self-Service (SShifa) ===
+    case 'ss-select-type':
+      if (window.__SS && window.__SS.selectType) window.__SS.selectType(el.dataset.type);
+      break;
+    case 'ss-back-types':
+      if (window.__SS && window.__SS.backToTypes) window.__SS.backToTypes();
+      break;
+    case 'ss-submit-request':
+      if (window.__SS && window.__SS.submitRequest) window.__SS.submitRequest();
+      break;
+    case 'ss-filter-req':
+      if (window.__SS && window.__SS.filterReqs) window.__SS.filterReqs(el.dataset.filter);
+      document.querySelectorAll('[data-action="ss-filter-req"]').forEach(function(b) {
+        b.classList.toggle('active', b === el);
+        b.style.background = (b === el) ? 'var(--primary)' : '';
+        b.style.color = (b === el) ? '#fff' : '';
+      });
+      break;
+    case 'ss-view-req':
+      var reqId = el.dataset.id;
+      if (reqId && window.__SS && window.__SS.allReqs) {
+        var req = window.__SS.allReqs.find(function(r) { return r.id === reqId; });
+        if (req) {
+          var detailTitle = document.getElementById('ss_detail_title');
+          var detailBody = document.getElementById('ss_detail_body');
+          var modal = document.getElementById('ss_req_detail_modal');
+          var statusMap = { draft: 'badge-info', pending_manager: 'badge-warning', pending_admin: 'badge-warning', pending_dept: 'badge-warning', pending_gm: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger', in_progress: 'badge-info', completed: 'badge-success', cancelled: 'badge-secondary' };
+          var statusLabels = { draft: 'مسودة', pending_manager: 'بانتظار المدير المباشر', pending_admin: 'بانتظار الإدارة', pending_dept: 'بانتظار القسم المختص', pending_gm: 'بانتظار المدير العام', approved: 'معتمد', rejected: 'مرفوض', in_progress: 'قيد التنفيذ', completed: 'مكتمل', cancelled: 'ملغى' };
+          if (detailTitle) detailTitle.innerHTML = (req.title || req.subTypeLabel || req.type) + ' <span class="badge ' + (statusMap[req.status] || 'badge-info') + '" style="border-radius:8px;font-size:11px;margin-right:6px">' + (statusLabels[req.status] || req.status) + '</span>';
+          var histHTML = req.history && req.history.length > 0
+            ? '<div style="margin-top:16px"><h4 style="margin:0 0 8px 0">سجل الطلب</h4>' + req.history.map(function(h) { return '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span class="text-muted">' + (h.at ? h.at.substring(0,16) : '') + '</span> — <b>' + (h.by || '') + '</b>: ' + (h.note || '') + '</div>'; }).join('') + '</div>'
+            : '';
+          if (detailBody) detailBody.innerHTML = '<table style="width:100%;font-size:13px">' +
+            '<tr><td class="text-muted" style="width:100px;padding:4px 0">الموظف</td><td style="padding:4px 0"><b>' + (req.employeeName || '—') + '</b></td></tr>' +
+            '<tr><td class="text-muted" style="padding:4px 0">القسم</td><td style="padding:4px 0">' + (req.departmentName || '—') + '</td></tr>' +
+            '<tr><td class="text-muted" style="padding:4px 0">النوع</td><td style="padding:4px 0">' + (req.subTypeLabel || req.type) + '</td></tr>' +
+            (req.startDate ? '<tr><td class="text-muted" style="padding:4px 0">من</td><td style="padding:4px 0">' + req.startDate + '</td></tr>' : '') +
+            (req.endDate ? '<tr><td class="text-muted" style="padding:4px 0">إلى</td><td style="padding:4px 0">' + req.endDate + '</td></tr>' : '') +
+            (req.amount ? '<tr><td class="text-muted" style="padding:4px 0">المبلغ</td><td style="padding:4px 0;font-weight:700;color:var(--warning)">' + req.amount.toLocaleString('ar-EG') + ' ر.ي</td></tr>' : '') +
+            (req.description ? '<tr><td class="text-muted" style="padding:4px 0;vertical-align:top">التفاصيل</td><td style="padding:4px 0">' + req.description + '</td></tr>' : '') +
+            (req.rejectionReason ? '<tr><td class="text-muted" style="padding:4px 0;vertical-align:top">سبب الرفض</td><td style="padding:4px 0;color:var(--danger)">' + req.rejectionReason + '</td></tr>' : '') +
+            '</table>' + histHTML;
+          if (modal) modal.style.display = 'flex';
+        }
+      }
+      break;
+    case 'ss-close-detail':
+      var m = document.getElementById('ss_req_detail_modal');
+      if (m) m.style.display = 'none';
+      break;
+    case 'ss-cancel-req':
+      var cancelId = el.dataset.id;
+      if (cancelId && confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) {
+        var db2 = APP.getDB();
+        var req2 = (db2.requests || []).find(function(r) { return r.id === cancelId; });
+        if (req2) {
+          req2.status = 'cancelled';
+          req2.updatedAt = new Date().toISOString();
+          req2.history.push({ action: 'cancelled', by: APP.getCurrentUser().name, at: new Date().toISOString(), note: 'تم الإلغاء من قبل مقدم الطلب' });
+          APP.saveDB(db2);
+          alert('تم إلغاء الطلب بنجاح');
+          if (window.APP && window.APP.navigate) window.APP.navigate('myRequests');
+        }
+      }
+      break;
+    case 'ss-approve-req':
+      var appId = el.dataset.id;
+      if (appId) {
+        var db3 = APP.getDB();
+        var req3 = (db3.requests || []).find(function(r) { return r.id === appId; });
+        if (req3) {
+          var oldSt = req3.status;
+          var curUser = APP.getCurrentUser();
+          var nextSt = 'approved';
+          if (req3.status === 'pending_manager') nextSt = 'pending_admin';
+          else if (req3.status === 'pending_admin') nextSt = 'pending_gm';
+          req3.status = nextSt;
+          req3.updatedAt = new Date().toISOString();
+          req3.history.push({ action: 'approved', by: curUser.name, byRole: curUser.role, from: oldSt, to: nextSt, at: new Date().toISOString(), note: 'تمت الموافقة' });
+          if (!db3.notifications) db3.notifications = [];
+          db3.notifications.push({ id: 'NOTIF-' + Date.now(), type: 'request_approved', requestId: req3.id, for: req3.employeeId, title: 'تم اعتماد طلبك', message: 'تمت الموافقة على طلبك "' + (req3.title || req3.type) + '"', createdAt: new Date().toISOString(), read: false });
+          APP.saveDB(db3);
+          alert('تمت الموافقة بنجاح');
+          if (window.APP && window.APP.navigate) window.APP.navigate('incomingRequests');
+        }
+      }
+      break;
+    case 'ss-reject-req':
+      var rejId = el.dataset.id;
+      var rmodal = document.getElementById('ss_reject_modal');
+      var ridIn = document.getElementById('ss_reject_id');
+      if (rmodal) rmodal.style.display = 'flex';
+      if (ridIn) ridIn.value = rejId || '';
+      break;
+    case 'ss-confirm-reject':
+      var rejId2 = (document.getElementById('ss_reject_id') || {}).value || '';
+      var reason2 = (document.getElementById('ss_reject_reason') || {}).value || '';
+      if (!reason2.trim()) { alert('يرجى إدخال سبب الرفض'); return; }
+      if (!rejId2) { alert('خطأ: معرف الطلب غير موجود'); return; }
+      var db4 = APP.getDB();
+      var req4 = (db4.requests || []).find(function(r) { return r.id === rejId2; });
+      if (req4) {
+        var curUser2 = APP.getCurrentUser();
+        req4.status = 'rejected';
+        req4.rejectionReason = reason2.trim();
+        req4.updatedAt = new Date().toISOString();
+        req4.history.push({ action: 'rejected', by: curUser2.name, byRole: curUser2.role, at: new Date().toISOString(), note: reason2.trim() });
+        if (!db4.notifications) db4.notifications = [];
+        db4.notifications.push({ id: 'NOTIF-' + Date.now(), type: 'request_rejected', requestId: req4.id, for: req4.employeeId, title: 'تم رفض طلبك', message: 'تم رفض طلبك "' + (req4.title || req4.type) + '". السبب: ' + reason2.trim(), createdAt: new Date().toISOString(), read: false });
+        APP.saveDB(db4);
+        var rmodal2 = document.getElementById('ss_reject_modal');
+        if (rmodal2) rmodal2.style.display = 'none';
+        var ri2 = document.getElementById('ss_reject_id');
+        var rr2 = document.getElementById('ss_reject_reason');
+        if (ri2) ri2.value = '';
+        if (rr2) rr2.value = '';
+        alert('تم رفض الطلب');
+        if (window.APP && window.APP.navigate) window.APP.navigate('incomingRequests');
+      }
+      break;
+    case 'ss-close-reject':
+      var m2 = document.getElementById('ss_reject_modal');
+      if (m2) m2.style.display = 'none';
+      break;
+    case 'ss-print-slip':
+      window.print();
+      break;
+
   }
 });

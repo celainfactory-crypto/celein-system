@@ -7669,6 +7669,30 @@ console.log('Self-service modules v2 loaded (string concat only)');
     if (action === 'rs-reset') { window.__RS && window.__RS.reset && window.__RS.reset(); return; }
     if (action === 'rs-qty' || action === 'rs-price' || action === 'rs-cash' || action === 'rs-credit') { window.__RS && window.__RS.calc && window.__RS.calc(); return; }
 
+    // --- Self-Service: Salary Slip ---
+    if (action === 'ss-print-slip') { Modules._ssPrintSlip && Modules._ssPrintSlip(); return; }
+    if (action === 'ss-download-slip') { Modules._ssDownloadSlip && Modules._ssDownloadSlip(); return; }
+
+    // --- Self-Service: My Requests ---
+    if (action === 'ss-new-request') { Modules._ssNewRequest && Modules._ssNewRequest(); return; }
+    if (action === 'ss-toggle-req') { Modules._ssToggleRequest && Modules._ssToggleRequest(el.dataset.reqId); return; }
+    if (action === 'ss-cancel-request') { Modules._ssCancelRequest && Modules._ssCancelRequest(el.dataset.id); return; }
+    if (action === 'ss-filter-reqs') { Modules._ssFilterRequests && Modules._ssFilterRequests(el.dataset.filter); return; }
+
+    // --- Self-Service: New Request ---
+    if (action === 'ss-select-type') { Modules._ssSelectType && Modules._ssSelectType(el.dataset.type); return; }
+    if (action === 'ss-back-to-types') { Modules._ssBackToTypes && Modules._ssBackToTypes(); return; }
+    if (action === 'ss-select-subtype') { Modules._ssSelectSubType && Modules._ssSelectSubType(el.dataset.type, el.dataset.subtype); return; }
+    if (action === 'ss-back-to-subtypes') { Modules._ssBackToSubTypes && Modules._ssBackToSubTypes(el.dataset.type); return; }
+    if (action === 'ss-preview-request') { Modules._ssPreviewRequest && Modules._ssPreviewRequest(); return; }
+    if (action === 'ss-submit-request') { Modules._ssSubmitRequest && Modules._ssSubmitRequest(); return; }
+
+    // --- Self-Service: Incoming Requests ---
+    if (action === 'ss-approve') { Modules._ssApproveRequest && Modules._ssApproveRequest(el.dataset.id); return; }
+    if (action === 'ss-reject') { Modules._ssRejectRequest && Modules._ssRejectRequest(el.dataset.id); return; }
+    if (action === 'ss-confirm-reject') { Modules._ssConfirmReject && Modules._ssConfirmReject(); return; }
+    if (action === 'ss-cancel-reject') { Modules._ssCancelReject && Modules._ssCancelReject(); return; }
+
   });
 
   // --- INPUT delegation (data-input attributes) ---
@@ -7706,5 +7730,2218 @@ console.log('Self-service modules v2 loaded (string concat only)');
       Modules._prHandlePhoto && Modules._prHandlePhoto(el, el.dataset.ptype, parseInt(el.dataset.pidx));
       return;
     }
+    if (chg === 'ss-month-change') {
+      Modules._ssRenderSlip && Modules._ssRenderSlip();
+      return;
+    }
+    if (chg === 'ss-filter-requests') {
+      Modules._ssFilterRequests && Modules._ssFilterRequests(el.value);
+      return;
+    }
   });
+
+  // ================================================================
+  //   وحدات الخدمة الذاتية - HR Self-Service
+  // ================================================================
+
+  /* ===== SelfService API ===== */
+  window.SS = window.SS || {};
+
+  window.SS.getMyRequests = function() {
+    var user = APP.getCurrentUser ? APP.getCurrentUser() : null;
+    if (!user) return [];
+    var db = APP.getDB();
+    var requests = db.selfServiceRequests || [];
+    return requests.filter(function(r) {
+      return String(r.empId) === String(user.id) || r.empId === user.name;
+    });
+  };
+
+  window.SS.getIncomingRequests = function() {
+    var user = APP.getCurrentUser ? APP.getCurrentUser() : null;
+    if (!user) return [];
+    var db = APP.getDB();
+    var requests = db.selfServiceRequests || [];
+    var isManager = user.role === 'admin' || user.role === 'manager' || user.role === 'hr';
+    if (!isManager) return [];
+    return requests.filter(function(r) {
+      return r.status === 'pending_hr' || r.status === 'pending_manager' || r.status === 'pending_gm';
+    });
+  };
+
+  window.SS.getPayslips = function(empId) {
+    var db = APP.getDB();
+    var payslips = db.payslips || [];
+    if (empId !== undefined) {
+      payslips = payslips.filter(function(p) { return String(p.empId) === String(empId); });
+    }
+    return payslips;
+  };
+
+  window.SS.createRequest = function(data) {
+    var user = APP.getCurrentUser ? APP.getCurrentUser() : null;
+    if (!user) return { ok: false, error: 'لا يوجد مستخدم مسجل' };
+    var db = APP.getDB();
+    if (!db.selfServiceRequests) db.selfServiceRequests = [];
+    var request = {
+      id: 'REQ' + Date.now(),
+      empId: String(user.id || user.name),
+      empName: user.name || '',
+      type: data.type,
+      subType: data.subType || '',
+      data: data.formData || {},
+      status: 'pending_hr',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      history: [{ action: 'created', at: new Date().toISOString(), by: user.name || 'النظام' }],
+      approvedBy: null,
+      rejectedBy: null,
+      rejectReason: null
+    };
+    db.selfServiceRequests.push(request);
+    APP.saveDB(db);
+    return { ok: true, id: request.id };
+  };
+
+  window.SS.approveRequest = function(id) {
+    var user = APP.getCurrentUser ? APP.getCurrentUser() : null;
+    if (!user) return { ok: false, error: 'لا يوجد مستخدم' };
+    var db = APP.getDB();
+    if (!db.selfServiceRequests) return { ok: false, error: 'لا توجد طلبات' };
+    var req = db.selfServiceRequests.find(function(r) { return r.id === id; });
+    if (!req) return { ok: false, error: 'الطلب غير موجود' };
+    var nextStatus = null;
+    if (req.status === 'pending_hr') nextStatus = 'pending_manager';
+    else if (req.status === 'pending_manager') nextStatus = 'pending_gm';
+    else if (req.status === 'pending_gm') nextStatus = 'approved';
+    if (!nextStatus) return { ok: false, error: 'لا يمكن الموافقة' };
+    req.status = nextStatus;
+    req.updatedAt = new Date().toISOString();
+    req.approvedBy = user.name || '';
+    req.history.push({ action: 'approved_by_' + nextStatus, at: new Date().toISOString(), by: user.name || 'HR' });
+    APP.saveDB(db);
+    return { ok: true };
+  };
+
+  window.SS.rejectRequest = function(id, reason) {
+    var user = APP.getCurrentUser ? APP.getCurrentUser() : null;
+    if (!user) return { ok: false, error: 'لا يوجد مستخدم' };
+    var db = APP.getDB();
+    if (!db.selfServiceRequests) return { ok: false, error: 'لا توجد طلبات' };
+    var req = db.selfServiceRequests.find(function(r) { return r.id === id; });
+    if (!req) return { ok: false, error: 'الطلب غير موجود' };
+    req.status = 'rejected';
+    req.updatedAt = new Date().toISOString();
+    req.rejectedBy = user.name || '';
+    req.rejectReason = reason || '';
+    req.history.push({ action: 'rejected', at: new Date().toISOString(), by: user.name || 'HR', reason: reason });
+    APP.saveDB(db);
+    return { ok: true };
+  };
+
+  window.SS.cancelRequest = function(id) {
+    var user = APP.getCurrentUser ? APP.getCurrentUser() : null;
+    if (!user) return { ok: false, error: 'لا يوجد مستخدم' };
+    var db = APP.getDB();
+    if (!db.selfServiceRequests) return { ok: false, error: 'لا توجد طلبات' };
+    var req = db.selfServiceRequests.find(function(r) { return r.id === id; });
+    if (!req) return { ok: false, error: 'الطلب غير موجود' };
+    if (req.status !== 'pending_hr') return { ok: false, error: 'لا يمكن إلغاء هذا الطلب' };
+    req.status = 'cancelled';
+    req.updatedAt = new Date().toISOString();
+    req.history.push({ action: 'cancelled', at: new Date().toISOString(), by: user.name || '' });
+    APP.saveDB(db);
+    return { ok: true };
+  };
+
+  /* ===== Module 1: salarySlip ===== */
+  window.Modules.salarySlip = function(container) {
+    var user = APP.getCurrentUser ? APP.getCurrentUser() : (APP.getUser ? APP.getUser() : null);
+    if (!user) { container.innerHTML = '<div class="alert alert-danger">' + Icons.render('alert') + ' لا يوجد مستخدم مسجل</div>'; return; }
+    var db = APP.getDB();
+    var empId = String(user.id || user.name);
+    var emp = null;
+    if (db.employeesLog) {
+      emp = db.employeesLog.find(function(e) { return String(e.id || e.empId) === empId || e.name === user.name; });
+    }
+
+    // Get payslips from DB
+    var allPayslips = db.payslips || [];
+    var myPayslips = allPayslips.filter(function(p) { return String(p.empId) === empId; });
+
+    // If no payslips, generate from employeesLog salary
+    var availableMonths = [];
+    if (myPayslips.length > 0) {
+      availableMonths = myPayslips.map(function(p) { return p.month || p.period; }).filter(Boolean);
+    } else if (emp && emp.salary) {
+      // Generate current month payslip
+      var now = new Date();
+      var currentMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      availableMonths = [currentMonth];
+    }
+
+    // Remove duplicates
+    availableMonths = availableMonths.filter(function(v, i, a) { return a.indexOf(v) === i; });
+    if (availableMonths.length === 0) {
+      var now2 = new Date();
+      availableMonths = [now2.getFullYear() + '-' + String(now2.getMonth() + 1).padStart(2, '0')];
+    }
+
+    // Sort descending
+    availableMonths.sort().reverse();
+
+    var currentMonth2 = availableMonths[0] || '';
+    var selectedPayslip = null;
+
+    window._ssSelectedMonth = currentMonth2;
+    window._ssPayslipEmp = emp;
+    window._ssPayslipUser = user;
+    window._ssPayslipDb = db;
+    window._ssMyPayslips = myPayslips;
+
+    function getPayslipForMonth(month) {
+      var found = myPayslips.find(function(p) { return (p.month || p.period) === month; });
+      if (found) return found;
+      // Compute from employeesLog
+      if (emp && emp.salary) {
+        return computePayslip(emp, month);
+      }
+      return null;
+    }
+
+    function computePayslip(empData, month) {
+      var basic = empData.salary || 0;
+      var transport = empData.transportAllowance || 0;
+      var housing = empData.housingAllowance || 0;
+      var food = empData.foodAllowance || 5000;
+      var otherAllow = empData.otherAllowances || 0;
+      var insurance = Math.round(basic * 0.09);
+      var tax = Math.round(basic * 0.05);
+      var otherDed = 0;
+      return {
+        empId: empId,
+        empName: empData.name || user.name || '',
+        month: month,
+        basic: basic,
+        allowances: {
+          transport: transport,
+          housing: housing,
+          food: food,
+          other: otherAllow
+        },
+        deductions: {
+          insurance: insurance,
+          advances: 0,
+          tax: tax,
+          other: otherDed
+        }
+      };
+    }
+
+    function renderMonthSelector() {
+      var options = availableMonths.map(function(m) {
+        var label = formatMonthLabel(m);
+        return '<option value="' + m + '"' + (m === window._ssSelectedMonth ? ' selected' : '') + '>' + label + '</option>';
+      }).join('');
+      return '<select id="ss-month-selector" data-change="ss-month-change" class="ss-month-select">' + options + '</select>';
+    }
+
+    function formatMonthLabel(month) {
+      var parts = month.split('-');
+      if (parts.length === 2) {
+        var months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+        var idx = parseInt(parts[1]) - 1;
+        return months[idx] + ' ' + parts[0];
+      }
+      return month;
+    }
+
+    function renderPayslip(payslip) {
+      if (!payslip) {
+        return '<div class="alert alert-warning">' + Icons.render('alert') + ' لا توجد بيانات راتب لهذا الشهر</div>';
+      }
+      var basic = payslip.basic || 0;
+      var transport = payslip.allowances ? (payslip.allowances.transport || 0) : 0;
+      var housing = payslip.allowances ? (payslip.allowances.housing || 0) : 0;
+      var food = payslip.allowances ? (payslip.allowances.food || 0) : 0;
+      var otherAllow = payslip.allowances ? (payslip.allowances.other || 0) : 0;
+      var totalEarnings = basic + transport + housing + food + otherAllow;
+      var insurance = payslip.deductions ? (payslip.deductions.insurance || 0) : 0;
+      var advances = payslip.deductions ? (payslip.deductions.advances || 0) : 0;
+      var tax = payslip.deductions ? (payslip.deductions.tax || 0) : 0;
+      var otherDed = payslip.deductions ? (payslip.deductions.other || 0) : 0;
+      var totalDeductions = insurance + advances + tax + otherDed;
+      var netPay = totalEarnings - totalDeductions;
+
+      var empName = payslip.empName || user.name || '';
+      var monthLabel = formatMonthLabel(payslip.month || payslip.period || window._ssSelectedMonth);
+
+      return '<div class="ss-payslip-wrap" id="ss-payslip-content">' +
+        '<div class="ss-payslip-header">' +
+          '<div class="ss-payslip-logo">' + Icons.render('building') + '</div>' +
+          '<div class="ss-payslip-title">' +
+            '<h2>كشوف المرتبات</h2>' +
+            '<p>شركة سيلين - قسم الموارد البشرية</p>' +
+          '</div>' +
+          '<div class="ss-payslip-meta">' +
+            '<p><strong>الاسم:</strong> ' + empName + '</p>' +
+            '<p><strong>الشهر:</strong> ' + monthLabel + '</p>' +
+          '</div>' +
+        '</div>' +
+        '<div class="ss-payslip-body">' +
+          '<div class="ss-payslip-section">' +
+            '<h4>' + Icons.render('cash') + ' الاستحقاقات</h4>' +
+            '<div class="ss-row"><span>الراتب الأساسي</span><span>' + basic.toLocaleString('ar-EG') + ' ر.ي</span></div>' +
+            '<div class="ss-row"><span>بدل مواصلات</span><span>' + transport.toLocaleString('ar-EG') + ' ر.ي</span></div>' +
+            '<div class="ss-row"><span>بدل سكن</span><span>' + housing.toLocaleString('ar-EG') + ' ر.ي</span></div>' +
+            '<div class="ss-row"><span>بدل طعام</span><span>' + food.toLocaleString('ar-EG') + ' ر.ي</span></div>' +
+            (otherAllow > 0 ? '<div class="ss-row"><span>بدلات أخرى</span><span>' + otherAllow.toLocaleString('ar-EG') + ' ر.ي</span></div>' : '') +
+            '<div class="ss-row ss-total-row"><span>إجمالي الاستحقاقات</span><span class="text-success">' + totalEarnings.toLocaleString('ar-EG') + ' ر.ي</span></div>' +
+          '</div>' +
+          '<div class="ss-payslip-section">' +
+            '<h4>' + Icons.render('minus') + ' الاستقطاعات</h4>' +
+            '<div class="ss-row"><span>التأمينات الاجتماعية</span><span>' + insurance.toLocaleString('ar-EG') + ' ر.ي</span></div>' +
+            (advances > 0 ? '<div class="ss-row"><span>السلف المستقطعة</span><span>' + advances.toLocaleString('ar-EG') + ' ر.ي</span></div>' : '') +
+            '<div class="ss-row"><span>ضريبة الدخل</span><span>' + tax.toLocaleString('ar-EG') + ' ر.ي</span></div>' +
+            (otherDed > 0 ? '<div class="ss-row"><span>خصومات أخرى</span><span>' + otherDed.toLocaleString('ar-EG') + ' ر.ي</span></div>' : '') +
+            '<div class="ss-row ss-total-row"><span>إجمالي الاستقطاعات</span><span class="text-danger">' + totalDeductions.toLocaleString('ar-EG') + ' ر.ي</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="ss-payslip-netpay">' +
+          '<div class="ss-netpay-label">صافي الراتب المستحق</div>' +
+          '<div class="ss-netpay-amount">' + netPay.toLocaleString('ar-EG') + ' <small>ريال يمني</small></div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function render() {
+      var payslip = getPayslipForMonth(window._ssSelectedMonth);
+      container.innerHTML =
+        '<div class="card ss-module-card">' +
+          '<div class="header-row">' +
+            '<h3>' + Icons.render('document') + ' كعب الراتب</h3>' +
+            '<div class="ss-actions-top">' +
+              renderMonthSelector() +
+            '</div>' +
+          '</div>' +
+          '<div id="ss-payslip-area">' +
+            renderPayslip(payslip) +
+          '</div>' +
+          '<div class="ss-btn-row">' +
+            '<button class="btn btn-secondary btn-sm" data-action="ss-print-slip">' + Icons.render('print') + ' طباعة</button>' +
+            '<button class="btn btn-secondary btn-sm" data-action="ss-download-slip">' + Icons.render('download') + ' تحميل PDF</button>' +
+          '</div>' +
+        '</div>';
+    }
+
+    Modules._ssRenderSlip = function() {
+      var sel = document.getElementById('ss-month-selector');
+      if (sel) window._ssSelectedMonth = sel.value;
+      var payslip = getPayslipForMonth(window._ssSelectedMonth);
+      var area = document.getElementById('ss-payslip-area');
+      if (area) area.innerHTML = renderPayslip(payslip);
+    };
+
+    render();
+  };
+
+  Modules._ssPrintSlip = function() {
+    var content = document.getElementById('ss-payslip-content');
+    if (!content) return;
+    var printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write('<html><head><title>كعب الراتب</title>' +
+        '<style>body{font-family:Arial,sans-serif;direction:rtl;padding:20px}' +
+        '.header{display:flex;justify-content:space-between;border-bottom:2px solid #1565c0;padding-bottom:10px;margin-bottom:20px}' +
+        '.section{margin-bottom:15px}.row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #eee}' +
+        '.total{font-weight:bold;font-size:1.2em}.netpay{background:#1565c0;color:white;padding:15px;text-align:center;font-size:1.5em;border-radius:8px;margin-top:15px}' +
+        '</style></head><body>');
+      printWindow.document.write(content.outerHTML);
+      printWindow.document.write('</body></html>');
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
+  Modules._ssDownloadSlip = function() {
+    var payslip = null;
+    var myPayslips = window._ssMyPayslips || [];
+    var allPayslips = window._ssPayslipDb ? (window._ssPayslipDb.payslips || []) : [];
+    var emp = window._ssPayslipEmp;
+    payslip = myPayslips.find(function(p) { return (p.month || p.period) === window._ssSelectedMonth; });
+    if (!payslip && emp && emp.salary) {
+      var basic = emp.salary || 0;
+      payslip = {
+        empName: emp.name || window._ssPayslipUser ? window._ssPayslipUser.name : '',
+        month: window._ssSelectedMonth,
+        basic: basic,
+        allowances: {
+          transport: emp.transportAllowance || 0,
+          housing: emp.housingAllowance || 0,
+          food: emp.foodAllowance || 5000,
+          other: emp.otherAllowances || 0
+        },
+        deductions: {
+          insurance: Math.round(basic * 0.09),
+          advances: 0,
+          tax: Math.round(basic * 0.05),
+          other: 0
+        }
+      };
+    }
+    if (!payslip) { alert('لا توجد بيانات للتحميل'); return; }
+    var basic2 = payslip.basic || 0;
+    var transport2 = payslip.allowances ? (payslip.allowances.transport || 0) : 0;
+    var housing2 = payslip.allowances ? (payslip.allowances.housing || 0) : 0;
+    var food2 = payslip.allowances ? (payslip.allowances.food || 0) : 0;
+    var otherA2 = payslip.allowances ? (payslip.allowances.other || 0) : 0;
+    var totalE = basic2 + transport2 + housing2 + food2 + otherA2;
+    var ins2 = payslip.deductions ? (payslip.deductions.insurance || 0) : 0;
+    var adv2 = payslip.deductions ? (payslip.deductions.advances || 0) : 0;
+    var tax2 = payslip.deductions ? (payslip.deductions.tax || 0) : 0;
+    var othD2 = payslip.deductions ? (payslip.deductions.other || 0) : 0;
+    var totalD = ins2 + adv2 + tax2 + othD2;
+    var net = totalE - totalD;
+    var headers = ['البند', 'المبلغ (ر.ي)'];
+    var rows = [
+      ['الراتب الأساسي', basic2],
+      ['بدل مواصلات', transport2],
+      ['بدل سكن', housing2],
+      ['بدل طعام', food2],
+      ['بدلات أخرى', otherA2],
+      ['إجمالي الاستحقاقات', { v: totalE, cls: 'text-success' }],
+      ['التأمينات الاجتماعية', ins2],
+      ['السلف', adv2],
+      ['ضريبة الدخل', tax2],
+      ['خصومات أخرى', othD2],
+      ['إجمالي الاستقطاعات', { v: totalD, cls: 'text-danger' }],
+      ['صافي الراتب', { v: net, cls: 'text-primary' }]
+    ];
+    var html = '<h2>كعب الراتب - ' + (payslip.empName || '') + ' - ' + (window._ssSelectedMonth || '') + '</h2>';
+    html += Exports.rowsToHTMLTable(headers, rows, { title: 'كعب الراتب' });
+    Exports.exportPDF('كعب_الراتب_' + (window._ssSelectedMonth || '').replace('-', '_'), html, 'payslip');
+  };
+
+  /* ===== Module 2: myRequests ===== */
+  window.Modules.myRequests = function(container) {
+    var user = APP.getCurrentUser ? APP.getCurrentUser() : (APP.getUser ? APP.getUser() : null);
+    if (!user) { container.innerHTML = '<div class="alert alert-danger">' + Icons.render('alert') + ' لا يوجد مستخدم</div>'; return; }
+    var db = APP.getDB();
+    var requests = SS.getMyRequests();
+
+    window._ssMyReqs = requests;
+
+    var typeIcons = {
+      'leave': 'calendar',
+      'advance': 'cash',
+      'certificate': 'document',
+      'data_update': 'edit',
+      'maintenance': 'settings',
+      'purchase': 'cart',
+      'other': 'clipboard'
+    };
+    var typeLabels = {
+      'leave': 'إجازة',
+      'advance': 'سلفة',
+      'certificate': 'شهادة',
+      'data_update': 'تحديث بيانات',
+      'maintenance': 'صيانة',
+      'purchase': 'طلب شراء',
+      'other': 'طلب آخر'
+    };
+    var statusLabels = {
+      'pending_hr': 'قيد المراجعة',
+      'pending_manager': 'بانتظار المدير',
+      'pending_gm': 'بانتظار المدير العام',
+      'approved': 'معتمد',
+      'rejected': 'مرفوض',
+      'cancelled': 'ملغي'
+    };
+    var statusBadgeClass = {
+      'pending_hr': 'badge-info',
+      'pending_manager': 'badge-warning',
+      'pending_gm': 'badge-warning',
+      'approved': 'badge-success',
+      'rejected': 'badge-danger',
+      'cancelled': 'badge-secondary'
+    };
+
+    window._ssFilterTab = 'all';
+
+    function renderRequests(filter) {
+      var filtered = requests;
+      if (filter === 'pending') filtered = requests.filter(function(r) { return r.status.startsWith('pending'); });
+      else if (filter === 'approved') filtered = requests.filter(function(r) { return r.status === 'approved'; });
+      else if (filter === 'rejected') filtered = requests.filter(function(r) { return r.status === 'rejected' || r.status === 'cancelled'; });
+
+      if (filtered.length === 0) {
+        return '<div class="ss-empty-state">' +
+          '<div class="ss-empty-icon">' + Icons.render('inbox') + '</div>' +
+          '<p>لا توجد طلبات</p>' +
+          '<button class="btn btn-primary" data-action="ss-new-request">' + Icons.render('plus') + ' تقديم طلب جديد</button>' +
+        '</div>';
+      }
+
+      var rows = filtered.map(function(req) {
+        var typeIcon = typeIcons[req.type] || 'clipboard';
+        var typeLabel = typeLabels[req.type] || req.type || '';
+        var statusLabel = statusLabels[req.status] || req.status;
+        var badgeClass = statusBadgeClass[req.status] || 'badge-secondary';
+        var dateStr = req.createdAt ? new Date(req.createdAt).toLocaleDateString('ar-EG') : '';
+        var amountStr = (req.data && req.data.amount) ? '<span class="ss-req-amount">' + Number(req.data.amount).toLocaleString('ar-EG') + ' ر.ي</span>' : '';
+        var canCancel = req.status === 'pending_hr';
+
+        var detailsHtml = '<div class="ss-req-details" id="ss-req-details-' + req.id + '" style="display:none">' +
+          '<div class="ss-detail-grid">';
+
+        if (req.data) {
+          var fd = req.data;
+          if (fd.startDate) detailsHtml += '<div class="ss-detail-item"><span>تاريخ البداية:</span> ' + fd.startDate + '</div>';
+          if (fd.endDate) detailsHtml += '<div class="ss-detail-item"><span>تاريخ النهاية:</span> ' + fd.endDate + '</div>';
+          if (fd.amount) detailsHtml += '<div class="ss-detail-item"><span>المبلغ:</span> ' + Number(fd.amount).toLocaleString('ar-EG') + ' ر.ي</div>';
+          if (fd.reason) detailsHtml += '<div class="ss-detail-item"><span>السبب:</span> ' + fd.reason + '</div>';
+          if (fd.purpose) detailsHtml += '<div class="ss-detail-item"><span>الغرض:</span> ' + fd.purpose + '</div>';
+          if (fd.fieldName) detailsHtml += '<div class="ss-detail-item"><span>اسم الحقل:</span> ' + fd.fieldName + '</div>';
+          if (fd.newValue) detailsHtml += '<div class="ss-detail-item"><span>القيمة الجديدة:</span> ' + fd.newValue + '</div>';
+          if (fd.location) detailsHtml += '<div class="ss-detail-item"><span>الموقع:</span> ' + fd.location + '</div>';
+          if (fd.description) detailsHtml += '<div class="ss-detail-item"><span>الوصف:</span> ' + fd.description + '</div>';
+          if (fd.itemName) detailsHtml += '<div class="ss-detail-item"><span>اسم الصنف:</span> ' + fd.itemName + '</div>';
+          if (fd.quantity) detailsHtml += '<div class="ss-detail-item"><span>الكمية:</span> ' + fd.quantity + '</div>';
+          if (fd.estimatedCost) detailsHtml += '<div class="ss-detail-item"><span>التكلفة المقدرة:</span> ' + Number(fd.estimatedCost).toLocaleString('ar-EG') + ' ر.ي</div>';
+          if (fd.installments) detailsHtml += '<div class="ss-detail-item"><span>الأقساط:</span> ' + fd.installments + '</div>';
+          if (fd.notes) detailsHtml += '<div class="ss-detail-item"><span>ملاحظات:</span> ' + fd.notes + '</div>';
+        }
+
+        if (req.history && req.history.length > 0) {
+          detailsHtml += '</div><div class="ss-history"><h5>سجل الطلب:</h5>';
+          req.history.forEach(function(h) {
+            detailsHtml += '<div class="ss-history-item">' +
+              '<span class="ss-history-action">' + h.action + '</span>' +
+              '<span class="ss-history-date">' + (h.at ? new Date(h.at).toLocaleDateString('ar-EG') : '') + '</span>' +
+              '<span class="ss-history-by">' + (h.by || '') + '</span>' +
+              (h.reason ? '<span class="ss-history-reason">السبب: ' + h.reason + '</span>' : '') +
+            '</div>';
+          });
+          detailsHtml += '</div>';
+        }
+
+        detailsHtml += '</div>';
+
+        return '<div class="ss-request-card" id="ss-req-card-' + req.id + '">' +
+          '<div class="ss-req-header" data-action="ss-toggle-req" data-req-id="' + req.id + '">' +
+            '<div class="ss-req-icon">' + Icons.render(typeIcon) + '</div>' +
+            '<div class="ss-req-info">' +
+              '<div class="ss-req-type">' + typeLabel + (req.subType ? ' - ' + req.subType : '') + '</div>' +
+              '<div class="ss-req-date">' + dateStr + amountStr + '</div>' +
+            '</div>' +
+            '<div class="ss-req-status">' +
+              '<span class="badge ' + badgeClass + '">' + statusLabel + '</span>' +
+              (canCancel ? '<button class="btn btn-danger btn-xs" data-action="ss-cancel-request" data-id="' + req.id + '" onclick="event.stopPropagation()">' + Icons.render('x') + ' إلغاء</button>' : '') +
+            '</div>' +
+          '</div>' +
+          detailsHtml +
+        '</div>';
+      }).join('');
+
+      return rows;
+    }
+
+    function render() {
+      var pendingCount = requests.filter(function(r) { return r.status.startsWith('pending'); }).length;
+      container.innerHTML =
+        '<div class="card ss-module-card">' +
+          '<div class="header-row">' +
+            '<h3>' + Icons.render('clipboard') + ' طلباتي</h3>' +
+            '<button class="btn btn-primary btn-sm" data-action="ss-new-request">' + Icons.render('plus') + ' طلب جديد</button>' +
+          '</div>' +
+          '<div class="ss-filter-tabs">' +
+            '<button class="ss-tab-btn' + (window._ssFilterTab === 'all' ? ' active' : '') + '" data-action="ss-filter-reqs" data-filter="all">الكل <span class="ss-tab-count">' + requests.length + '</span></button>' +
+            '<button class="ss-tab-btn' + (window._ssFilterTab === 'pending' ? ' active' : '') + '" data-action="ss-filter-reqs" data-filter="pending">قيد المراجعة <span class="ss-tab-count">' + pendingCount + '</span></button>' +
+            '<button class="ss-tab-btn' + (window._ssFilterTab === 'approved' ? ' active' : '') + '" data-action="ss-filter-reqs" data-filter="approved">معتمد</button>' +
+            '<button class="ss-tab-btn' + (window._ssFilterTab === 'rejected' ? ' active' : '') + '" data-action="ss-filter-reqs" data-filter="rejected">مرفوض</button>' +
+          '</div>' +
+          '<div id="ss-requests-list">' +
+            renderRequests(window._ssFilterTab) +
+          '</div>' +
+        '</div>';
+    }
+
+    Modules._ssFilterRequests = function(filter) {
+      window._ssFilterTab = filter;
+      var list = document.getElementById('ss-requests-list');
+      if (list) list.innerHTML = renderRequests(filter);
+    };
+
+    render();
+  };
+
+  Modules._ssToggleRequest = function(reqId) {
+    var details = document.getElementById('ss-req-details-' + reqId);
+    if (details) {
+      details.style.display = details.style.display === 'none' ? 'block' : 'none';
+    }
+  };
+
+  Modules._ssCancelRequest = function(id) {
+    if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) return;
+    var result = SS.cancelRequest(id);
+    if (result.ok) {
+      alert(Icons.render('check') + ' تم إلغاء الطلب بنجاح');
+      if (APP.navigate) APP.navigate('myRequests');
+    } else {
+      alert(Icons.render('alert') + ' ' + (result.error || 'حدث خطأ'));
+    }
+  };
+
+  Modules._ssNewRequest = function() {
+    if (APP.navigate) APP.navigate('newRequest');
+  };
+
+  /* ===== Module 3: newRequest ===== */
+  window.Modules.newRequest = function(container) {
+    var user = APP.getCurrentUser ? APP.getCurrentUser() : (APP.getUser ? APP.getUser() : null);
+    if (!user) { container.innerHTML = '<div class="alert alert-danger">' + Icons.render('alert') + ' لا يوجد مستخدم</div>'; return; }
+
+    window._ssNewReqState = { step: 'type', reqType: '', subType: '', formData: {} };
+
+    var typeOptions = [
+      { type: 'leave', label: 'إجازة', icon: 'calendar' },
+      { type: 'advance', label: 'سلفة', icon: 'cash' },
+      { type: 'certificate', label: 'شهادة', icon: 'document' },
+      { type: 'data_update', label: 'تحديث بيانات', icon: 'edit' },
+      { type: 'maintenance', label: 'صيانة', icon: 'settings' },
+      { type: 'purchase', label: 'طلب شراء', icon: 'cart' },
+      { type: 'other', label: 'طلب آخر', icon: 'clipboard' }
+    ];
+
+    var subTypes = {
+      leave: ['إجازة سنوية', 'إجازة مرضية', 'إجازة طارئة', 'إجازة بدون راتب'],
+      advance: ['سلفة راتب', 'سلفة طوارئ', 'سلفة سفر'],
+      certificate: ['شهادة راتب', 'شهادة خبرة', 'شهادة توظيف', 'شهادة إنهاء خدمة'],
+      data_update: ['تحديث عنوان', 'تحديث هاتف', 'تحديث بيانات بنكية', 'تحديث بيانات عائلية'],
+      maintenance: ['صيانة مكتب', 'صيانة جهاز', 'صيانة مركبة', 'صيانة مباني'],
+      purchase: ['شراء مستلزمات', 'شراء قطع غيار', 'شراء أدوات مكتبية'],
+      other: ['شكوى', 'اقتراح', 'طلب خاص']
+    };
+
+    function renderTypeSelector() {
+      return '<div class="ss-type-grid" id="ss-type-selector">' +
+        typeOptions.map(function(t) {
+          return '<div class="ss-type-card" data-action="ss-select-type" data-type="' + t.type + '">' +
+            '<div class="ss-type-icon">' + Icons.render(t.icon) + '</div>' +
+            '<div class="ss-type-label">' + t.label + '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+    }
+
+    function renderSubTypeSelector(reqType) {
+      var subs = subTypes[reqType] || [];
+      return '<div class="ss-subtype-section">' +
+        '<button class="btn btn-secondary btn-sm" data-action="ss-back-to-types" style="margin-bottom:12px">' + Icons.render('arrowRight') + ' العودة للرئيسية</button>' +
+        '<h4>اختر نوع ' + (typeOptions.find(function(t) { return t.type === reqType; }) || {}).label + '</h4>' +
+        '<div class="ss-subtype-list">' +
+          subs.map(function(s) {
+            return '<div class="ss-subtype-item" data-action="ss-select-subtype" data-type="' + reqType + '" data-subtype="' + s + '">' +
+              '<span>' + Icons.render('chevronLeft') + '</span> ' + s +
+            '</div>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+    }
+
+    function renderForm(reqType, subType) {
+      var baseFields = '<input type="hidden" id="ss-req-type" value="' + reqType + '" />' +
+                       '<input type="hidden" id="ss-req-subtype" value="' + subType + '" />';
+
+      var formContent = '';
+      switch (reqType) {
+        case 'leave':
+          formContent =
+            '<div class="form-grid">' +
+              '<div class="form-group"><label>تاريخ البداية <span class="text-danger">*</span></label><input type="date" id="ss-start-date" required /></div>' +
+              '<div class="form-group"><label>تاريخ النهاية <span class="text-danger">*</span></label><input type="date" id="ss-end-date" required /></div>' +
+            '</div>' +
+            '<div class="form-group"><label>سبب الإجازة <span class="text-danger">*</span></label><textarea id="ss-reason" rows="3" required placeholder="اكتب سبب الإجازة..."></textarea></div>' +
+            '<div class="form-group"><label>مرفقات (اختياري)</label><input type="file" id="ss-attachment" accept=".pdf,.jpg,.png" class="file-input" /><small class="text-muted">PDF أو صور فقط</small></div>';
+          break;
+        case 'advance':
+          formContent =
+            '<div class="form-grid">' +
+              '<div class="form-group"><label>المبلغ المطلوب (ر.ي) <span class="text-danger">*</span></label><input type="number" id="ss-amount" min="1000" required placeholder="أدخل المبلغ" /></div>' +
+              '<div class="form-group"><label>تفضيل الأقساط</label><select id="ss-installments"><option value="1">دفعة واحدة</option><option value="2">قسطين</option><option value="3">ثلاثة أقساط</option><option value="6">ستة أقساط</option></select></div>' +
+            '</div>' +
+            '<div class="form-group"><label>سبب السلفة <span class="text-danger">*</span></label><textarea id="ss-reason" rows="3" required placeholder="اكتب سبب طلب السلفة..."></textarea></div>';
+          break;
+        case 'certificate':
+          formContent =
+            '<div class="form-group"><label>الجهة المصدرة <span class="text-danger">*</span></label><input type="text" id="ss-purpose" required placeholder="مثال: جهة العمل، البنك، المحكمة..." /></div>' +
+            '<div class="form-group"><label>الغرض من الشهادة</label><textarea id="ss-description" rows="3" placeholder="اكتب الغرض..."></textarea></div>';
+          break;
+        case 'data_update':
+          formContent =
+            '<div class="form-group"><label>اسم الحقل المراد تحديثه <span class="text-danger">*</span></label><input type="text" id="ss-field-name" required placeholder="مثال: العنوان، رقم الهاتف..." /></div>' +
+            '<div class="form-group"><label>القيمة الجديدة <span class="text-danger">*</span></label><input type="text" id="ss-new-value" required placeholder="أدخل القيمة الجديدة" /></div>' +
+            '<div class="form-group"><label>سبب التحديث</label><textarea id="ss-reason" rows="2" placeholder="سبب التحديث..."></textarea></div>';
+          break;
+        case 'maintenance':
+          formContent =
+            '<div class="form-group"><label>الموقع / المكان <span class="text-danger">*</span></label><input type="text" id="ss-location" required placeholder="أين يحتاج صيانة؟" /></div>' +
+            '<div class="form-group"><label>وصف العطل <span class="text-danger">*</span></label><textarea id="ss-description" rows="3" required placeholder="صف العطل بالتفصيل..."></textarea></div>' +
+            '<div class="form-group"><label>الأولوية</label><select id="ss-priority"><option value="عادية">عادية</option><option value="عاجلة">عاجلة</option><option value="طارئة">طارئة جداً</option></select></div>';
+          break;
+        case 'purchase':
+          formContent =
+            '<div class="form-grid">' +
+              '<div class="form-group"><label>اسم الصنف <span class="text-danger">*</span></label><input type="text" id="ss-item-name" required placeholder="ما الذي تريد شراءه؟" /></div>' +
+              '<div class="form-group"><label>الكمية</label><input type="number" id="ss-quantity" min="1" value="1" /></div>' +
+            '</div>' +
+            '<div class="form-group"><label>التكلفة المقدرة (ر.ي)</label><input type="number" id="ss-estimated-cost" min="0" placeholder="أدخل التكلفة التقريبية" /></div>' +
+            '<div class="form-group"><label>تفاصيل إضافية</label><textarea id="ss-description" rows="2" placeholder="أي تفاصيل إضافية..."></textarea></div>';
+          break;
+        case 'other':
+        default:
+          formContent =
+            '<div class="form-group"><label>وصف الطلب <span class="text-danger">*</span></label><textarea id="ss-description" rows="4" required placeholder="اكتب تفاصيل طلبك..."></textarea></div>';
+          break;
+      }
+
+      return '<div class="ss-form-wrap" id="ss-request-form">' +
+        '<div class="ss-form-header">' +
+          '<button class="btn btn-secondary btn-sm" data-action="ss-back-to-subtypes" data-type="' + reqType + '" style="margin-bottom:12px">' + Icons.render('arrowRight') + ' العودة</button>' +
+          '<h4>تقديم طلب: ' + (typeOptions.find(function(t) { return t.type === reqType; }) || {}).label + ' - ' + subType + '</h4>' +
+        '</div>' +
+        '<form id="ss-main-form">' +
+          baseFields +
+          formContent +
+          '<div class="form-group"><label>ملاحظات إضافية (اختياري)</label><textarea id="ss-notes" rows="2"></textarea></div>' +
+          '<div class="ss-btn-row">' +
+            '<button type="button" class="btn btn-secondary" data-action="ss-preview-request">' + Icons.render('eye') + ' معاينة</button>' +
+            '<button type="button" class="btn btn-primary" data-action="ss-submit-request">' + Icons.render('check') + ' إرسال الطلب</button>' +
+          '</div>' +
+        '</form>' +
+      '</div>';
+    }
+
+    function renderPreview(reqType, subType, formData) {
+      var typeLabel = (typeOptions.find(function(t) { return t.type === reqType; }) || {}).label || '';
+      var preview = '<div class="ss-preview-card">' +
+        '<h4>' + Icons.render('eye') + ' معاينة الطلب</h4>' +
+        '<div class="ss-preview-grid">' +
+          '<div class="ss-preview-item"><span>نوع الطلب:</span> ' + typeLabel + '</div>' +
+          '<div class="ss-preview-item"><span>التفصيل:</span> ' + subType + '</div>';
+
+      if (formData.startDate) preview += '<div class="ss-preview-item"><span>من:</span> ' + formData.startDate + '</div>';
+      if (formData.endDate) preview += '<div class="ss-preview-item"><span>إلى:</span> ' + formData.endDate + '</div>';
+      if (formData.amount) preview += '<div class="ss-preview-item"><span>المبلغ:</span> ' + Number(formData.amount).toLocaleString('ar-EG') + ' ر.ي</div>';
+      if (formData.installments) preview += '<div class="ss-preview-item"><span>الأقساط:</span> ' + formData.installments + '</div>';
+      if (formData.reason) preview += '<div class="ss-preview-item"><span>السبب:</span> ' + formData.reason + '</div>';
+      if (formData.purpose) preview += '<div class="ss-preview-item"><span>الجهة:</span> ' + formData.purpose + '</div>';
+      if (formData.description) preview += '<div class="ss-preview-item"><span>الوصف:</span> ' + formData.description + '</div>';
+      if (formData.fieldName) preview += '<div class="ss-preview-item"><span>الحقل:</span> ' + formData.fieldName + '</div>';
+      if (formData.newValue) preview += '<div class="ss-preview-item"><span>القيمة:</span> ' + formData.newValue + '</div>';
+      if (formData.location) preview += '<div class="ss-preview-item"><span>الموقع:</span> ' + formData.location + '</div>';
+      if (formData.itemName) preview += '<div class="ss-preview-item"><span>الصنف:</span> ' + formData.itemName + '</div>';
+      if (formData.quantity) preview += '<div class="ss-preview-item"><span>الكمية:</span> ' + formData.quantity + '</div>';
+      if (formData.estimatedCost) preview += '<div class="ss-preview-item"><span>التكلفة:</span> ' + Number(formData.estimatedCost).toLocaleString('ar-EG') + ' ر.ي</div>';
+      if (formData.priority) preview += '<div class="ss-preview-item"><span>الأولوية:</span> ' + formData.priority + '</div>';
+      if (formData.notes) preview += '<div class="ss-preview-item"><span>ملاحظات:</span> ' + formData.notes + '</div>';
+
+      preview += '</div></div>';
+      return preview;
+    }
+
+    function render() {
+      var state = window._ssNewReqState;
+      var content = '';
+      if (state.step === 'type') {
+        content = '<div class="ss-step-indicator"><span class="ss-step active">1</span><span class="ss-step-line"></span><span class="ss-step">2</span><span class="ss-step-line"></span><span class="ss-step">3</span></div>';
+        content += '<h4 style="margin-bottom:16px">' + Icons.render('plus') + ' اختر نوع الطلب</h4>';
+        content += renderTypeSelector();
+      } else if (state.step === 'subtype') {
+        content = '<div class="ss-step-indicator"><span class="ss-step active">1</span><span class="ss-step-line active"></span><span class="ss-step active">2</span><span class="ss-step-line"></span><span class="ss-step">3</span></div>';
+        content += renderSubTypeSelector(state.reqType);
+      } else if (state.step === 'form') {
+        content = '<div class="ss-step-indicator"><span class="ss-step active">1</span><span class="ss-step-line active"></span><span class="ss-step active">2</span><span class="ss-step-line active"></span><span class="ss-step active">3</span></div>';
+        content += renderForm(state.reqType, state.subType);
+      }
+
+      container.innerHTML =
+        '<div class="card ss-module-card">' +
+          '<h3>' + Icons.render('plus') + ' تقديم طلب جديد</h3>' +
+          '<div id="ss-new-req-content">' + content + '</div>' +
+          '<div id="ss-preview-area" style="margin-top:16px;display:none"></div>' +
+        '</div>';
+    }
+
+    Modules._ssSelectType = function(type) {
+      window._ssNewReqState.step = 'subtype';
+      window._ssNewReqState.reqType = type;
+      render();
+    };
+
+    Modules._ssBackToTypes = function() {
+      window._ssNewReqState = { step: 'type', reqType: '', subType: '', formData: {} };
+      render();
+    };
+
+    Modules._ssSelectSubType = function(type, subType) {
+      window._ssNewReqState.step = 'form';
+      window._ssNewReqState.reqType = type;
+      window._ssNewReqState.subType = subType;
+      render();
+    };
+
+    Modules._ssBackToSubTypes = function(type) {
+      window._ssNewReqState.step = 'subtype';
+      window._ssNewReqState.reqType = type;
+      render();
+    };
+
+    Modules._ssPreviewRequest = function() {
+      var state = window._ssNewReqState;
+      var formData = collectFormData(state.reqType);
+      var preview = renderPreview(state.reqType, state.subType, formData);
+      var previewArea = document.getElementById('ss-preview-area');
+      if (previewArea) { previewArea.innerHTML = preview; previewArea.style.display = 'block'; }
+    };
+
+    function collectFormData(reqType) {
+      var fd = {};
+      switch (reqType) {
+        case 'leave':
+          fd.startDate = document.getElementById('ss-start-date') ? document.getElementById('ss-start-date').value : '';
+          fd.endDate = document.getElementById('ss-end-date') ? document.getElementById('ss-end-date').value : '';
+          fd.reason = document.getElementById('ss-reason') ? document.getElementById('ss-reason').value.trim() : '';
+          break;
+        case 'advance':
+          fd.amount = document.getElementById('ss-amount') ? document.getElementById('ss-amount').value : '';
+          fd.installments = document.getElementById('ss-installments') ? document.getElementById('ss-installments').value : '';
+          fd.reason = document.getElementById('ss-reason') ? document.getElementById('ss-reason').value.trim() : '';
+          break;
+        case 'certificate':
+          fd.purpose = document.getElementById('ss-purpose') ? document.getElementById('ss-purpose').value.trim() : '';
+          fd.description = document.getElementById('ss-description') ? document.getElementById('ss-description').value.trim() : '';
+          break;
+        case 'data_update':
+          fd.fieldName = document.getElementById('ss-field-name') ? document.getElementById('ss-field-name').value.trim() : '';
+          fd.newValue = document.getElementById('ss-new-value') ? document.getElementById('ss-new-value').value.trim() : '';
+          fd.reason = document.getElementById('ss-reason') ? document.getElementById('ss-reason').value.trim() : '';
+          break;
+        case 'maintenance':
+          fd.location = document.getElementById('ss-location') ? document.getElementById('ss-location').value.trim() : '';
+          fd.description = document.getElementById('ss-description') ? document.getElementById('ss-description').value.trim() : '';
+          fd.priority = document.getElementById('ss-priority') ? document.getElementById('ss-priority').value : '';
+          break;
+        case 'purchase':
+          fd.itemName = document.getElementById('ss-item-name') ? document.getElementById('ss-item-name').value.trim() : '';
+          fd.quantity = document.getElementById('ss-quantity') ? document.getElementById('ss-quantity').value : '';
+          fd.estimatedCost = document.getElementById('ss-estimated-cost') ? document.getElementById('ss-estimated-cost').value : '';
+          fd.description = document.getElementById('ss-description') ? document.getElementById('ss-description').value.trim() : '';
+          break;
+        case 'other':
+          fd.description = document.getElementById('ss-description') ? document.getElementById('ss-description').value.trim() : '';
+          break;
+      }
+      fd.notes = document.getElementById('ss-notes') ? document.getElementById('ss-notes').value.trim() : '';
+      return fd;
+    }
+
+    Modules._ssSubmitRequest = function() {
+      var state = window._ssNewReqState;
+      var formData = collectFormData(state.reqType);
+
+      // Validation
+      var errors = [];
+      switch (state.reqType) {
+        case 'leave':
+          if (!formData.startDate) errors.push('تاريخ البداية مطلوب');
+          if (!formData.endDate) errors.push('تاريخ النهاية مطلوب');
+          if (!formData.reason) errors.push('سبب الإجازة مطلوب');
+          if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
+            errors.push('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
+          }
+          break;
+        case 'advance':
+          if (!formData.amount || parseFloat(formData.amount) < 1000) errors.push('أدخل مبلغ صحيح ( mínimo 1000 ر.ي)');
+          if (!formData.reason) errors.push('سبب السلفة مطلوب');
+          break;
+        case 'certificate':
+          if (!formData.purpose) errors.push('الجهة المصدرة مطلوبة');
+          break;
+        case 'data_update':
+          if (!formData.fieldName) errors.push('اسم الحقل مطلوب');
+          if (!formData.newValue) errors.push('القيمة الجديدة مطلوبة');
+          break;
+        case 'maintenance':
+          if (!formData.location) errors.push('الموقع مطلوب');
+          if (!formData.description) errors.push('وصف العطل مطلوب');
+          break;
+        case 'purchase':
+          if (!formData.itemName) errors.push('اسم الصنف مطلوب');
+          break;
+        case 'other':
+          if (!formData.description) errors.push('وصف الطلب مطلوب');
+          break;
+      }
+
+      if (errors.length > 0) {
+        alert(Icons.render('alert') + '\n' + errors.join('\n'));
+        return;
+      }
+
+      var result = SS.createRequest({
+        type: state.reqType,
+        subType: state.subType,
+        formData: formData
+      });
+
+      if (result.ok) {
+        alert(Icons.render('check') + ' تم إرسال طلبك بنجاح!\nرقم الطلب: ' + result.id);
+        window._ssNewReqState = { step: 'type', reqType: '', subType: '', formData: {} };
+        if (APP.navigate) APP.navigate('myRequests');
+      } else {
+        alert(Icons.render('alert') + ' ' + (result.error || 'حدث خطأ أثناء الإرسال'));
+      }
+    };
+
+    render();
+  };
+
+  /* ===== Module 4: incomingRequests ===== */
+  window.Modules.incomingRequests = function(container) {
+    var user = APP.getCurrentUser ? APP.getCurrentUser() : (APP.getUser ? APP.getUser() : null);
+    if (!user) { container.innerHTML = '<div class="alert alert-danger">' + Icons.render('alert') + ' لا يوجد مستخدم</div>'; return; }
+
+    var db = APP.getDB();
+    var requests = SS.getIncomingRequests();
+
+    window._ssIncomingReqs = requests;
+
+    var typeLabels = {
+      'leave': 'إجازة',
+      'advance': 'سلفة',
+      'certificate': 'شهادة',
+      'data_update': 'تحديث بيانات',
+      'maintenance': 'صيانة',
+      'purchase': 'طلب شراء',
+      'other': 'طلب آخر'
+    };
+    var statusLabels = {
+      'pending_hr': 'بانتظار موافقتي',
+      'pending_manager': 'بانتظار إدارة',
+      'pending_gm': 'بانتظار المدير العام'
+    };
+
+    function renderGrouped() {
+      var hrReqs = requests.filter(function(r) { return r.status === 'pending_hr'; });
+      var mgrReqs = requests.filter(function(r) { return r.status === 'pending_manager'; });
+      var gmReqs = requests.filter(function(r) { return r.status === 'pending_gm'; });
+
+      if (requests.length === 0) {
+        return '<div class="ss-empty-state">' +
+          '<div class="ss-empty-icon">' + Icons.render('checkCircle') + '</div>' +
+          '<p>لا توجد طلبات بانتظار موافقتك</p>' +
+        '</div>';
+      }
+
+      var html = '';
+
+      if (hrReqs.length > 0) {
+        html += '<div class="ss-req-group">' +
+          '<h4 class="ss-group-title">' + Icons.render('userCheck') + ' بانتظار موافقتي (HR) <span class="badge badge-info">' + hrReqs.length + '</span></h4>';
+        hrReqs.forEach(function(req) { html += renderIncomingCard(req); });
+        html += '</div>';
+      }
+      if (mgrReqs.length > 0) {
+        html += '<div class="ss-req-group">' +
+          '<h4 class="ss-group-title">' + Icons.render('briefcase') + ' بانتظار إدارة <span class="badge badge-warning">' + mgrReqs.length + '</span></h4>';
+        mgrReqs.forEach(function(req) { html += renderIncomingCard(req); });
+        html += '</div>';
+      }
+      if (gmReqs.length > 0) {
+        html += '<div class="ss-req-group">' +
+          '<h4 class="ss-group-title">' + Icons.render('building') + ' بانتظار المدير العام <span class="badge badge-warning">' + gmReqs.length + '</span></h4>';
+        gmReqs.forEach(function(req) { html += renderIncomingCard(req); });
+        html += '</div>';
+      }
+
+      return html;
+    }
+
+    function renderIncomingCard(req) {
+      var typeLabel = typeLabels[req.type] || req.type || '';
+      var amountStr = (req.data && req.data.amount) ? '<span class="ss-req-amount text-danger">' + Number(req.data.amount).toLocaleString('ar-EG') + ' ر.ي</span>' : '';
+      var dateStr = req.createdAt ? new Date(req.createdAt).toLocaleDateString('ar-EG') : '';
+      var reasonStr = '';
+      if (req.data) {
+        if (req.data.reason) reasonStr = req.data.reason;
+        else if (req.data.description) reasonStr = req.data.description;
+        else if (req.data.purpose) reasonStr = req.data.purpose;
+      }
+
+      return '<div class="ss-incoming-card" id="ss-incoming-' + req.id + '">' +
+        '<div class="ss-incoming-header">' +
+          '<div class="ss-incoming-info">' +
+            '<div class="ss-incoming-emp">' + Icons.render('user') + ' ' + (req.empName || 'موظف #' + req.empId) + '</div>' +
+            '<div class="ss-incoming-type">' + typeLabel + (req.subType ? ' - ' + req.subType : '') + ' ' + amountStr + '</div>' +
+            '<div class="ss-incoming-date">' + dateStr + '</div>' +
+            (reasonStr ? '<div class="ss-incoming-reason">' + Icons.render('info') + ' ' + reasonStr.substring(0, 80) + (reasonStr.length > 80 ? '...' : '') + '</div>' : '') +
+          '</div>' +
+          '<div class="ss-incoming-actions">' +
+            '<button class="btn btn-success btn-sm" data-action="ss-approve" data-id="' + req.id + '">' + Icons.render('check') + ' موافقة</button>' +
+            '<button class="btn btn-danger btn-sm" data-action="ss-reject" data-id="' + req.id + '">' + Icons.render('x') + ' رفض</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function render() {
+      var total = requests.length;
+      container.innerHTML =
+        '<div class="card ss-module-card">' +
+          '<div class="header-row">' +
+            '<h3>' + Icons.render('clipboardList') + ' الطلبات الواردة <span class="badge badge-primary">' + total + '</span></h3>' +
+          '</div>' +
+          '<div id="ss-incoming-list">' +
+            renderGrouped() +
+          '</div>' +
+        '</div>' +
+        '<div id="ss-reject-modal" class="modal-overlay" style="display:none">' +
+          '<div class="modal-content ss-reject-modal">' +
+            '<h4>' + Icons.render('alert') + ' رفض الطلب</h4>' +
+            '<div class="form-group"><label>سبب الرفض</label><textarea id="ss-reject-reason" rows="3" placeholder="اكتب سبب الرفض..."></textarea></div>' +
+            '<div class="btn-row">' +
+              '<button class="btn btn-primary" data-action="ss-confirm-reject">' + Icons.render('check') + ' تأكيد الرفض</button>' +
+              '<button class="btn btn-secondary" data-action="ss-cancel-reject">' + Icons.render('x') + ' إلغاء</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+    }
+
+    Modules._ssApproveRequest = function(id) {
+      var result = SS.approveRequest(id);
+      if (result.ok) {
+        alert(Icons.render('check') + 'تمت الموافقة على الطلب بنجاح');
+        if (APP.navigate) APP.navigate('incomingRequests');
+      } else {
+        alert(Icons.render('alert') + ' ' + (result.error || 'حدث خطأ'));
+      }
+    };
+
+    Modules._ssRejectRequest = function(id) {
+      window._ssRejectingId = id;
+      var modal = document.getElementById('ss-reject-modal');
+      if (modal) modal.style.display = 'flex';
+      var reasonInput = document.getElementById('ss-reject-reason');
+      if (reasonInput) reasonInput.value = '';
+    };
+
+    Modules._ssConfirmReject = function() {
+      var id = window._ssRejectingId;
+      if (!id) return;
+      var reason = document.getElementById('ss-reject-reason') ? document.getElementById('ss-reject-reason').value.trim() : '';
+      if (!reason) { alert('يرجى إدخال سبب الرفض'); return; }
+      var result = SS.rejectRequest(id, reason);
+      if (result.ok) {
+        alert(Icons.render('check') + 'تم رفض الطلب');
+        var modal = document.getElementById('ss-reject-modal');
+        if (modal) modal.style.display = 'none';
+        if (APP.navigate) APP.navigate('incomingRequests');
+      } else {
+        alert(Icons.render('alert') + ' ' + (result.error || 'حدث خطأ'));
+      }
+    };
+
+    Modules._ssCancelReject = function() {
+      var modal = document.getElementById('ss-reject-modal');
+      if (modal) modal.style.display = 'none';
+    };
+
+    render();
+  };
+
+  // ---- Delegation for Self-Service modules ----
+  // (handled in the main switch below)
 })();
+
+/* ============ لوحة التحكم الشخصية (Dashboard) ============ */
+window.Modules.myDashboard = function(container) {
+  var user = APP.getCurrentUser();
+  if (!user) {
+    container.innerHTML = '<div class="card"><div class="alert alert-warning">يرجى تسجيل الدخول أولاً</div></div>';
+    return;
+  }
+
+  var db = APP.getDB();
+  var emp = (db.employeesLog || []).find(function(e) { return e.empId === user.empId; }) || {};
+
+  // === Leave Balance ===
+  var leaveBal = (db.leaveBalances || []).find(function(b) { return b.empId === user.empId; });
+  var leaveData = {
+    annual: { total: leaveBal ? leaveBal.annualTotal : 30, used: leaveBal ? leaveBal.annualUsed : 0, label: 'سنوية' },
+    sick: { total: leaveBal ? leaveBal.sickTotal : 14, used: leaveBal ? leaveBal.sickUsed : 0, label: 'مرضية' },
+    emergency: { total: leaveBal ? leaveBal.emergencyTotal : 5, used: leaveBal ? leaveBal.emergencyUsed : 0, label: 'طارئة' }
+  };
+  // Fallback: compute from employeesLog if no leaveBal record
+  if (!leaveBal && emp.leaveBalance) {
+    try {
+      var lb = typeof emp.leaveBalance === 'string' ? JSON.parse(emp.leaveBalance) : emp.leaveBalance;
+      if (lb.annual !== undefined) leaveData.annual.used = lb.annual;
+      if (lb.sick !== undefined) leaveData.sick.used = lb.sick;
+      if (lb.emergency !== undefined) leaveData.emergency.used = lb.emergency;
+    } catch(e) {}
+  }
+
+  // === My Requests ===
+  var myRequests = [];
+  if (typeof SelfService !== 'undefined' && SelfService.getMyRequests) {
+    myRequests = SelfService.getMyRequests();
+  } else {
+    myRequests = (db.requests || []).filter(function(r) { return r.employeeId === user.empId; })
+      .sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+  }
+  var pendingRequests = myRequests.filter(function(r) {
+    var st = r.status || '';
+    return st.indexOf('pending') === 0 || st === 'draft';
+  });
+  var recentRequests = myRequests.slice(0, 5);
+
+  // === Notifications ===
+  var allNotifications = (db.notifications || []).filter(function(n) {
+    return n.for === user.empId || n.for === 'all' || n.for === 'direct_manager' && user.role === 'manager';
+  }).sort(function(a, b) { return new Date(b.createdAt || 0) - new Date(a.createdAt || 0); });
+  var recentNotifications = allNotifications.slice(0, 5);
+  var unreadCount = allNotifications.filter(function(n) { return !n.read; }).length;
+
+  // === Latest Payslip ===
+  var payslips = (db.payslips || []).filter(function(p) { return p.empId === user.empId; })
+    .sort(function(a, b) { return new Date(b.month || 0) - new Date(a.month || 0); });
+  var latestPayslip = payslips[0] || null;
+
+  // === Helper: circular progress SVG ===
+  function leaveProgressHTML(data, color) {
+    var pct = data.total > 0 ? Math.min(100, Math.round((data.used / data.total) * 100)) : 0;
+    var remaining = Math.max(0, data.total - data.used);
+    var r = 28, cx = 36, cy = 36, circ = 2 * Math.PI * r;
+    var dash = circ * pct / 100;
+    var dashColor = pct > 75 ? '#c62828' : pct > 50 ? '#f9a825' : color || '#1565c0';
+    return '<div class="leave-circle-item">' +
+      '<svg width="72" height="72" viewBox="0 0 72 72">' +
+        '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#e0e0e0" stroke-width="6"/>' +
+        '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + dashColor + '" stroke-width="6"' +
+          ' stroke-dasharray="' + dash.toFixed(2) + ' ' + circ.toFixed(2) + '"' +
+          ' stroke-dashoffset="' + (circ / 4).toFixed(2) + '" stroke-linecap="round"' +
+          ' transform="rotate(-90 ' + cx + ' ' + cy + ')"/>' +
+        '<text x="' + cx + '" y="' + cy + '" text-anchor="middle" dominant-baseline="middle"' +
+          ' font-size="11" font-weight="700" fill="#333" dir="rtl">' + remaining + '</text>' +
+      '</svg>' +
+      '<div class="leave-label">' + data.label + '</div>' +
+      '<div class="leave-sub">' + data.used + ' / ' + data.total + '</div>' +
+    '</div>';
+  }
+
+  // === Helper: money formatting ===
+  function fmtMoney(val) {
+    if (typeof DB !== 'undefined' && DB.money) return DB.money(val);
+    return (val || 0).toLocaleString('ar-EG') + ' ر.ي';
+  }
+
+  // === Helper: date formatting ===
+  function fmtDate(d) {
+    if (!d) return '-';
+    try {
+      var dt = new Date(d);
+      return dt.toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch(e) { return d; }
+  }
+
+  // === Status badge ===
+  function statusBadge(status) {
+    var map = {
+      draft: 'badge-info',
+      pending_manager: 'badge-warning',
+      pending_admin: 'badge-warning',
+      pending_dept: 'badge-warning',
+      pending_gm: 'badge-warning',
+      approved: 'badge-success',
+      rejected: 'badge-danger',
+      in_progress: 'badge-info',
+      completed: 'badge-success',
+      cancelled: 'badge-secondary'
+    };
+    var labels = {
+      draft: 'مسودة',
+      pending_manager: 'بانتظار المدير',
+      pending_admin: 'بانتظار الإدارة',
+      pending_dept: 'بانتظار القسم',
+      pending_gm: 'بانتظار المدير العام',
+      approved: 'معتمد',
+      rejected: 'مرفوض',
+      in_progress: 'قيد التنفيذ',
+      completed: 'مكتمل',
+      cancelled: 'ملغى'
+    };
+    var cls = map[status] || 'badge-secondary';
+    var lbl = labels[status] || status || '';
+    return '<span class="badge ' + cls + '">' + lbl + '</span>';
+  }
+
+  // === Notifications list HTML ===
+  var notifHTML = '';
+  if (recentNotifications.length === 0) {
+    notifHTML = '<div class="empty-state"><span>' + Icons.render('bell') + '</span><p>لا توجد إشعارات</p></div>';
+  } else {
+    notifHTML = '<ul class="notif-list">';
+    recentNotifications.forEach(function(n) {
+      var isUnread = !n.read ? 'unread' : '';
+      var icon = n.type === 'request_approved' ? 'checkCircle' :
+                 n.type === 'request_rejected' ? 'xCircle' :
+                 n.type === 'new_request' ? 'plus' : 'bell';
+      notifHTML += '<li class="notif-item ' + isUnread + '">' +
+        '<span class="notif-icon">' + Icons.render(icon) + '</span>' +
+        '<div class="notif-body">' +
+          '<div class="notif-title">' + (n.title || '') + '</div>' +
+          '<div class="notif-msg">' + (n.message || '') + '</div>' +
+          '<div class="notif-time">' + fmtDate(n.createdAt) + '</div>' +
+        '</div>' +
+      '</li>';
+    });
+    notifHTML += '</ul>';
+  }
+
+  // === Recent requests list HTML ===
+  var reqHTML = '';
+  if (recentRequests.length === 0) {
+    reqHTML = '<div class="empty-state"><span>' + Icons.render('clipboard') + '</span><p>لا توجد طلبات</p></div>';
+  } else {
+    reqHTML = '<ul class="req-list">';
+    recentRequests.forEach(function(r) {
+      var subLabel = r.subTypeLabel || r.subType || '';
+      reqHTML += '<li class="req-item">' +
+        '<div class="req-info">' +
+          '<div class="req-title">' + (r.title || '') + (subLabel ? ' <small>(' + subLabel + ')</small>' : '') + '</div>' +
+          '<div class="req-date">' + fmtDate(r.createdAt) + '</div>' +
+        '</div>' +
+        '<div class="req-status">' + statusBadge(r.status) + '</div>' +
+      '</li>';
+    });
+    reqHTML += '</ul>';
+  }
+
+  // === Payslip summary ===
+  var payslipHTML = '';
+  if (latestPayslip) {
+    var items = latestPayslip.items || [];
+    var basicSalary = 0, allowances = 0, deductions = 0, netPay = latestPayslip.netPay || 0;
+    items.forEach(function(item) {
+      if (item.type === 'basic') basicSalary = item.amount || 0;
+      else if (item.type === 'allowance') allowances += item.amount || 0;
+      else if (item.type === 'deduction') deductions += Math.abs(item.amount || 0);
+    });
+    if (!netPay) netPay = basicSalary + allowances - deductions;
+    payslipHTML = '<div class="payslip-grid">' +
+      '<div class="ps-item"><span class="ps-label">' + Icons.render('user') + ' الراتب الأساسي</span><span class="ps-value">' + fmtMoney(basicSalary) + '</span></div>' +
+      '<div class="ps-item"><span class="ps-label">' + Icons.render('plus') + ' البدلات</span><span class="ps-value text-success">' + fmtMoney(allowances) + '</span></div>' +
+      '<div class="ps-item"><span class="ps-label">' + Icons.render('minus') + ' الاستقطاعات</span><span class="ps-value text-danger">' + fmtMoney(deductions) + '</span></div>' +
+      '<div class="ps-item ps-total"><span class="ps-label">' + Icons.render('wallet') + ' صافي الراتب</span><span class="ps-value">' + fmtMoney(netPay) + '</span></div>' +
+    '</div>';
+    if (latestPayslip.month) {
+      var pMonth = latestPayslip.month;
+      payslipHTML += '<div class="payslip-period">كشف راتب: ' + pMonth + '</div>';
+    }
+  } else {
+    payslipHTML = '<div class="empty-state"><span>' + Icons.render('fileText') + '</span><p>لا يوجد كشف راتب متاح</p></div>';
+  }
+
+  // === Main render ===
+  container.innerHTML = '<style>\
+    .dash-welcome { text-align:center; margin-bottom:20px; }\
+    .dash-welcome h2 { margin:0 0 4px; color:var(--primary); }\
+    .dash-welcome p { margin:0; color:#666; }\
+    .emp-card { display:flex; align-items:center; gap:16px; padding:16px; background:linear-gradient(135deg,#1565c0,#1976d2); color:#fff; border-radius:12px; margin-bottom:20px; }\
+    .emp-avatar { width:64px; height:64px; border-radius:50%; background:rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-size:28px; }\
+    .emp-info { flex:1; }\
+    .emp-name { font-size:18px; font-weight:700; margin-bottom:4px; }\
+    .emp-meta { font-size:13px; opacity:0.9; }\
+    .emp-meta span { margin-left:12px; }\
+    .kpi-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }\
+    .kpi-mini { background:var(--card-bg); border-radius:12px; padding:14px; text-align:center; box-shadow:var(--shadow-sm); }\
+    .kpi-mini .kpi-icon { font-size:22px; margin-bottom:6px; }\
+    .kpi-mini .kpi-num { font-size:22px; font-weight:700; color:var(--primary); }\
+    .kpi-mini .kpi-lbl { font-size:11px; color:#888; margin-top:2px; }\
+    .section-title { font-size:15px; font-weight:700; color:#333; margin-bottom:12px; display:flex; align-items:center; gap:8px; }\
+    .leave-row { display:flex; justify-content:space-around; padding:16px 0; gap:10px; }\
+    .leave-circle-item { text-align:center; }\
+    .leave-label { font-size:12px; font-weight:600; margin-top:6px; color:#333; }\
+    .leave-sub { font-size:11px; color:#888; margin-top:2px; }\
+    .quick-actions { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px; }\
+    .qa-btn { background:var(--card-bg); border:none; border-radius:12px; padding:14px 8px; text-align:center; box-shadow:var(--shadow-sm); cursor:pointer; transition:all 0.2s; }\
+    .qa-btn:hover { box-shadow:var(--shadow-md); transform:translateY(-2px); }\
+    .qa-btn .qa-icon { font-size:24px; margin-bottom:6px; display:block; }\
+    .qa-btn .qa-lbl { font-size:12px; font-weight:600; color:#333; }\
+    .notif-list, .req-list { list-style:none; margin:0; padding:0; }\
+    .notif-item, .req-item { display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid #f0f0f0; }\
+    .notif-item:last-child, .req-item:last-child { border-bottom:none; }\
+    .notif-item.unread { background:#f0f7ff; margin:0 -12px; padding:10px 12px; border-radius:8px; }\
+    .notif-icon { font-size:20px; color:var(--primary); flex-shrink:0; margin-top:2px; }\
+    .notif-body { flex:1; min-width:0; }\
+    .notif-title { font-size:13px; font-weight:600; color:#333; }\
+    .notif-msg { font-size:12px; color:#666; margin-top:2px; }\
+    .notif-time { font-size:11px; color:#999; margin-top:4px; }\
+    .req-info { flex:1; }\
+    .req-title { font-size:13px; font-weight:600; color:#333; }\
+    .req-date { font-size:11px; color:#888; margin-top:2px; }\
+    .req-status { flex-shrink:0; }\
+    .payslip-grid { display:grid; gap:8px; }\
+    .ps-item { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed #eee; }\
+    .ps-item:last-child { border-bottom:none; }\
+    .ps-label { font-size:13px; color:#555; display:flex; align-items:center; gap:6px; }\
+    .ps-value { font-size:14px; font-weight:700; color:#333; }\
+    .ps-total { background:#f5f8ff; margin:4px -8px; padding:8px; border-radius:8px; border-bottom:none !important; }\
+    .ps-total .ps-value { color:var(--primary); font-size:16px; }\
+    .payslip-period { text-align:center; font-size:12px; color:#888; margin-top:10px; }\
+    .empty-state { text-align:center; padding:24px; color:#999; }\
+    .empty-state span { font-size:32px; display:block; margin-bottom:8px; opacity:0.5; }\
+    .empty-state p { margin:0; font-size:13px; }\
+    .two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }\
+    .card-padded { padding:16px; }\
+    @media (max-width:600px) {\
+      .kpi-row { grid-template-columns:repeat(3,1fr); gap:8px; }\
+      .quick-actions { grid-template-columns:repeat(3,1fr); gap:8px; }\
+      .two-col { grid-template-columns:1fr; }\
+      .emp-card { flex-direction:column; text-align:center; }\
+    }\
+  </style>\
+  \
+  <div class="dash-welcome">\
+    <h2>' + Icons.render('home') + ' مرحباً بك</h2>\
+    <p>لوحة التحكم الشخصية - نظام سيلين</p>\
+  </div>\
+  \
+  <!-- Employee Card -->\
+  <div class="emp-card">\
+    <div class="emp-avatar">' + Icons.render('user') + '</div>\
+    <div class="emp-info">\
+      <div class="emp-name">' + (user.name || emp.name || 'موظف') + '</div>\
+      <div class="emp-meta">\
+        <span>' + Icons.render('idCard') + ' ' + (user.empId || emp.empId || '-') + '</span>\
+        <span>' + Icons.render('briefcase') + ' ' + (emp.position || emp.jobTitle || user.position || '-') + '</span>\
+      </div>\
+      <div class="emp-meta">\
+        <span>' + Icons.render('building') + ' ' + (emp.department || '-') + '</span>\
+        <span>' + Icons.render('calendar') + ' تاريخ التعيين: ' + fmtDate(emp.hireDate || emp.joinDate || emp.joiningDate) + '</span>\
+      </div>\
+    </div>\
+  </div>\
+  \
+  <!-- KPI Row -->\
+  <div class="kpi-row">\
+    <div class="kpi-mini">\
+      <div class="kpi-icon" style="color:#f9a825">' + Icons.render('clock') + '</div>\
+      <div class="kpi-num">' + pendingRequests.length + '</div>\
+      <div class="kpi-lbl">طلبات معلقة</div>\
+    </div>\
+    <div class="kpi-mini">\
+      <div class="kpi-icon" style="color:#1565c0">' + Icons.render('fileText') + '</div>\
+      <div class="kpi-num">' + myRequests.length + '</div>\
+      <div class="kpi-lbl">إجمالي الطلبات</div>\
+    </div>\
+    <div class="kpi-mini">\
+      <div class="kpi-icon" style="color:' + (unreadCount > 0 ? '#c62828' : '#2e7d32') + '">' + Icons.render('bell') + '</div>\
+      <div class="kpi-num">' + unreadCount + '</div>\
+      <div class="kpi-lbl">إشعارات جديدة</div>\
+    </div>\
+  </div>\
+  \
+  <!-- Quick Actions -->\
+  <div class="section-title">' + Icons.render('zap') + ' إجراءات سريعة</div>\
+  <div class="quick-actions">\
+    <button class="qa-btn" data-action="nav" data-page="newRequest">' +
+      '<span class="qa-icon" style="color:#1565c0">' + Icons.render('plus') + '</span>' +
+      '<span class="qa-lbl">طلب جديد</span>' +
+    '</button>\
+    <button class="qa-btn" data-action="nav" data-page="myRequests">' +
+      '<span class="qa-icon" style="color:#2e7d32">' + Icons.render('clipboard') + '</span>' +
+      '<span class="qa-lbl">طلباتي</span>' +
+    '</button>\
+    <button class="qa-btn" data-action="nav" data-page="salarySlip">' +
+      '<span class="qa-icon" style="color:#f9a825">' + Icons.render('wallet') + '</span>' +
+      '<span class="qa-lbl">كشف الراتب</span>' +
+    '</button>\
+  </div>\
+  \
+  <!-- Leave Balance -->\
+  <div class="card card-padded">\
+    <div class="section-title">' + Icons.render('calendar') + ' رصيد الإجازات</div>\
+    <div class="leave-row">' +
+      leaveProgressHTML(leaveData.annual, '#1565c0') +
+      leaveProgressHTML(leaveData.sick, '#2e7d32') +
+      leaveProgressHTML(leaveData.emergency, '#f9a825') +
+    '</div>\
+  </div>\
+  \
+  <!-- Two Column: Payslip + Notifications -->\
+  <div class="two-col">\
+    <div class="card card-padded">\
+      <div class="section-title">' + Icons.render('wallet') + ' آخر كشف راتب</div>\
+      ' + payslipHTML + '\
+    </div>\
+    <div class="card card-padded">\
+      <div class="section-title">' + Icons.render('bell') + ' الإشعارات' +
+        (unreadCount > 0 ? '<span class="badge badge-danger" style="margin-right:auto">' + unreadCount + '</span>' : '') +
+      '</div>\
+      ' + notifHTML + '\
+    </div>\
+  </div>\
+  \
+  <!-- Recent Requests -->\
+  <div class="card card-padded">\
+    <div class="section-title">' + Icons.render('clipboard') + ' آخر الطلبات</div>\
+    ' + reqHTML + '\
+    <div style="text-align:center;margin-top:12px">' +
+      '<button class="btn btn-secondary btn-sm" data-action="nav" data-page="myRequests">' +
+        Icons.render('eye') + ' عرض جميع الطلبات' +
+      '</button>' +
+    '</div>\
+  </div>';
+};
+
+
+/* ============================================================
+   SShifa - نظام الخدمة الذاتية الشامل (v3 - Enterprise)
+   Employee / Manager / HR / Executive Self-Service Portal
+   ============================================================ */
+
+/* ============ myDashboard — لوحة تحكم الموظف ============ */
+window.Modules.myDashboard = function(container) {
+  var db = APP.getDB();
+  var user = APP.getCurrentUser();
+  var emp = (db.employeesLog || []).find(function(e) { return e.empId === user.empId; }) || {};
+  var empId = user.empId;
+
+  // Leave balances
+  var leaveBal = (db.leaveBalances || {})[empId] || {
+    annual: { total: 30, used: 0 },
+    sick: { total: 14, used: 0 },
+    emergency: { total: 7, used: 0 }
+  };
+
+  // My requests
+  var myReqs = (db.requests || []).filter(function(r) { return r.employeeId === empId; });
+  var pendingCount = myReqs.filter(function(r) {
+    return r.status !== 'approved' && r.status !== 'rejected' && r.status !== 'completed' && r.status !== 'cancelled';
+  }).length;
+
+  // My notifications
+  var myNotifs = (db.notifications || []).filter(function(n) {
+    return n.for === empId || n.for === 'direct_manager' || n.for === user.department || n.for === 'all';
+  }).slice(-5).reverse();
+
+  // Latest payslip
+  var payslips = (db.payslips || []).filter(function(p) { return p.empId === empId; });
+  var latestSlip = payslips.length > 0 ? payslips[payslips.length - 1] : null;
+
+  // Advances
+  var myAdvances = (db.advances || []).filter(function(a) { return a.empId === empId && a.status === 'approved'; });
+  var totalAdvance = myAdvances.reduce(function(s, a) { return s + (a.totalAmount || 0); }, 0);
+  var totalPaid = myAdvances.reduce(function(s, a) {
+    return s + (a.installments || []).reduce(function(ss, i) { return ss + (i.paid ? (i.amount || 0) : 0); }, 0);
+  }, 0);
+  var advanceBalance = totalAdvance - totalPaid;
+
+  // Leave balance bars
+  function leaveBar(type, label, used, total, color) {
+    var pct = total > 0 ? Math.min((used / total) * 100, 100) : 0;
+    var rem = total - used;
+    return '<div style="margin-bottom:12px">' +
+      '<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px">' +
+        '<span>' + label + '</span>' +
+        '<span class="text-muted">' + rem + ' يوم متبقي من ' + total + '</span>' +
+      '</div>' +
+      '<div style="background:var(--bg-darker);border-radius:8px;height:8px;overflow:hidden">' +
+        '<div style="width:' + pct + '%;background:' + color + ';height:100%;border-radius:8px;transition:width 0.5s"></div>' +
+      '</div>' +
+      '<div style="font-size:11px;color:var(--text-muted);margin-top:2px">استهلك ' + used + ' يوم</div>' +
+    '</div>';
+  }
+
+  var today = new Date().toISOString().split('T')[0];
+  var monthNames = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  var now = new Date();
+  var curMonth = monthNames[now.getMonth()] + ' ' + now.getFullYear();
+
+  var slipHTML = '';
+  if (latestSlip) {
+    var slipNet = (latestSlip.netPay || 0).toLocaleString('ar-EG');
+    slipHTML = '<div class="kpi-card success" style="cursor:pointer" data-action="nav" data-page="salarySlip">' +
+      '<div class="label"><span class="ic">' + Icons.render('fileText') + '</span> كشف الراتب</div>' +
+      '<div class="value" style="font-size:1.2em">' + slipNet + '</div>' +
+      '<div class="delta">' + (latestSlip.month || curMonth) + '</div>' +
+    '</div>';
+  } else {
+    slipHTML = '<div class="kpi-card info" style="cursor:pointer" data-action="nav" data-page="salarySlip">' +
+      '<div class="label"><span class="ic">' + Icons.render('fileText') + '</span> كشف الراتب</div>' +
+      '<div class="value">—</div>' +
+      '<div class="delta">غير متوفر</div>' +
+    '</div>';
+  }
+
+  var notifHTML = myNotifs.length === 0
+    ? '<div class="empty-state"><p style="color:var(--text-muted);font-size:13px">لا توجد إشعارات</p></div>'
+    : myNotifs.map(function(n) {
+        return '<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">' +
+          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">' +
+            '<span class="badge badge-' + (n.read ? 'secondary' : 'primary') + '" style="font-size:10px;padding:2px 6px;border-radius:10px">' +
+              (n.read ? 'مقروء' : 'جديد') + '</span>' +
+            '<span class="text-muted" style="font-size:11px">' + (n.createdAt ? n.createdAt.substring(0, 10) : '') + '</span>' +
+          '</div>' +
+          '<div><b>' + (n.title || '') + '</b></div>' +
+          '<div style="color:var(--text-muted)">' + (n.message || '') + '</div>' +
+        '</div>';
+      }).join('');
+
+  container.innerHTML = '<div class="emp-dashboard">' +
+
+    // Header card
+    '<div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,var(--primary),#1976d2);color:#fff;padding:20px;border-radius:16px">' +
+      '<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">' +
+        '<div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;flex-shrink:0">' +
+          (user.name ? user.name.charAt(0) : '?') +
+        '</div>' +
+        '<div>' +
+          '<div style="font-size:16px;font-weight:700">' + (user.name || '—') + '</div>' +
+          '<div style="font-size:12px;opacity:0.85;margin-top:2px">' + (emp.position || user.role || '—') + ' — ' + (emp.department || '—') + '</div>' +
+          '<div style="font-size:11px;opacity:0.7;margin-top:2px">الرقم الوظيفي: ' + (emp.displayId || empId || '—') + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
+        '<div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:8px;text-align:center">' +
+          '<div style="font-size:10px;opacity:0.7">تاريخ التعيين</div>' +
+          '<div style="font-size:13px;font-weight:600;margin-top:2px">' + (emp.hireDate || '—') + '</div>' +
+        '</div>' +
+        '<div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:8px;text-align:center">' +
+          '<div style="font-size:10px;opacity:0.7">الراتب الأساسي</div>' +
+          '<div style="font-size:13px;font-weight:600;margin-top:2px">' + ((emp.salary || 0).toLocaleString('ar-EG')) + ' ر.ي</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+    // Leave balances
+    '<div class="card" style="margin-bottom:16px">' +
+      '<div class="header-row" style="margin-bottom:12px">' +
+        '<h3 style="margin:0">' + Icons.render('calendar') + ' رصيد الإجازات</h3>' +
+        '<a href="#" class="btn btn-sm" data-action="nav" data-page="newRequest" style="background:var(--primary);color:#fff;border-radius:8px;padding:4px 12px;text-decoration:none">' +
+          Icons.render('plus') + ' طلب إجازة</a>' +
+      '</div>' +
+      leaveBar('annual', 'إجازة سنوية', leaveBal.annual.used, leaveBal.annual.total, '#1565c0') +
+      leaveBar('sick', 'إجازة مرضية', leaveBal.sick.used, leaveBal.sick.total, '#e65100') +
+      leaveBar('emergency', 'إجازة طارئة', leaveBal.emergency.used, leaveBal.emergency.total, '#c62828') +
+    '</div>' +
+
+    // KPI cards row
+    '<div class="kpi-grid" style="margin-bottom:16px;grid-template-columns:1fr 1fr;gap:10px">' +
+      '<div class="kpi-card warning" style="cursor:pointer" data-action="nav" data-page="newRequest">' +
+        '<div class="label"><span class="ic">' + Icons.render('plus') + '</span> طلب جديد</div>' +
+        '<div class="value" style="font-size:1.2em">+</div>' +
+        '<div class="delta">إجازة / سلفة / شهادة</div>' +
+      '</div>' +
+      slipHTML +
+      '<div class="kpi-card ' + (pendingCount > 0 ? 'warning' : 'success') + '" style="cursor:pointer" data-action="nav" data-page="myRequests">' +
+        '<div class="label"><span class="ic">' + Icons.render('inbox') + '</span> طلباتي</div>' +
+        '<div class="value" style="font-size:1.5em">' + pendingCount + '</div>' +
+        '<div class="delta">' + (pendingCount > 0 ? 'بانتظار المراجعة' : 'لا توجد طلبات') + '</div>' +
+      '</div>' +
+      '<div class="kpi-card ' + (advanceBalance > 0 ? 'danger' : 'success') + '">' +
+        '<div class="label"><span class="ic">' + Icons.render('money') + '</span> رصيد السلف</div>' +
+        '<div class="value">' + (advanceBalance > 0 ? (advanceBalance / 1000).toFixed(0) + 'K' : '0') + '</div>' +
+        '<div class="delta">' + (advanceBalance > 0 ? 'ر.ي مستحق' : 'لا توجد سلف') + '</div>' +
+      '</div>' +
+    '</div>' +
+
+    // Notifications
+    '<div class="card" style="margin-bottom:16px">' +
+      '<div class="header-row" style="margin-bottom:10px">' +
+        '<h3 style="margin:0">' + Icons.render('bell') + ' الإشعارات</h3>' +
+        '<span class="badge badge-primary" style="border-radius:10px;padding:2px 8px;font-size:11px">' + myNotifs.filter(function(n){return !n.read;}).length + ' غير مقروءة</span>' +
+      '</div>' +
+      notifHTML +
+    '</div>' +
+
+    // Recent requests
+    (myReqs.length > 0 ? '<div class="card"><h3 style="margin:0 0 10px 0">' + Icons.render('clock') + ' آخر الطلبات</h3>' +
+      myReqs.slice(-5).reverse().map(function(r) {
+        var statusMap = { draft: 'badge-info', pending_manager: 'badge-warning', pending_admin: 'badge-warning', pending_dept: 'badge-warning', pending_gm: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger', in_progress: 'badge-info', completed: 'badge-success', cancelled: 'badge-secondary' };
+        var statusLabels = { draft: 'مسودة', pending_manager: 'بانتظار المدير', pending_admin: 'بانتظار الإدارة', pending_dept: 'بانتظارالقسم', pending_gm: 'بانتظار المدير العام', approved: 'معتمد', rejected: 'مرفوض', in_progress: 'قيد التنفيذ', completed: 'مكتمل', cancelled: 'ملغى' };
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:10px">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (r.title || r.subTypeLabel || r.type) + '</div>' +
+            '<div style="font-size:11px;color:var(--text-muted)">' + (r.createdAt ? r.createdAt.substring(0, 10) : '') + '</div>' +
+          '</div>' +
+          '<span class="badge ' + (statusMap[r.status] || 'badge-info') + '" style="border-radius:8px;padding:3px 8px;font-size:11px;white-space:nowrap;flex-shrink:0">' +
+            (statusLabels[r.status] || r.status) + '</span>' +
+        '</div>';
+      }).join('') + '</div>' : '<div class="card"><div class="empty-state"><p>لا توجد طلبات سابقة. <a href="#" data-action="nav" data-page="newRequest" style="color:var(--primary)">قدم طلبك الأول</a></p></div></div>') +
+
+  '</div>';
+
+  // Mark notifications as read
+  if (db.notifications) {
+    db.notifications.forEach(function(n) {
+      if (n.for === empId || n.for === 'direct_manager' || n.for === user.department) {
+        n.read = true;
+      }
+    });
+    APP.saveDB(db);
+  }
+};
+
+/* ============ salarySlip — كشف الراتب ============ */
+window.Modules.salarySlip = function(container) {
+  var db = APP.getDB();
+  var user = APP.getCurrentUser();
+  var emp = (db.employeesLog || []).find(function(e) { return e.empId === user.empId; }) || {};
+  var empId = user.empId;
+  var payslips = (db.payslips || []).filter(function(p) { return p.empId === empId; });
+  var monthNames = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+
+  var defaultMonth = payslips.length > 0
+    ? payslips[payslips.length - 1].month
+    : (monthNames[new Date().getMonth()] + ' ' + new Date().getFullYear());
+
+  var monthOpts = payslips.length > 0
+    ? payslips.map(function(p) {
+        return '<option value="' + p.month + '"' + (p.month === defaultMonth ? ' selected' : '') + '>' + p.month + '</option>';
+      }).join('')
+    : '<option value="' + defaultMonth + '">' + defaultMonth + '</option>';
+
+  container.innerHTML =
+    '<div class="card" style="margin-bottom:16px">' +
+      '<div class="header-row">' +
+        '<h3 style="margin:0">' + Icons.render('fileText') + ' كشف الراتب الشهري</h3>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+          '<select id="ss_month_sel" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);font-size:13px">' +
+            monthOpts +
+          '</select>' +
+          '<button class="btn btn-sm" data-action="ss-print-slip" style="background:var(--primary);color:#fff;border-radius:8px;padding:6px 14px">' +
+            Icons.render('printer') + ' طباعة</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div id="ss_slip_container"></div>' +
+    '<div id="ss_slip_empty" style="display:none">' +
+      '<div class="card"><div class="empty-state">' +
+        '<div style="font-size:40px;margin-bottom:12px">' + Icons.render('fileText') + '</div>' +
+        '<h3>لا توجد قسائم راتب مسجلة</h3>' +
+        '<p style="color:var(--text-muted);font-size:13px">قم بمراجعة قسم الحسابات لإضافة قسائم الرواتب</p>' +
+      '</div></div>' +
+    '</div>';
+
+  window.__SS = window.__SS || {};
+  window.__SS.payslips = payslips;
+  window.__SS.emp = emp;
+
+  window.__SS.renderSlip = function(month) {
+    var slip = payslips.find(function(p) { return p.month === month; });
+    var slipDiv = document.getElementById('ss_slip_container');
+    var emptyDiv = document.getElementById('ss_slip_empty');
+    if (!slipDiv) return;
+
+    if (!slip) {
+      // Generate from employeesLog salary
+      var basic = emp.salary || 0;
+      var housing = Math.round(basic * 0.1);
+      var transport = Math.round(basic * 0.05);
+      var allowances = emp.allowances || 0;
+      var gross = basic + housing + transport + allowances;
+      var insurance = Math.round(basic * 0.05);
+      var otherDed = 0;
+      var net = gross - insurance - otherDed;
+
+      slipDiv.innerHTML =
+        '<div class="card slip-card" style="max-width:600px;margin:0 auto">' +
+          '<div style="text-align:center;border-bottom:2px solid var(--border);padding-bottom:16px;margin-bottom:16px">' +
+            '<div style="font-size:18px;font-weight:700;color:var(--primary)">مصنع سيلين للمياه المعدنية والمرطبات</div>' +
+            '<div style="font-size:12px;color:var(--text-muted)">الجمهورية اليمنية - البيضاء</div>' +
+            '<div style="font-size:16px;font-weight:700;margin-top:8px">كشف راتب شهري</div>' +
+            '<div style="font-size:14px;color:var(--text-muted)">' + month + '</div>' +
+          '</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;padding:12px;background:var(--bg-darker);border-radius:10px;font-size:13px">' +
+            '<div><span class="text-muted">الاسم:</span> <b>' + (user.name || '—') + '</b></div>' +
+            '<div><span class="text-muted">الرقم الوظيفي:</span> <b>' + (emp.displayId || empId) + '</b></div>' +
+            '<div><span class="text-muted">القسم:</span> <b>' + (emp.department || '—') + '</b></div>' +
+            '<div><span class="text-muted">المسمى:</span> <b>' + (emp.position || '—') + '</b></div>' +
+          '</div>' +
+          '<div style="margin-bottom:16px">' +
+            '<h4 style="margin:0 0 8px 0;border-bottom:1px solid var(--border);padding-bottom:6px;color:var(--success)">' + Icons.render('plus') + ' الاستحقاقات</h4>' +
+            '<table style="width:100%;font-size:13px">' +
+              '<tr><td>الراتب الأساسي</td><td style="text-align:left;font-weight:600">' + basic.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+              '<tr><td>بدل سكن (' + (Math.round(basic*0.1/basic*100)) + '%)</td><td style="text-align:left">' + housing.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+              '<tr><td>بدل مواصلات (' + (Math.round(basic*0.05/basic*100)) + '%)</td><td style="text-align:left">' + transport.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+              '<tr><td>بدلات أخرى</td><td style="text-align:left">' + allowances.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+              '<tr style="font-weight:700;background:var(--bg-darker)"><td>إجمالي الاستحقاقات</td><td style="text-align:left">' + gross.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+            '</table>' +
+          '</div>' +
+          '<div style="margin-bottom:16px">' +
+            '<h4 style="margin:0 0 8px 0;border-bottom:1px solid var(--border);padding-bottom:6px;color:var(--danger)">' + Icons.render('minus') + ' الاستقطاعات</h4>' +
+            '<table style="width:100%;font-size:13px">' +
+              '<tr><td>التأمينات الاجتماعية (5%)</td><td style="text-align:left;text-decoration:none">-' + insurance.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+              '<tr><td>خصومات أخرى</td><td style="text-align:left">-' + otherDed.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+              '<tr style="font-weight:700;background:var(--bg-darker)"><td>إجمالي الاستقطاعات</td><td style="text-align:left">-' + (insurance+otherDed).toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+            '</table>' +
+          '</div>' +
+          '<div style="background:var(--primary);color:#fff;border-radius:12px;padding:16px;text-align:center;margin-top:16px">' +
+            '<div style="font-size:12px;opacity:0.8">صافي الراتب المستحق</div>' +
+            '<div style="font-size:28px;font-weight:700;margin-top:4px">' + net.toLocaleString('ar-EG') + ' <span style="font-size:14px">ريال يمني</span></div>' +
+          '</div>' +
+          '<div style="text-align:center;margin-top:16px;font-size:11px;color:var(--text-muted)">صدر بتاريخ: ' + new Date().toISOString().split('T')[0] + '</div>' +
+        '</div>';
+      if (emptyDiv) emptyDiv.style.display = 'none';
+      slipDiv.style.display = 'block';
+      return;
+    }
+
+    // Real payslip from DB
+    var basic = slip.basicSalary || 0;
+    var housing = slip.housingAllowance || 0;
+    var transport = slip.transportAllowance || 0;
+    var food = slip.foodAllowance || 0;
+    var otherAllow = slip.otherAllowances || 0;
+    var gross = basic + housing + transport + food + otherAllow;
+    var insurance = slip.insuranceDeduction || 0;
+    var advanceDed = slip.advanceDeduction || 0;
+    var otherDed = slip.otherDeductions || 0;
+    var net = slip.netPay || (gross - insurance - advanceDed - otherDed);
+
+    slipDiv.innerHTML =
+      '<div class="card slip-card" style="max-width:600px;margin:0 auto">' +
+        '<div style="text-align:center;border-bottom:2px solid var(--border);padding-bottom:16px;margin-bottom:16px">' +
+          '<div style="font-size:18px;font-weight:700;color:var(--primary)">مصنع سيلين للمياه المعدنية والمرطبات</div>' +
+          '<div style="font-size:12px;color:var(--text-muted)">الجمهورية اليمنية - البيضاء</div>' +
+          '<div style="font-size:16px;font-weight:700;margin-top:8px">كشف راتب شهري</div>' +
+          '<div style="font-size:14px;color:var(--text-muted)">' + slip.month + '</div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;padding:12px;background:var(--bg-darker);border-radius:10px;font-size:13px">' +
+          '<div><span class="text-muted">الاسم:</span> <b>' + (user.name || '—') + '</b></div>' +
+          '<div><span class="text-muted">الرقم الوظيفي:</span> <b>' + (emp.displayId || empId) + '</b></div>' +
+          '<div><span class="text-muted">القسم:</span> <b>' + (emp.department || '—') + '</b></div>' +
+          '<div><span class="text-muted">المسمى:</span> <b>' + (emp.position || '—') + '</b></div>' +
+        '</div>' +
+        '<div style="margin-bottom:14px">' +
+          '<h4 style="color:var(--success)">' + Icons.render('plus') + ' الاستحقاقات</h4>' +
+          '<table style="width:100%;font-size:13px">' +
+            '<tr><td>الراتب الأساسي</td><td style="text-align:left;font-weight:600">' + basic.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+            '<tr><td>بدل سكن</td><td style="text-align:left">' + housing.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+            '<tr><td>بدل مواصلات</td><td style="text-align:left">' + transport.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+            '<tr><td>بدل طعام</td><td style="text-align:left">' + food.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+            '<tr><td>بدلات أخرى</td><td style="text-align:left">' + otherAllow.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+            '<tr style="font-weight:700;background:rgba(46,125,50,0.1)"><td>إجمالي الاستحقاقات</td><td style="text-align:left">' + gross.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+          '</table>' +
+        '</div>' +
+        '<div style="margin-bottom:14px">' +
+          '<h4 style="color:var(--danger)">' + Icons.render('minus') + ' الاستقطاعات</h4>' +
+          '<table style="width:100%;font-size:13px">' +
+            '<tr><td>التأمينات</td><td style="text-align:left">-' + insurance.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+            '<tr><td>خصم السلف</td><td style="text-align:left">-' + advanceDed.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+            '<tr><td>خصومات أخرى</td><td style="text-align:left">-' + otherDed.toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+            '<tr style="font-weight:700;background:rgba(198,40,40,0.1)"><td>إجمالي الاستقطاعات</td><td style="text-align:left">-' + (insurance+advanceDed+otherDed).toLocaleString('ar-EG') + ' ر.ي</td></tr>' +
+          '</table>' +
+        '</div>' +
+        '<div style="background:var(--primary);color:#fff;border-radius:12px;padding:16px;text-align:center;margin-top:16px">' +
+          '<div style="font-size:12px;opacity:0.8">صافي الراتب المستحق</div>' +
+          '<div style="font-size:28px;font-weight:700;margin-top:4px">' + net.toLocaleString('ar-EG') + ' <span style="font-size:14px">ريال يمني</span></div>' +
+        '</div>' +
+        '<div style="text-align:center;margin-top:16px;font-size:11px;color:var(--text-muted)">صدر بتاريخ: ' + (slip.issuedAt || new Date().toISOString().split('T')[0]) + '</div>' +
+      '</div>';
+    if (emptyDiv) emptyDiv.style.display = 'none';
+    slipDiv.style.display = 'block';
+  };
+
+  // Month selector listener
+  setTimeout(function() {
+    var sel = document.getElementById('ss_month_sel');
+    if (sel) {
+      sel.addEventListener('change', function() {
+        window.__SS.renderSlip(this.value);
+      });
+    }
+    window.__SS.renderSlip(defaultMonth);
+  }, 50);
+};
+
+/* ============ myRequests — طلباتي ============ */
+window.Modules.myRequests = function(container) {
+  var db = APP.getDB();
+  var user = APP.getCurrentUser();
+  var empId = user.empId;
+  var reqs = (db.requests || []).filter(function(r) { return r.employeeId === empId; })
+    .sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+
+  var statusMap = {
+    draft: 'badge-info', pending_manager: 'badge-warning', pending_admin: 'badge-warning',
+    pending_dept: 'badge-warning', pending_gm: 'badge-warning', approved: 'badge-success',
+    rejected: 'badge-danger', in_progress: 'badge-info', completed: 'badge-success', cancelled: 'badge-secondary'
+  };
+  var statusLabels = {
+    draft: 'مسودة', pending_manager: 'بانتظار المدير', pending_admin: 'بانتظار الإدارة',
+    pending_dept: 'بانتظار القسم', pending_gm: 'بانتظار المدير العام', approved: 'معتمد',
+    rejected: 'مرفوض', in_progress: 'قيد التنفيذ', completed: 'مكتمل', cancelled: 'ملغى'
+  };
+  var typeIcons = {
+    leave: 'calendar', advance: 'money', certificate: 'fileText',
+    data_update: 'user', maintenance: 'tool', purchase: 'cart', other: 'messageCircle'
+  };
+
+  var allCount = reqs.length;
+  var pendingCount = reqs.filter(function(r) {
+    return r.status !== 'approved' && r.status !== 'rejected' && r.status !== 'completed' && r.status !== 'cancelled';
+  }).length;
+  var approvedCount = reqs.filter(function(r) { return r.status === 'approved' || r.status === 'completed'; }).length;
+  var rejectedCount = reqs.filter(function(r) { return r.status === 'rejected'; }).length;
+
+  window.__SS = window.__SS || {};
+  window.__SS.allReqs = reqs;
+
+  window.__SS.filterReqs = function(filter) {
+    var filtered = filter === 'all' ? reqs : reqs.filter(function(r) {
+      if (filter === 'pending') return r.status !== 'approved' && r.status !== 'rejected' && r.status !== 'completed' && r.status !== 'cancelled';
+      if (filter === 'approved') return r.status === 'approved' || r.status === 'completed';
+      if (filter === 'rejected') return r.status === 'rejected';
+      return true;
+    });
+
+    var body = document.getElementById('ss_req_body');
+    if (!body) return;
+    if (filtered.length === 0) {
+      body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted)">لا توجد طلبات في هذا التصنيف</td></tr>';
+      return;
+    }
+    body.innerHTML = filtered.map(function(r) {
+      var canCancel = r.status === 'pending_manager' || r.status === 'pending_admin' || r.status === 'pending_dept';
+      var amountHTML = r.amount ? '<span class="text-warning">' + r.amount.toLocaleString('ar-EG') + ' ر.ي</span>' : '—';
+      return '<tr>' +
+        '<td><span class="ic" style="color:var(--primary)">' + Icons.render(typeIcons[r.type] || 'fileText') + '</span></td>' +
+        '<td><b>' + (r.title || r.subTypeLabel || r.type) + '</b><br><small class="text-muted">' + (r.subTypeLabel || '') + '</small></td>' +
+        '<td>' + (r.createdAt ? r.createdAt.substring(0, 10) : '') + '</td>' +
+        '<td>' + amountHTML + '</td>' +
+        '<td><span class="badge ' + (statusMap[r.status] || 'badge-info') + '" style="border-radius:8px;font-size:11px">' + (statusLabels[r.status] || r.status) + '</span></td>' +
+        '<td>' +
+          '<button class="btn btn-sm btn-secondary" data-action="ss-view-req" data-id="' + r.id + '" style="margin-left:4px;padding:3px 8px;font-size:11px;border-radius:6px">' + Icons.render('eye') + '</button>' +
+          (canCancel ? '<button class="btn btn-sm btn-danger" data-action="ss-cancel-req" data-id="' + r.id + '" style="padding:3px 8px;font-size:11px;border-radius:6px">' + Icons.render('x') + '</button>' : '') +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  };
+
+  var reqRows = reqs.map(function(r) {
+    var canCancel = r.status === 'pending_manager' || r.status === 'pending_admin' || r.status === 'pending_dept';
+    var amountHTML = r.amount ? '<span class="text-warning">' + r.amount.toLocaleString('ar-EG') + ' ر.ي</span>' : '—';
+    return '<tr>' +
+      '<td><span class="ic" style="color:var(--primary)">' + Icons.render(typeIcons[r.type] || 'fileText') + '</span></td>' +
+      '<td><b>' + (r.title || r.subTypeLabel || r.type) + '</b><br><small class="text-muted">' + (r.subTypeLabel || '') + '</small></td>' +
+      '<td>' + (r.createdAt ? r.createdAt.substring(0, 10) : '') + '</td>' +
+      '<td>' + amountHTML + '</td>' +
+      '<td><span class="badge ' + (statusMap[r.status] || 'badge-info') + '" style="border-radius:8px;font-size:11px">' + (statusLabels[r.status] || r.status) + '</span></td>' +
+      '<td>' +
+        '<button class="btn btn-sm btn-secondary" data-action="ss-view-req" data-id="' + r.id + '" style="margin-left:4px;padding:3px 8px;font-size:11px;border-radius:6px">' + Icons.render('eye') + '</button>' +
+        (canCancel ? '<button class="btn btn-sm btn-danger" data-action="ss-cancel-req" data-id="' + r.id + '" style="padding:3px 8px;font-size:11px;border-radius:6px">' + Icons.render('x') + '</button>' : '') +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  if (reqRows === '') reqRows = '<tr><td colspan="6" style="text-align:center;padding:30px"><div class="empty-state"><p>لا توجد طلبات. <a href="#" data-action="nav" data-page="newRequest" style="color:var(--primary)">قدم طلبك الأول</a></p></div></td></tr>';
+
+  container.innerHTML =
+    '<div class="card" style="margin-bottom:16px">' +
+      '<div class="header-row">' +
+        '<h3 style="margin:0">' + Icons.render('inbox') + ' طلباتي (' + allCount + ')</h3>' +
+        '<button class="btn btn-primary" data-action="nav" data-page="newRequest" style="border-radius:8px;padding:6px 16px">' +
+          Icons.render('plus') + ' طلب جديد</button>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="tabs" style="margin-bottom:12px">' +
+      '<button class="tab-btn active" data-action="ss-filter-req" data-filter="all" style="border-radius:8px 0 0 8px">' + Icons.render('list') + ' الكل <span class="badge badge-primary" style="border-radius:10px;padding:1px 6px;font-size:10px;margin-right:4px">' + allCount + '</span></button>' +
+      '<button class="tab-btn" data-action="ss-filter-req" data-filter="pending" style="border-radius:0">' + Icons.render('clock') + ' قيد المراجعة <span class="badge badge-warning" style="border-radius:10px;padding:1px 6px;font-size:10px;margin-right:4px">' + pendingCount + '</span></button>' +
+      '<button class="tab-btn" data-action="ss-filter-req" data-filter="approved" style="border-radius:0">' + Icons.render('check') + ' معتمد <span class="badge badge-success" style="border-radius:10px;padding:1px 6px;font-size:10px;margin-right:4px">' + approvedCount + '</span></button>' +
+      '<button class="tab-btn" data-action="ss-filter-req" data-filter="rejected" style="border-radius:0 8px 8px 0">' + Icons.render('x') + ' مرفوض <span class="badge badge-danger" style="border-radius:10px;padding:1px 6px;font-size:10px;margin-right:4px">' + rejectedCount + '</span></button>' +
+    '</div>' +
+
+    '<div class="card" style="overflow-x:auto">' +
+      '<table style="min-width:600px;width:100%">' +
+        '<thead><tr><th style="width:40px"></th><th>الطلب</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th><th style="width:90px">إجراء</th></tr></thead>' +
+        '<tbody id="ss_req_body">' + reqRows + '</tbody>' +
+      '</table>' +
+    '</div>' +
+
+    // View modal
+    '<div id="ss_req_detail_modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:16px">' +
+      '<div class="card" style="width:min(600px,100%);max-height:85vh;overflow-y:auto;padding:20px">' +
+        '<div class="header-row" style="margin-bottom:16px">' +
+          '<h3 id="ss_detail_title" style="margin:0"></h3>' +
+          '<button class="btn btn-sm btn-secondary" data-action="ss-close-detail" style="border-radius:50%;width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center">' + Icons.render('x') + '</button>' +
+        '</div>' +
+        '<div id="ss_detail_body"></div>' +
+      '</div>' +
+    '</div>';
+};
+
+/* ============ newRequest — تقديم طلب جديد ============ */
+window.Modules.newRequest = function(container) {
+  var db = APP.getDB();
+  var user = APP.getCurrentUser();
+
+  var REQUEST_TYPES = [
+    { id: 'leave', label: 'إجازات', icon: 'calendar', color: '#1565c0', desc: 'إجازة سنوية، مرضية، طارئة...' },
+    { id: 'advance', label: 'سلف', icon: 'money', color: '#e65100', desc: 'سلفة شخصية، طبية، طارئة...' },
+    { id: 'certificate', label: 'شهادات', icon: 'fileText', color: '#2e7d32', desc: 'شهادة راتب، خبرة، تعريف...' },
+    { id: 'data_update', label: 'تحديث بيانات', icon: 'user', color: '#6a1b9a', desc: 'تعديل بيانات شخصية...' },
+    { id: 'maintenance', label: 'صيانة', icon: 'tool', color: '#c62828', desc: 'طلب صيانة معدات أو مباني...' },
+    { id: 'purchase', label: 'شراء', icon: 'cart', color: '#00838f', desc: 'طلب شراء مواد أو تجهيزات...' },
+    { id: 'exit_permit', label: 'مغادرة', icon: 'logOut', color: '#ad1457', desc: 'مغادرة أثناء ساعات العمل...' },
+    { id: 'other', label: 'أخرى', icon: 'messageCircle', color: '#455a64', desc: 'اقتراح، شكوى، أو طلب عام...' }
+  ];
+
+  var SUB_TYPES = {
+    leave: [
+      { id: 'annual', label: 'إجازة سنوية' },
+      { id: 'sick', label: 'إجازة مرضية' },
+      { id: 'emergency', label: 'إجازة طارئة' },
+      { id: 'bereavement', label: 'إجازة وفاة' },
+      { id: 'marriage', label: 'إجازة زواج' },
+      { id: 'unpaid', label: 'إجازة بدون راتب' }
+    ],
+    advance: [
+      { id: 'personal', label: 'سلفة شخصية' },
+      { id: 'emergency', label: 'سلفة طارئة' },
+      { id: 'medical', label: 'سلفة طبية' },
+      { id: 'education', label: 'سلفة دراسية' }
+    ],
+    certificate: [
+      { id: 'salary', label: 'شهادة راتب' },
+      { id: 'experience', label: 'شهادة خبرة' },
+      { id: 'work', label: 'شهادة عمل' },
+      { id: 'to_whom', label: 'شهادة لمن يهمه الأمر' }
+    ],
+    data_update: [
+      { id: 'phone', label: 'تحديث رقم الهاتف' },
+      { id: 'address', label: 'تحديث العنوان' },
+      { id: 'bank', label: 'تحديث الحساب البنكي' },
+      { id: 'emergency_contact', label: 'تحديث هاتف الطوارئ' }
+    ],
+    exit_permit: [
+      { id: 'personal', label: 'خروج شخصي' },
+      { id: 'medical', label: 'خروج طبي' },
+      { id: 'family', label: 'خروج عائلي طارئ' }
+    ]
+  };
+
+  window.__SS = window.__SS || {};
+  window.__SS.user = user;
+
+  var today = new Date().toISOString().split('T')[0];
+
+  container.innerHTML =
+    '<div class="card" style="margin-bottom:16px">' +
+      '<h3 style="margin:0 0 4px 0">' + Icons.render('plus') + ' تقديم طلب جديد</h3>' +
+      '<p style="margin:0;font-size:12px;color:var(--text-muted)">اختر نوع الطلب ثم املأ التفاصيل</p>' +
+    '</div>' +
+
+    '<div id="ss_type_grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px">' +
+      REQUEST_TYPES.map(function(t) {
+        return '<div class="card ss-type-card" data-action="ss-select-type" data-type="' + t.id + '" style="cursor:pointer;text-align:center;padding:16px;transition:all 0.2s;border:2px solid transparent">' +
+          '<div style="width:44px;height:44px;border-radius:12px;background:' + t.color + ';color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:20px">' +
+            Icons.render(t.icon) + '</div>' +
+          '<div style="font-weight:600;font-size:13px;margin-bottom:4px;color:var(--text)">' + t.label + '</div>' +
+          '<div style="font-size:11px;color:var(--text-muted)">' + t.desc + '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>' +
+
+    '<div id="ss_form_area" style="display:none">' +
+      '<div class="card" style="margin-bottom:16px">' +
+        '<div class="header-row" style="margin-bottom:14px">' +
+          '<h3 id="ss_form_title" style="margin:0"></h3>' +
+          '<button class="btn btn-sm btn-secondary" data-action="ss-back-types" style="border-radius:8px;padding:4px 12px">' + Icons.render('arrowRight') + ' تغيير النوع</button>' +
+        '</div>' +
+        '<div id="ss_form_fields"></div>' +
+        '<div class="btn-row" style="margin-top:16px">' +
+          '<button class="btn btn-primary" data-action="ss-submit-request" style="border-radius:8px;padding:10px 24px;font-size:14px">' + Icons.render('check') + ' تقديم الطلب</button>' +
+          '<button class="btn btn-secondary" data-action="ss-back-types" style="border-radius:8px;padding:10px 24px">إلغاء</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  window.__SS.currentType = null;
+  window.__SS.currentSubType = null;
+
+  window.__SS.selectType = function(typeId) {
+    window.__SS.currentType = typeId;
+    var type = REQUEST_TYPES.find(function(t) { return t.id === typeId; });
+    var subs = SUB_TYPES[typeId] || [];
+    var formArea = document.getElementById('ss_form_area');
+    var typeGrid = document.getElementById('ss_type_grid');
+    var formFields = document.getElementById('ss_form_fields');
+    var formTitle = document.getElementById('ss_form_title');
+
+    if (typeGrid) typeGrid.style.display = 'none';
+    if (formArea) formArea.style.display = 'block';
+    if (formTitle) formTitle.innerHTML = Icons.render(type.icon) + ' ' + type.label;
+
+    var fields = '';
+
+    if (subs.length > 0) {
+      fields += '<div class="form-group"><label>نوع الطلب *</label><select id="ss_subtype" required><option value="">— اختر —</option>' +
+        subs.map(function(s) { return '<option value="' + s.id + '">' + s.label + '</option>'; }).join('') +
+        '</select></div>';
+    }
+
+    // Common fields
+    if (typeId === 'leave') {
+      fields +=
+        '<div class="form-grid" style="grid-template-columns:1fr 1fr">' +
+          '<div class="form-group"><label>من تاريخ *</label><input type="date" id="ss_start" value="' + today + '" required /></div>' +
+          '<div class="form-group"><label>إلى تاريخ *</label><input type="date" id="ss_end" required /></div>' +
+        '</div>' +
+        '<div class="form-group"><label>سبب الطلب</label><textarea id="ss_reason" rows="2" placeholder="اكتب سبب الطلب..." style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);font-size:13px"></textarea></div>';
+    } else if (typeId === 'advance') {
+      fields +=
+        '<div class="form-group"><label>المبلغ المطلوب (ريال يمني) *</label><input type="number" id="ss_amount" min="10000" step="1000" placeholder="مثال: 50000" required /></div>' +
+        '<div class="form-group"><label>القسط الشهري المقترح (ريال)</label><input type="number" id="ss_installment" min="5000" step="5000" placeholder="مثال: 10000" /></div>' +
+        '<div class="form-group"><label>سبب الطلب *</label><textarea id="ss_reason" rows="2" placeholder="اكتب سبب الحاجة للسلفة..." required style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);font-size:13px"></textarea></div>';
+    } else if (typeId === 'certificate') {
+      fields +=
+        '<div class="form-group"><label>الجهة المقدمة لها *</label><input type="text" id="ss_extra" placeholder="مثال: بنك سبأ الإسلامي" required /></div>' +
+        '<div class="form-group"><label>ملاحظة</label><textarea id="ss_reason" rows="2" placeholder="ملاحظات إضافية..." style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);font-size:13px"></textarea></div>';
+    } else if (typeId === 'data_update') {
+      fields +=
+        '<div class="form-group"><label>الحقل المراد تحديثه *</label><input type="text" id="ss_field_name" placeholder="مثال: رقم الهاتف الجديد" required /></div>' +
+        '<div class="form-group"><label>القيمة الجديدة *</label><input type="text" id="ss_new_value" placeholder="اكتب القيمة الجديدة" required /></div>' +
+        '<div class="form-group"><label>سبب التحديث</label><textarea id="ss_reason" rows="2" placeholder="سبب الحاجة للتحديث..." style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);font-size:13px"></textarea></div>';
+    } else if (typeId === 'maintenance') {
+      fields +=
+        '<div class="form-group"><label>الموقع / المعدة *</label><input type="text" id="ss_extra" placeholder="مثال: صالة الإنتاج - ماكينة النفخ 2" required /></div>' +
+        '<div class="form-group"><label>وصف العطل *</label><textarea id="ss_reason" rows="3" placeholder="اكتب وصف المشكلة بالتفصيل..." required style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);font-size:13px"></textarea></div>';
+    } else if (typeId === 'purchase') {
+      fields +=
+        '<div class="form-group"><label>اسم المادة / المعدة *</label><input type="text" id="ss_extra" placeholder="مثال: كرتون تعبئة 750 مل" required /></div>' +
+        '<div class="form-group"><label>الكمية</label><input type="number" id="ss_qty" min="1" placeholder="مثال: 100" /></div>' +
+        '<div class="form-group"><label>التكلفة التقديرية (ريال)</label><input type="number" id="ss_amount" min="0" placeholder="مثال: 50000" /></div>' +
+        '<div class="form-group"><label>ملاحظة</label><textarea id="ss_reason" rows="2" placeholder="ملاحظات إضافية..." style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);font-size:13px"></textarea></div>';
+    } else if (typeId === 'exit_permit') {
+      fields +=
+        '<div class="form-grid" style="grid-template-columns:1fr 1fr 1fr">' +
+          '<div class="form-group"><label>تاريخ الخروج</label><input type="date" id="ss_start" value="' + today + '" /></div>' +
+          '<div class="form-group"><label>وقت الخروج</label><input type="time" id="ss_exit_time" /></div>' +
+          '<div class="form-group"><label>وقت العودة</label><input type="time" id="ss_return_time" /></div>' +
+        '</div>' +
+        '<div class="form-group"><label>سبب الخروج *</label><textarea id="ss_reason" rows="2" placeholder="اكتب سبب الخروج..." required style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);font-size:13px"></textarea></div>';
+    } else {
+      fields +=
+        '<div class="form-group"><label>موضوع الطلب *</label><input type="text" id="ss_extra" placeholder="موضوع الطلب" required /></div>' +
+        '<div class="form-group"><label>تفاصيل الطلب *</label><textarea id="ss_reason" rows="4" placeholder="اكتب تفاصيل طلبك..." required style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);font-size:13px"></textarea></div>';
+    }
+
+    if (formFields) formFields.innerHTML = fields;
+  };
+
+  window.__SS.backToTypes = function() {
+    var formArea = document.getElementById('ss_form_area');
+    var typeGrid = document.getElementById('ss_type_grid');
+    if (formArea) formArea.style.display = 'none';
+    if (typeGrid) typeGrid.style.display = 'grid';
+    window.__SS.currentType = null;
+  };
+
+  window.__SS.submitRequest = function() {
+    var type = window.__SS.currentType;
+    var user = window.__SS.user;
+    if (!type) { alert('يرجى اختيار نوع الطلب'); return; }
+
+    var subType = document.getElementById('ss_subtype') ? document.getElementById('ss_subtype').value : '';
+    var startDate = document.getElementById('ss_start') ? document.getElementById('ss_start').value : '';
+    var endDate = document.getElementById('ss_end') ? document.getElementById('ss_end').value : '';
+    var amount = parseFloat(document.getElementById('ss_amount') ? document.getElementById('ss_amount').value : 0) || 0;
+    var reason = document.getElementById('ss_reason') ? document.getElementById('ss_reason').value.trim() : '';
+    var extra = document.getElementById('ss_extra') ? document.getElementById('ss_extra').value.trim() : '';
+    var extra2 = document.getElementById('ss_field_name') ? document.getElementById('ss_field_name').value.trim() : '';
+    var newValue = document.getElementById('ss_new_value') ? document.getElementById('ss_new_value').value.trim() : '';
+    var exitTime = document.getElementById('ss_exit_time') ? document.getElementById('ss_exit_time').value : '';
+    var returnTime = document.getElementById('ss_return_time') ? document.getElementById('ss_return_time').value : '';
+
+    // Validation
+    if (type === 'leave' && (!startDate || !endDate)) {
+      alert('يرجى إدخال تاريخي البداية والنهاية'); return;
+    }
+    if (type === 'advance' && amount <= 0) {
+      alert('يرجى إدخال مبلغ صحيح'); return;
+    }
+    if (type === 'certificate' && !extra) {
+      alert('يرجى إدخال الجهة المقدمة لها'); return;
+    }
+    if (type === 'data_update' && (!extra2 || !newValue)) {
+      alert('يرجى إدخال الحقل والقيمة الجديدة'); return;
+    }
+    if (type === 'exit_permit' && !reason) {
+      alert('يرجى إدخال سبب الخروج'); return;
+    }
+    if (type === 'other' && !reason) {
+      alert('يرجى إدخال تفاصيل الطلب'); return;
+    }
+
+    var db = APP.getDB();
+    if (!db.requests) db.requests = [];
+    if (!db.notifications) db.notifications = [];
+
+    var typeLabels = { leave: 'إجازة', advance: 'سلفة', certificate: 'شهادة', data_update: 'تحديث بيانات', maintenance: 'صيانة', purchase: 'طلب شراء', exit_permit: 'مغادرة', other: 'طلب آخر' };
+    var subLabels = {};
+    Object.keys(SUB_TYPES).forEach(function(k) {
+      SUB_TYPES[k].forEach(function(s) { subLabels[s.id] = s.label; });
+    });
+
+    var newReq = {
+      id: 'REQ-' + Date.now(),
+      type: type,
+      subType: subType,
+      subTypeLabel: subLabels[subType] || subType,
+      employeeId: user.empId,
+      employeeName: user.name,
+      department: (db.employeesLog || []).find(function(e) { return e.empId === user.empId; }) || {},
+      departmentName: ((db.employeesLog || []).find(function(e) { return e.empId === user.empId; }) || {}).department || '',
+      title: typeLabels[type] + (subType ? ' - ' + (subLabels[subType] || subType) : ''),
+      description: reason,
+      amount: amount,
+      extraValue: extra || extra2 + ': ' + newValue || '',
+      startDate: startDate,
+      endDate: endDate,
+      exitTime: exitTime,
+      returnTime: returnTime,
+      status: 'pending_manager',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      history: [{ action: 'created', by: user.name, byRole: user.role, at: new Date().toISOString(), note: 'تم تقديم الطلب' }]
+    };
+
+    db.requests.push(newReq);
+
+    // Notification to manager
+    var emp = (db.employeesLog || []).find(function(e) { return e.empId === user.empId; }) || {};
+    var manager = emp.managerId ? (db.employeesLog.find(function(e) { return e.id === emp.managerId; })) : null;
+    db.notifications.push({
+      id: 'NOTIF-' + Date.now(),
+      type: 'new_request',
+      requestId: newReq.id,
+      for: manager ? manager.empId : 'admin',
+      title: 'طلب جديد: ' + newReq.title,
+      message: 'قدم ' + user.name + ' طلب ' + typeLabels[type],
+      createdAt: new Date().toISOString(),
+      read: false
+    });
+
+    APP.saveDB(db);
+    alert(Icons.render('check') + ' تم تقديم طلبك بنجاح!\nنوع: ' + typeLabels[type] + '\nالحالة: بانتظار موافقة المدير المباشر');
+    if (window.APP && window.APP.navigate) window.APP.navigate('myRequests');
+  };
+};
+
+/* ============ incomingRequests — الطلبات الواردة (للمدير) ============ */
+window.Modules.incomingRequests = function(container) {
+  var db = APP.getDB();
+  var user = APP.getCurrentUser();
+  var emp = (db.employeesLog || []).find(function(e) { return e.empId === user.empId; }) || {};
+
+  var allReqs = (db.requests || []).sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+
+  // Filter requests this manager can approve
+  var canApprove = function(r) {
+    if (r.status === 'pending_manager') {
+      var reqEmp = (db.employeesLog || []).find(function(e) { return e.empId === r.employeeId; });
+      return reqEmp && reqEmp.managerId === emp.id;
+    }
+    if (r.status === 'pending_admin' && (user.role === 'hr_manager' || user.role === 'admin' || user.role === 'vice_executive')) return true;
+    if (r.status === 'pending_gm' && (user.role === 'admin' || user.role === 'vice_executive' || user.role === 'executive' || user.role === 'chairman')) return true;
+    if (r.status === 'pending_dept') {
+      var typeDepts = { leave: 'الموارد البشرية', advance: 'المالية', certificate: 'الموارد البشرية', data_update: 'الموارد البشرية', maintenance: 'الإنتاج', purchase: 'المشتريات', exit_permit: 'الموارد البشرية', other: 'الإدارة' };
+      return typeDepts[r.type] === emp.department || user.role === 'admin' || user.role === 'vice_executive';
+    }
+    return false;
+  };
+
+  var myPending = allReqs.filter(canApprove);
+  var pendingCount = myPending.length;
+
+  var statusMap = {
+    pending_manager: 'badge-warning', pending_admin: 'badge-warning',
+    pending_dept: 'badge-warning', pending_gm: 'badge-warning'
+  };
+  var statusLabels = {
+    pending_manager: 'بانتظار المدير المباشر',
+    pending_admin: 'بانتظار الموارد البشرية',
+    pending_dept: 'بانتظار القسم المختص',
+    pending_gm: 'بانتظار المدير العام'
+  };
+  var typeIcons = {
+    leave: 'calendar', advance: 'money', certificate: 'fileText',
+    data_update: 'user', maintenance: 'tool', purchase: 'cart', exit_permit: 'logOut', other: 'messageCircle'
+  };
+  var typeLabels = {
+    leave: 'إجازة', advance: 'سلفة', certificate: 'شهادة',
+    data_update: 'تحديث بيانات', maintenance: 'صيانة', purchase: 'طلب شراء', exit_permit: 'مغادرة', other: 'طلب آخر'
+  };
+
+  var reqHTML = myPending.length === 0
+    ? '<div class="empty-state"><div style="font-size:48px;margin-bottom:12px;opacity:0.3">' + Icons.render('check') + '</div><h3>لا توجد طلبات بانتظار موافقتك</h3><p style="color:var(--text-muted)">جميع الطلبات تمت مراجعتها</p></div>'
+    : myPending.map(function(r) {
+        return '<div class="card" style="margin-bottom:12px;padding:14px">' +
+          '<div style="display:flex;align-items:flex-start;gap:10px">' +
+            '<div style="width:40px;height:40px;border-radius:10px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;border-radius:10px">' +
+              Icons.render(typeIcons[r.type] || 'fileText') + '</div>' +
+            '<div style="flex:1;min-width:0">' +
+              '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">' +
+                '<b style="font-size:14px">' + (r.title || typeLabels[r.type]) + '</b>' +
+                '<span class="badge ' + (statusMap[r.status] || 'badge-info') + '" style="border-radius:6px;font-size:10px;padding:2px 6px">' + (statusLabels[r.status] || r.status) + '</span>' +
+              '</div>' +
+              '<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">' +
+                'من: ' + (r.employeeName || '—') + ' | ' +
+                (r.createdAt ? r.createdAt.substring(0, 10) : '') + ' | ' +
+                (r.departmentName || '') +
+              '</div>' +
+              (r.description ? '<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;max-height:40px;overflow:hidden">' + r.description + '</div>' : '') +
+              (r.amount ? '<div style="font-size:13px;font-weight:600;color:var(--warning);margin-bottom:4px">المبلغ: ' + r.amount.toLocaleString('ar-EG') + ' ر.ي</div>' : '') +
+              (r.startDate && r.endDate ? '<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">من ' + r.startDate + ' إلى ' + r.endDate + '</div>' : '') +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">' +
+            '<button class="btn btn-sm btn-success" data-action="ss-approve-req" data-id="' + r.id + '" style="flex:1;min-width:80px;justify-content:center;align-items:center;display:flex;gap:4px;border-radius:8px;padding:6px 12px;font-size:12px">' +
+              Icons.render('check') + ' اعتماد</button>' +
+            '<button class="btn btn-sm btn-danger" data-action="ss-reject-req" data-id="' + r.id + '" style="flex:1;min-width:80px;justify-content:center;align-items:center;display:flex;gap:4px;border-radius:8px;padding:6px 12px;font-size:12px">' +
+              Icons.render('x') + ' رفض</button>' +
+            '<button class="btn btn-sm btn-secondary" data-action="ss-view-req" data-id="' + r.id + '" style="border-radius:8px;padding:6px 12px;font-size:12px">' +
+              Icons.render('eye') + ' التفاصيل</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+  // Rejection modal
+  var rejectModal = '' +
+    '<div id="ss_reject_modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:16px">' +
+      '<div class="card" style="width:min(480px,100%);padding:20px">' +
+        '<h3 style="margin:0 0 12px 0">' + Icons.render('x') + ' سبب الرفض</h3>' +
+        '<input type="hidden" id="ss_reject_id" value="" />' +
+        '<div class="form-group"><label>سبب الرفض *</label><textarea id="ss_reject_reason" rows="3" placeholder="اكتب سبب الرفض..." style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);font-size:13px"></textarea></div>' +
+        '<div class="btn-row" style="margin-top:12px">' +
+          '<button class="btn btn-danger" data-action="ss-confirm-reject" style="border-radius:8px">' + Icons.render('x') + ' تأكيد الرفض</button>' +
+          '<button class="btn btn-secondary" data-action="ss-close-reject" style="border-radius:8px">إلغاء</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  container.innerHTML =
+    '<div class="card" style="margin-bottom:16px">' +
+      '<div class="header-row">' +
+        '<h3 style="margin:0">' + Icons.render('incoming') + ' الطلبات الواردة</h3>' +
+        '<span class="badge badge-warning" style="border-radius:10px;padding:4px 12px;font-size:13px;border-radius:10px">' + pendingCount + ' بانتظار المراجعة</span>' +
+      '</div>' +
+    '</div>' + reqHTML + rejectModal;
+};
