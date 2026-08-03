@@ -4184,7 +4184,7 @@ window.Modules.profile = function(container) {
   // ===== قسم الطلبات والموافقات في الملف الشخصي =====
   SelfService.initDB();
   const myReqs = SelfService.getMyRequests();
-  const notifs = (db.notifications || []).filter(n => n.for === user.empId || n.for === user.username);
+  const notifs = (db.notifications || []).filter(n => String(n.for) === String(user.employeeId) || n.for === user.username || n.for === user.empId);
   const unread = notifs.filter(n => !n.read).length;
   const pending = myReqs.filter(r => ['pending_manager','pending_admin','pending_dept','pending_gm'].includes(r.status)).length;
   const approved = myReqs.filter(r => r.status === 'approved' || r.status === 'completed').length;
@@ -7007,10 +7007,10 @@ window.Modules.myDashboard = function(container) {
   }
 
   var db = APP.getDB();
-  var emp = (db.employeesLog || []).find(function(e) { return e.empId === user.empId; }) || {};
+  var emp = (db.employeesLog || []).find(function(e) { return e.id === user.employeeId; }) || {};
 
   // === Leave Balance ===
-  var leaveBal = (db.leaveBalances || []).find(function(b) { return b.empId === user.empId; });
+  var leaveBal = (db.leaveBalances || []).find(function(b) { return b.empId === user.employeeId; });
   var leaveData = {
     annual: { total: leaveBal ? leaveBal.annualTotal : 30, used: leaveBal ? leaveBal.annualUsed : 0, label: 'سنوية' },
     sick: { total: leaveBal ? leaveBal.sickTotal : 14, used: leaveBal ? leaveBal.sickUsed : 0, label: 'مرضية' },
@@ -7031,7 +7031,7 @@ window.Modules.myDashboard = function(container) {
   if (typeof SelfService !== 'undefined' && SelfService.getMyRequests) {
     myRequests = SelfService.getMyRequests();
   } else {
-    myRequests = (db.requests || []).filter(function(r) { return r.employeeId === user.empId; })
+    myRequests = (db.requests || []).filter(function(r) { return r.employeeId === user.employeeId; })
       .sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
   }
   var pendingRequests = myRequests.filter(function(r) {
@@ -7042,13 +7042,13 @@ window.Modules.myDashboard = function(container) {
 
   // === Notifications ===
   var allNotifications = (db.notifications || []).filter(function(n) {
-    return n.for === user.empId || n.for === 'all' || n.for === 'direct_manager' && user.role === 'manager';
+    return n.for === user.employeeId || n.for === 'all' || n.for === 'direct_manager' && user.role === 'manager';
   }).sort(function(a, b) { return new Date(b.createdAt || 0) - new Date(a.createdAt || 0); });
   var recentNotifications = allNotifications.slice(0, 5);
   var unreadCount = allNotifications.filter(function(n) { return !n.read; }).length;
 
   // === Latest Payslip ===
-  var payslips = (db.payslips || []).filter(function(p) { return p.empId === user.empId; })
+  var payslips = (db.payslips || []).filter(function(p) { return p.empId === user.employeeId; })
     .sort(function(a, b) { return new Date(b.month || 0) - new Date(a.month || 0); });
   var latestPayslip = payslips[0] || null;
 
@@ -7258,7 +7258,7 @@ window.Modules.myDashboard = function(container) {
     <div class="emp-info">\
       <div class="emp-name">' + (user.name || emp.name || 'موظف') + '</div>\
       <div class="emp-meta">\
-        <span>' + Icons.render('idCard') + ' ' + (user.empId || emp.empId || '-') + '</span>\
+        <span>' + Icons.render('idCard') + ' ' + (user.employeeId || emp.displayId || '-') + '</span>\
         <span>' + Icons.render('briefcase') + ' ' + (emp.position || emp.jobTitle || user.position || '-') + '</span>\
       </div>\
       <div class="emp-meta">\
@@ -7350,8 +7350,8 @@ window.Modules.myDashboard = function(container) {
 window.Modules.myDashboard = function(container) {
   var db = APP.getDB();
   var user = APP.getCurrentUser();
-  var emp = (db.employeesLog || []).find(function(e) { return e.empId === user.empId; }) || {};
-  var empId = user.empId;
+  var emp = (db.employeesLog || []).find(function(e) { return e.id === user.employeeId; }) || {};
+  var empId = user.employeeId;
 
   // Leave balances
   var leaveBal = (db.leaveBalances || {})[empId] || {
@@ -7368,7 +7368,7 @@ window.Modules.myDashboard = function(container) {
 
   // My notifications
   var myNotifs = (db.notifications || []).filter(function(n) {
-    return n.for === empId || n.for === 'direct_manager' || n.for === user.department || n.for === 'all';
+    return n.for === user.employeeId || n.for === 'direct_manager' || n.for === user.department || n.for === 'all';
   }).slice(-5).reverse();
 
   // Latest payslip
@@ -7521,7 +7521,7 @@ window.Modules.myDashboard = function(container) {
   // Mark notifications as read
   if (db.notifications) {
     db.notifications.forEach(function(n) {
-      if (n.for === empId || n.for === 'direct_manager' || n.for === user.department) {
+      if (n.for === user.employeeId || n.for === 'direct_manager' || n.for === user.department) {
         n.read = true;
       }
     });
@@ -7533,8 +7533,8 @@ window.Modules.myDashboard = function(container) {
 window.Modules.salarySlip = function(container) {
   var db = APP.getDB();
   var user = APP.getCurrentUser();
-  var emp = (db.employeesLog || []).find(function(e) { return e.empId === user.empId; }) || {};
-  var empId = user.empId;
+  var emp = (db.employeesLog || []).find(function(e) { return e.id === user.employeeId; }) || {};
+  var empId = user.employeeId;
   var payslips = (db.payslips || []).filter(function(p) { return p.empId === empId; });
   var monthNames = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
@@ -7707,7 +7707,7 @@ window.Modules.salarySlip = function(container) {
 window.Modules.myRequests = function(container) {
   var db = APP.getDB();
   var user = APP.getCurrentUser();
-  var empId = user.empId;
+  var empId = user.employeeId;
   var reqs = (db.requests || []).filter(function(r) { return r.employeeId === empId; })
     .sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
 
@@ -8038,10 +8038,10 @@ window.Modules.newRequest = function(container) {
       type: type,
       subType: subType,
       subTypeLabel: subLabels[subType] || subType,
-      employeeId: user.empId,
+      employeeId: user.employeeId,
       employeeName: user.name,
-      department: (db.employeesLog || []).find(function(e) { return e.empId === user.empId; }) || {},
-      departmentName: ((db.employeesLog || []).find(function(e) { return e.empId === user.empId; }) || {}).department || '',
+      department: (db.employeesLog || []).find(function(e) { return e.id === user.employeeId; }) || {},
+      departmentName: ((db.employeesLog || []).find(function(e) { return e.id === user.employeeId; }) || {}).department || '',
       title: typeLabels[type] + (subType ? ' - ' + (subLabels[subType] || subType) : ''),
       description: reason,
       amount: amount,
@@ -8059,13 +8059,13 @@ window.Modules.newRequest = function(container) {
     db.requests.push(newReq);
 
     // Notification to manager
-    var emp = (db.employeesLog || []).find(function(e) { return e.empId === user.empId; }) || {};
+    var emp = (db.employeesLog || []).find(function(e) { return e.id === user.employeeId; }) || {};
     var manager = emp.managerId ? (db.employeesLog.find(function(e) { return e.id === emp.managerId; })) : null;
     db.notifications.push({
       id: 'NOTIF-' + Date.now(),
       type: 'new_request',
       requestId: newReq.id,
-      for: manager ? manager.empId : 'admin',
+      for: manager ? manager.id : 'admin',
       title: 'طلب جديد: ' + newReq.title,
       message: 'قدم ' + user.name + ' طلب ' + typeLabels[type],
       createdAt: new Date().toISOString(),
@@ -8082,14 +8082,14 @@ window.Modules.newRequest = function(container) {
 window.Modules.incomingRequests = function(container) {
   var db = APP.getDB();
   var user = APP.getCurrentUser();
-  var emp = (db.employeesLog || []).find(function(e) { return e.empId === user.empId; }) || {};
+  var emp = (db.employeesLog || []).find(function(e) { return e.id === user.employeeId; }) || {};
 
   var allReqs = (db.requests || []).sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
 
   // Filter requests this manager can approve
   var canApprove = function(r) {
     if (r.status === 'pending_manager') {
-      var reqEmp = (db.employeesLog || []).find(function(e) { return e.empId === r.employeeId; });
+      var reqEmp = (db.employeesLog || []).find(function(e) { return e.id === r.employeeId; });
       return reqEmp && reqEmp.managerId === emp.id;
     }
     if (r.status === 'pending_admin' && (user.role === 'hr_manager' || user.role === 'admin' || user.role === 'vice_executive')) return true;
