@@ -80,7 +80,12 @@ window.DB = (function () {
       terminated:      ['admin','vice_executive'],
       orgchart:        ['admin','vice_executive', 'chairman', 'accountant'],
       orgtree:         ['admin','vice_executive', 'chairman', 'accountant'],
-      profile:         ['admin','vice_executive', 'executive', 'chairman', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker']
+      profile:         ['admin','vice_executive', 'executive', 'chairman', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker'],
+      myDashboard:     ['admin','vice_executive', 'executive', 'chairman', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker'],
+      salarySlip:      ['admin','vice_executive', 'executive', 'chairman', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker'],
+      myRequests:      ['admin','vice_executive', 'executive', 'chairman', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker'],
+      newRequest:      ['admin','vice_executive', 'executive', 'chairman', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker'],
+      incomingRequests:['admin','vice_executive', 'executive', 'chairman', 'hr_manager', 'production', 'accountant', 'sales', 'lab', 'procurement', 'worker']
     },
     // كل صفحة: وضع العرض (full = تعديل، view = عرض فقط)
     // الإصلاح (Agent 4 — 2026-07-12): sales لم يعد يصل لـ pricing/inventory/vouchers/reports
@@ -101,7 +106,12 @@ window.DB = (function () {
       users:           { admin: 'full', hr_manager: 'full' },
       permissions:     { admin: 'full', hr_manager: 'full' },
       settings:        { admin: 'full' },
-      profile:         { admin: 'full', executive: 'full', chairman: 'full', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full', worker: 'full' }
+      profile:         { admin: 'full', executive: 'full', chairman: 'full', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full', worker: 'full' },
+      myDashboard:     { admin: 'full', executive: 'full', chairman: 'full', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full', worker: 'full' },
+      salarySlip:      { admin: 'full', executive: 'full', chairman: 'full', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full', worker: 'full' },
+      myRequests:      { admin: 'full', executive: 'full', chairman: 'full', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full', worker: 'full' },
+      newRequest:      { admin: 'full', executive: 'full', chairman: 'full', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full', worker: 'full' },
+      incomingRequests:{ admin: 'full', executive: 'full', chairman: 'full', hr_manager: 'full', production: 'full', accountant: 'full', sales: 'full', lab: 'full', procurement: 'full', worker: 'full' }
     },
     // أقسام يمكن لمدير القسم رؤية بياناتها فقط
     departmentScoped: {
@@ -130,7 +140,7 @@ window.DB = (function () {
   function canAccess(user, pageId) {
     if (!user) return false;
     // المدير العام يدخل كل شيء
-    if (user.role === 'admin','vice_executive') return true;
+    if (user.role === 'admin' || user.role === 'vice_executive') return true;
     // تحقق من الصلاحيات المخصصة
     if (user.customPermissions && user.customPermissions.includes(pageId)) return true;
     // تحقق من الدور
@@ -141,7 +151,7 @@ window.DB = (function () {
   // هل المستخدم في وضع التعديل الكامل أم عرض فقط؟
   function getAccessMode(user, pageId) {
     if (!user) return 'view';
-    if (user.role === 'admin','vice_executive') return 'full';
+    if (user.role === 'admin' || user.role === 'vice_executive') return 'full';
     if (user.customPermissions && user.customPermissions.includes(pageId + ':full')) return 'full';
     const mode = PERMISSIONS.modes[pageId];
     if (!mode) return 'view';
@@ -151,7 +161,7 @@ window.DB = (function () {
   // هل الصفحة مقتصرة على قسم المستخدم؟
   function scopeToDepartment(user, pageId) {
     if (!user) return null;
-    if (user.role === 'admin','vice_executive' || user.role === 'hr_manager' || user.role === 'accountant') return null;
+    if (user.role === 'admin' || user.role === 'vice_executive' || user.role === 'hr_manager' || user.role === 'accountant') return null;
     const scoped = PERMISSIONS.departmentScoped[pageId] || [];
     if (scoped.includes(user.role)) {
       return user.department;
@@ -162,7 +172,7 @@ window.DB = (function () {
   // فلترة قائمة المستخدمين بحسب القسم
   function getAccessibleUsers(viewer, allUsers) {
     if (!viewer) return [];
-    if (viewer.role === 'admin','vice_executive' || viewer.role === 'hr_manager') return allUsers;
+    if (viewer.role === 'admin' || viewer.role === 'vice_executive' || viewer.role === 'hr_manager') return allUsers;
     // المديرين الآخرين يرون فقط المستخدمين في قسمهم
     return allUsers.filter(u => u.department === viewer.department);
   }
@@ -170,7 +180,7 @@ window.DB = (function () {
   // هل يمكن لمستخدم رؤية موظف معين؟
   function canViewEmployee(viewer, employee) {
     if (!viewer || !employee) return false;
-    if (viewer.role === 'admin','vice_executive' || viewer.role === 'hr_manager') return true;
+    if (viewer.role === 'admin' || viewer.role === 'vice_executive' || viewer.role === 'hr_manager') return true;
     if (viewer.role === 'accountant') return true;
     // المستخدم نفسه
     if (viewer.employeeId === employee.id) return true;

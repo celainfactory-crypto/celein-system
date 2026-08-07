@@ -146,7 +146,7 @@ window.APP = (function () {
           <button class="login-btn" id="loginBtnReal" data-action="do-login">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.75 - PWA Enabled</div>
+          <div class="login-version-tag">v18.76 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -439,7 +439,7 @@ window.APP = (function () {
             <a href="#" data-action="nav" data-page="salarySlip" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('fileText')} كشف الراتب</a>
             <a href="#" data-action="nav" data-page="myRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('inbox')} طلباتي</a>
             <a href="#" data-action="nav" data-page="newRequest" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--primary);color:#fff;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('plus')} طلب جديد</a>
-            ${['admin','executive','chairman','hr_manager','production','accountant'].includes(currentUser.role) ? `<a href="#" data-action="nav" data-page="incomingRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--warning);color:#000;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('incoming')} الطلبات الواردة <span id="ss_incoming_badge" style="background:#fff;color:#000;border-radius:50%;width:18px;height:18px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700">0</span></a>` : ''}
+            ${['admin','executive','chairman','hr_manager','vice_executive','production','accountant'].includes(currentUser.role) ? `<a href="#" data-action="nav" data-page="incomingRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--warning);color:#000;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('incoming')} الطلبات الواردة <span id="ss_incoming_badge" style="background:#fff;color:#000;border-radius:50%;width:18px;height:18px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700">0</span></a>` : ''}
             <a href="#" data-action="nav" data-page="profile" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('user')} ملفي</a>
           </div>
           <main class="content" id="content"></main>
@@ -670,6 +670,16 @@ window.APP = (function () {
       try {
         if (window.Modules[moduleId]) {
           window.Modules[moduleId](content);
+          // Module-level event delegation for data-action buttons
+          content.addEventListener('click', function(e) {
+            var el = e.target.closest('[data-action]');
+            if (!el) return;
+            var action = el.dataset.action;
+            // Delegate to Modules._handleAction if defined
+            if (action && window.Modules._handleAction) {
+              window.Modules._handleAction(action, el, e);
+            }
+          });
         } else {
           content.innerHTML = `<div class="card"><div class="empty-state"><div class="icon">{Icons.render("settings")}</div><h3>الوحدة قيد التطوير</h3></div></div>`;
         }
@@ -686,9 +696,324 @@ window.APP = (function () {
   function saveDB(d) { DB.save(d); db = d; }
   function getUser() { return currentUser; }
 
+  // Master action dispatcher — handles module-level data-action clicks
+  Modules._handleAction = function(action, el, event) {
+    if (action === 'modal-close' || action === 'close-modal') {
+      var m = el.closest('.modal-overlay') || el.closest('.modal-content') || el.closest('[class*="modal"]') || el.closest('[id*="Modal"]');
+      if (m) { m.style.display = 'none'; return; }
+    }
+    if (action === 'nav' && el.dataset.page) { navigate(el.dataset.page); return; }
+    if (action === 'nav-profile') { navigate('profile'); return; }
+    // Modal action buttons with parameters
+    if (action === '_modal-save-perms') { window.Modules._savePermissions(parseInt(el.dataset.uid)); return; }
+    if (action === '_modal-change-pass') { window.Modules._doChangePassword(parseInt(el.dataset.paramId)); return; }
+
+    var curMod = window.Modules[currentModule];
+    if (curMod && typeof curMod._handleAction === 'function') {
+      if (curMod._handleAction(action, el, event) !== false) return;
+    }
+    var fnName = '_' + action.replace(/-([a-z])/g, function(g) { return g[1].toUpperCase(); });
+    if (typeof window.Modules[fnName] === 'function') {
+      window.Modules[fnName](el, event); return;
+    }
+    if (typeof window[action] === 'function') {
+      window[action](el, event); return;
+    }
+    if (console.warn) console.warn('[Modules] No handler for:', action);
+
+  // === Missing Module Action Handlers ===
+
+  // HR module
+  window.Modules._addEmployee = function(el) {
+    if (window.Modules._showRequestModal) {
+      var html = '<div class="form-group"><label>الاسم الكامل *</label><input type="text" id="hr_new_name" required /></div>' +
+        '<div class="form-group"><label>المسمى الوظيفي</label><input type="text" id="hr_new_pos" /></div>' +
+        '<div class="form-group"><label>القسم</label><select id="hr_new_dept"><option>الإنتاج</option><option>المبيعات</option><option>المخازن</option><option>المشتريات</option><option>الحسابات</option><option>المختبر</option><option>الموارد البشرية</option><option>الخدمات</option><option>الأمن</option><option>الإدارة</option></select></div>' +
+        '<div class="form-group"><label>الراتب</label><input type="number" id="hr_new_sal" min="0" /></div>' +
+        '<div class="form-group"><label>تاريخ التعيين</label><input type="date" id="hr_new_hire" value="' + new Date().toISOString().split('T')[0] + '" /></div>' +
+        '<div class="btn-row" style="margin-top:12px">' +
+          '<button class="btn btn-primary" data-action="_saveNewEmployee">' + (Icons.render('save') || 'حفظ') + ' حفظ</button>' +
+          '<button class="btn btn-secondary" data-action="modal-close">إلغاء</button>' +
+        '</div>';
+      window.Modules._showRequestModalHtml('إضافة موظف جديد', html);
+    }
+  };
+  window.Modules._saveNewEmployee = function() {
+    var name = document.getElementById('hr_new_name') ? document.getElementById('hr_new_name').value.trim() : '';
+    if (!name) { alert('يرجى إدخال الاسم'); return; }
+    var db = APP.getDB();
+    var pos = (document.getElementById('hr_new_pos') || {}).value || '';
+    var dept = (document.getElementById('hr_new_dept') || {}).value || '';
+    var sal = parseInt((document.getElementById('hr_new_sal') || {}).value) || 0;
+    var hire = (document.getElementById('hr_new_hire') || {}).value || '';
+    var newId = Math.max(0, ...(db.employeesLog || []).map(function(e) { return e.id || 0; })) + 1;
+    var empId = String(Math.max(0, ...(db.employeesLog || []).map(function(e) { return parseInt(e.empId) || 0; })) + 1);
+    db.employeesLog = db.employeesLog || [];
+    db.employeesLog.push({ id: newId, empId: empId, name: name, position: pos, department: dept, salary: sal, hireDate: hire, status: 'active', allowances: 0, managerId: 36, managerName: 'مختار عبدالله الحييد', photo: null });
+    APP.saveDB(db);
+    var m = document.querySelector('.modal-overlay');
+    if (m) m.style.display = 'none';
+    navigate('hr');
+  };
+  window.Modules._saveEmployee = function(el) {
+    var row = el.closest('tr');
+    if (!row) return;
+    var id = parseInt(row.dataset.eid);
+    var db = APP.getDB();
+    var emp = (db.employeesLog || []).find(function(e) { return e.id === id; });
+    if (!emp) return;
+    var nameEl = row.querySelector('[data-field="name"]');
+    var posEl = row.querySelector('[data-field="position"]');
+    var deptEl = row.querySelector('[data-field="department"]');
+    var salEl = row.querySelector('[data-field="salary"]');
+    if (nameEl) emp.name = nameEl.value.trim();
+    if (posEl) emp.position = posEl.value;
+    if (deptEl) emp.department = deptEl.value;
+    if (salEl) emp.salary = parseInt(salEl.value) || 0;
+    APP.saveDB(db);
+    navigate('hr');
+  };
+  window.Modules._deleteEmployee = function(el) {
+    var row = el.closest('tr');
+    if (!row) return;
+    var id = parseInt(row.dataset.eid);
+    if (!confirm('هل أنت متأكد من حذف هذا الموظف؟')) return;
+    var db = APP.getDB();
+    db.employeesLog = (db.employeesLog || []).filter(function(e) { return e.id !== id; });
+    APP.saveDB(db);
+    navigate('hr');
+  };
+  window.Modules._terminateEmployee = function(el) {
+    var row = el.closest('tr');
+    if (!row) return;
+    var id = parseInt(row.dataset.eid);
+    if (!confirm('هل أنت متأكد من إنهاء عقد هذا الموظف؟')) return;
+    var db = APP.getDB();
+    var emp = (db.employeesLog || []).find(function(e) { return e.id === id; });
+    if (emp) { emp.status = 'terminated'; emp.terminationDate = new Date().toISOString().split('T')[0]; }
+    APP.saveDB(db);
+    navigate('hr');
+  };
+  window.Modules._reinstateEmployee = function(el) {
+    var row = el.closest('tr');
+    if (!row) return;
+    var id = parseInt(row.dataset.eid);
+    var db = APP.getDB();
+    var emp = (db.employeesLog || []).find(function(e) { return e.id === id; });
+    if (emp) { emp.status = 'active'; delete emp.terminationDate; }
+    APP.saveDB(db);
+    navigate('hr');
+  };
+
+  // Users module
+  window.Modules._addUser = function(el) {
+    var db = APP.getDB();
+    var newId = Math.max(0, ...(db.users || []).map(function(u) { return u.id || 0; })) + 1;
+    var html = '<div class="form-group"><label>اسم الدخول *</label><input type="text" id="u_user" required /></div>' +
+      '<div class="form-group"><label>كلمة المرور *</label><input type="password" id="u_pass" required /></div>' +
+      '<div class="form-group"><label>الاسم</label><input type="text" id="u_name" /></div>' +
+      '<div class="form-group"><label>الدور</label><select id="u_role"><option value="worker">موظف</option><option value="sales">مندوب</option><option value="production">مدير إنتاج</option><option value="hr_manager">مدير موارد</option><option value="accountant">محاسب</option><option value="admin">مدير</option></select></div>' +
+      '<div class="form-group"><label>القسم</label><input type="text" id="u_dept" /></div>' +
+      '<div class="btn-row" style="margin-top:12px">' +
+        '<button class="btn btn-primary" data-action="_saveNewUser">' + (Icons.render('save') || 'حفظ') + ' حفظ</button>' +
+        '<button class="btn btn-secondary" data-action="modal-close">إلغاء</button>' +
+      '</div>';
+    window.Modules._showRequestModalHtml('إضافة مستخدم جديد', html);
+  };
+  window.Modules._saveNewUser = function() {
+    var user = (document.getElementById('u_user') || {}).value.trim();
+    var pass = (document.getElementById('u_pass') || {}).value;
+    if (!user || !pass) { alert('يرجى إدخال اسم الدخول وكلمة المرور'); return; }
+    var db = APP.getDB();
+    if ((db.users || []).find(function(u) { return u.username === user; })) { alert('اسم الدخول موجود مسبقاً'); return; }
+    var newId = Math.max(0, ...(db.users || []).map(function(u) { return u.id || 0; })) + 1;
+    db.users = db.users || [];
+    db.users.push({ id: newId, username: user, password: pass, name: (document.getElementById('u_name') || {}).value || user, role: (document.getElementById('u_role') || {}).value || 'worker', department: (document.getElementById('u_dept') || {}).value || '', active: true });
+    APP.saveDB(db);
+    var m = document.querySelector('.modal-overlay');
+    if (m) m.style.display = 'none';
+    navigate('users');
+  };
+  window.Modules._saveUser = function(el) {
+    var row = el.closest('tr');
+    if (!row) return;
+    var id = parseInt(row.dataset.uid);
+    var db = APP.getDB();
+    var u = (db.users || []).find(function(x) { return x.id === id; });
+    if (!u) return;
+    var roleEl = row.querySelector('[data-field="role"]');
+    var deptEl = row.querySelector('[data-field="department"]');
+    var activeEl = row.querySelector('[data-field="active"]');
+    if (roleEl) u.role = roleEl.value;
+    if (deptEl) u.department = deptEl.value;
+    if (activeEl !== null) u.active = activeEl.checked !== undefined ? activeEl.checked : true;
+    APP.saveDB(db);
+    navigate('users');
+  };
+  window.Modules._deleteUser = function(el) {
+    var row = el.closest('tr');
+    if (!row) return;
+    var id = parseInt(row.dataset.uid);
+    if (!confirm('حذف هذا المستخدم؟')) return;
+    var db = APP.getDB();
+    db.users = (db.users || []).filter(function(u) { return u.id !== id; });
+    APP.saveDB(db);
+    navigate('users');
+  };
+  window.Modules._toggleUser = function(el) {
+    var row = el.closest('tr');
+    if (!row) return;
+    var id = parseInt(row.dataset.uid);
+    var db = APP.getDB();
+    var u = (db.users || []).find(function(x) { return x.id === id; });
+    if (u) u.active = el.checked;
+    APP.saveDB(db);
+  };
+
+  // Permissions module
+  window.Modules._editPermissions = function(el) {
+    var uid = parseInt(el.dataset.uid || el.closest('tr').dataset.uid);
+    if (!uid) return;
+    var db = APP.getDB();
+    var u = (db.users || []).find(function(x) { return x.id === uid; });
+    if (!u) return;
+    var perms = (u.customPermissions || []).join(', ');
+    var html = '<div class="form-group"><label>صلاحيات مخصصة (مفصولة بفواصل)</label>' +
+      '<textarea id="perm_editor" rows="4" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);font-size:13px" placeholder="مثال: sales, hr, reports">' + perms + '</textarea></div>' +
+      '<div class="btn-row" style="margin-top:12px">' +
+        '<button class="btn btn-primary" data-action="_modal-save-perms" data-uid="' + uid + '">حفظ</button>' +
+        '<button class="btn btn-secondary" data-action="modal-close">إلغاء</button>' +
+      '</div>';
+    window.Modules._showRequestModalHtml('تعديل الصلاحيات', html);
+  };
+  window.Modules._savePermissions = function(uid) {
+    var txt = (document.getElementById('perm_editor') || {}).value || '';
+    var db = APP.getDB();
+    var u = (db.users || []).find(function(x) { return x.id === uid; });
+    if (u) u.customPermissions = txt.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+    APP.saveDB(db);
+    var m = document.querySelector('.modal-overlay');
+    if (m) m.style.display = 'none';
+    navigate('permissions');
+  };
+
+  // Sales / reps
+  window.Modules._addRepForm = function(el) {
+    if (window.__RS && window.__RS.openRepModal) window.__RS.openRepModal();
+  };
+  window.Modules._cancelRepForm = function(el) {
+    if (window.__RS && window.__RS.closeRepModal) window.__RS.closeRepModal();
+  };
+  window.Modules._editRep = function(el) {
+    var id = parseInt(el.dataset.repId || el.closest('tr').dataset.repId);
+    if (window.__RS && window.__RS.openRepModal) window.__RS.openRepModal(id);
+  };
+  window.Modules._deleteRep = function(el) {
+    var id = parseInt(el.dataset.repId || el.closest('tr').dataset.repId);
+    if (!confirm('حذف هذا المندوب؟')) return;
+    var db = APP.getDB();
+    db.salesReps = (db.salesReps || []).filter(function(r) { return r.id !== id; });
+    APP.saveDB(db);
+    navigate('sales');
+  };
+  window.Modules._updateRep = function(el) {
+    if (window.__RS && window.__RS.saveRep) window.__RS.saveRep();
+  };
+  window.Modules._saveRep = function(el) {
+    if (window.__RS && window.__RS.saveRep) window.__RS.saveRep();
+  };
+
+  // Agents
+  window.Modules._addAgent = function(el) {
+    if (window.Modules._showRequestModalHtml) {
+      var html = '<div class="form-group"><label>اسم الوكيل *</label><input type="text" id="agent_name" required /></div>' +
+        '<div class="form-group"><label>رقم الهاتف</label><input type="text" id="agent_phone" /></div>' +
+        '<div class="form-group"><label>المنطقة</label><input type="text" id="agent_area" /></div>' +
+        '<div class="form-group"><label>الحالة</label><select id="agent_status"><option value="active">نشط</option><option value="inactive">غير نشط</option></select></div>' +
+        '<div class="btn-row" style="margin-top:12px"><button class="btn btn-primary" data-action="_doAddAgent">حفظ</button><button class="btn btn-secondary" data-action="modal-close">إلغاء</button></div>';
+      window.Modules._showRequestModalHtml('إضافة وكيل', html);
+    }
+  };
+  window.Modules._doAddAgent = function() {
+    var name = (document.getElementById('agent_name') || {}).value.trim();
+    if (!name) { alert('يرجى إدخال الاسم'); return; }
+    var db = APP.getDB();
+    db.agents = db.agents || [];
+    db.agents.push({ id: Date.now(), name: name, phone: (document.getElementById('agent_phone') || {}).value || '', area: (document.getElementById('agent_area') || {}).value || '', status: (document.getElementById('agent_status') || {}).value || 'active' });
+    APP.saveDB(db);
+    var m = document.querySelector('.modal-overlay');
+    if (m) m.style.display = 'none';
+    navigate('agents');
+  };
+  window.Modules._deleteAgent = function(el) {
+    var id = parseInt(el.dataset.aid || el.closest('tr').dataset.aid);
+    if (!confirm('حذف هذا الوكيل؟')) return;
+    var db = APP.getDB();
+    db.agents = (db.agents || []).filter(function(a) { return a.id !== id; });
+    APP.saveDB(db);
+    navigate('agents');
+  };
+
+  // Vouchers
+  window.Modules._addVoucher = function(el) {
+    navigate('vouchers'); // vouchers module handles its own add
+  };
+
+  // Change password (from profile)
+  window.Modules._changePassword = function(el) {
+    var row = el.closest('tr');
+    if (!row) return;
+    var id = parseInt(row.dataset.uid);
+    var html = '<div class="form-group"><label>كلمة المرور الجديدة *</label><input type="password" id="new_pass" required /></div>' +
+      '<div class="form-group"><label>تأكيد كلمة المرور *</label><input type="password" id="new_pass2" required /></div>' +
+      '<div class="btn-row" style="margin-top:12px"><button class="btn btn-primary" data-action="_modal-change-pass" data-param-id="' + id + '">تغيير</button><button class="btn btn-secondary" data-action="modal-close">إلغاء</button></div>';
+    window.Modules._showRequestModalHtml('تغيير كلمة المرور', html);
+  };
+  window.Modules._doChangePassword = function(uid) {
+    var p1 = (document.getElementById('new_pass') || {}).value;
+    var p2 = (document.getElementById('new_pass2') || {}).value;
+    if (!p1 || p1 !== p2) { alert('كلمتا المرور غير متطابقتين'); return; }
+    var db = APP.getDB();
+    var u = (db.users || []).find(function(x) { return x.id === uid; });
+    if (u) u.password = p1;
+    APP.saveDB(db);
+    var m = document.querySelector('.modal-overlay');
+    if (m) m.style.display = 'none';
+    alert('تم تغيير كلمة المرور بنجاح');
+  };
+
+  // Inventory / Lab / Purchase / Cashflow — these use data-input / data-change delegation
+  // which is handled separately in modules
+
+  // === End Missing Module Action Handlers ===
+
+  };
+
+
   return { init, navigate, logout, doLogin, getDB, saveDB, getUser, getCurrentUser, showExportMenu, doExport, toggleSidebar, togglePasswordGlobal, installPWA, showManualInstallGuide, syncExportBar };
 })();
 
+// === Global delegation for data-input and data-change ===
+document.addEventListener('input', function(e) {
+  var el = e.target.closest('[data-input]');
+  if (!el) return;
+  var inp = el.dataset.input;
+  var curMod = window.Modules[currentModule];
+  if (curMod && typeof curMod._handleInput === 'function') { curMod._handleInput(inp, el, e); return; }
+  var fn = window.Modules['_' + inp];
+  if (typeof fn === 'function') { fn(el, e); return; }
+  if (typeof window[inp] === 'function') window[inp](el, e);
+});
+document.addEventListener('change', function(e) {
+  var el = e.target.closest('[data-change]');
+  if (!el) return;
+  var chg = el.dataset.change;
+  var curMod = window.Modules[currentModule];
+  if (curMod && typeof curMod._handleChange === 'function') { curMod._handleChange(chg, el, e); return; }
+  var fn = window.Modules['_' + chg];
+  if (typeof fn === 'function') { fn(el, e); return; }
+  if (typeof window[chg] === 'function') window[chg](el, e);
+});
 window.addEventListener("DOMContentLoaded", () => APP.init());
 
 // إغلاق قائمة التصدير عند النقر خارجها
