@@ -1,4 +1,4 @@
-// Service Worker v18.52 — NO CACHE — Network Only
+// Service Worker v18.80 — NO CACHE — Network Only
 const VERSION = 'v1852-' + Date.now();
 
 self.addEventListener('install', e => self.skipWaiting());

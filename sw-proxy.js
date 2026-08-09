@@ -1,4 +1,4 @@
-// sw-proxy.js v18.52 — NO CACHE — Network Only
+// sw-proxy.js v18.80 — NO CACHE — Network Only
 self.addEventListener('install', e => self.skipWaiting());
 self.addEventListener('activate', e => {
   e.waitUntil(
