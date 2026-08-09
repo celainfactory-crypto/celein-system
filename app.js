@@ -4,6 +4,7 @@
 // ============================================================
 
 // Password toggle (login screen)
+window.Modules = window.Modules || {}; // ensure Modules object exists
 window.togglePasswordGlobal = function() {
   const passInput = document.getElementById("loginPass");
   if (!passInput) return;

@@ -1,8 +1,7 @@
 /* ============================================================
    سيلين - وحدات النظام
+   (window.Modules = {} is defined in app.js before handlers)
    ============================================================ */
-
-window.Modules = {};
 
 /* ============ لوحة التحكم ============ */
 window.Modules.dashboard = function(container) {
