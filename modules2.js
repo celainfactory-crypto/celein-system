@@ -156,7 +156,7 @@ window.Modules.pricing = function(container) {
       pr.agentPrice = +document.getElementById(`pr_agent_${p.code}`).value;
     });
     APP.saveDB(db);
-    alert('{Icons.render("check")} تم حفظ الأسعار الجديدة');
+    alert(`{Icons.render("check")} تم حفظ الأسعار الجديدة`);
     render();
   };
 
@@ -382,7 +382,7 @@ window.Modules.vouchers = function(container) {
                 <td>${prod ? prod.name : v.product}</td>
                 <td class="text-primary">${v.qty}</td>
                 <td class="text-muted">${v.notes || '-'}</td>
-                <td><button class="btn btn-danger btn-sm" data-action="delete-voucher" data-vidx="${realIdx})">${Icons.render("trash")}</button></td>
+                <td><button class="btn btn-danger btn-sm" data-action="delete-voucher" data-vidx="${realIdx}">${Icons.render("trash")}</button></td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -419,7 +419,7 @@ window.Modules.vouchers = function(container) {
     const db = APP.getDB();
     db.vouchers.push(v);
     APP.saveDB(db);
-    alert('{Icons.render("check")} تم حفظ السند وتحديث المخزون');
+    alert(`{Icons.render("check")} تم حفظ السند وتحديث المخزون`);
     render();
   };
 
@@ -1586,7 +1586,7 @@ window.Modules.agents = function(container) {
                 <td><b>${a.name}</b></td>
                 <td>${a.transportSubsidy} ر.ي</td>
                 <td class="text-muted">${a.notes || '-'}</td>
-                <td><button class="btn btn-danger btn-sm" data-action="delete-agent" data-aidx="${idx})">${Icons.render("trash")}</button></td>
+                <td><button class="btn btn-danger btn-sm" data-action="delete-agent" data-aidx="${idx}">${Icons.render("trash")}</button></td>
               </tr>
             `).join('')}
           </tbody>
@@ -1650,7 +1650,7 @@ window.Modules.agents = function(container) {
       notes: document.getElementById('a_notes').value
     });
     APP.saveDB(db);
-    alert('{Icons.render("check")} تم إضافة الوكيل');
+    alert(`{Icons.render("check")} تم إضافة الوكيل`);
     render();
   };
 
@@ -2660,7 +2660,7 @@ window.Modules.lab = function(container) {
       notes: document.getElementById('l_notes').value
     });
     APP.saveDB(db);
-    alert('{Icons.render("check")} تم الحفظ');
+    alert(`{Icons.render("check")} تم الحفظ`);
     render();
   };
 
@@ -2739,9 +2739,9 @@ window.Modules.procurement = function(container) {
             ${r.reminders > 0 ? `<div class="text-warning" style="font-size:11px;margin-top:4px">${Icons.render("bell")} ${r.reminders} تذكير${r.reminders > 1 ? 'ات' : ''}</div>` : ''}
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn btn-primary btn-sm" data-action="pr-view-incoming" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("eye")} عرض</button>
-            <button class="btn btn-success btn-sm" data-action="pr-approve" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("check")} موافقة</button>
-            <button class="btn btn-danger btn-sm" data-action="pr-reject" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("close")} رفض</button>
+            <button class="btn btn-primary btn-sm" data-action="pr-view-incoming" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)}">${Icons.render("eye")} عرض</button>
+            <button class="btn btn-success btn-sm" data-action="pr-approve" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)}">${Icons.render("check")} موافقة</button>
+            <button class="btn btn-danger btn-sm" data-action="pr-reject" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)}">${Icons.render("close")} رفض</button>
           </div>
         </div>
       </div>
@@ -3225,9 +3225,9 @@ window.Modules.hr = function(container) {
                   + '<td>'+statusBadge+'</td>'
                   + '<td style="white-space:nowrap">'
                   +   (isAdmin
-                        ? '<button class="btn btn-sm" data-action="edit-employee" data-eid="'+emp.id+')" title="تعديل">'+Icons.render("edit")+'</button> '
-                          + '<button class="btn btn-sm btn-warning" data-action="change-status" data-eid="'+emp.id+')" title="تغيير الحالة">'+Icons.render("refresh")+'</button> '
-                          + '<button class="btn btn-sm btn-danger" data-action="delete-employee" data-eid="'+emp.id+')" title="حذف">'+Icons.render("trash")+'</button>'
+                        ? '<button class="btn btn-sm" data-action="edit-employee" data-eid="'+emp.id+'" title="تعديل">'+Icons.render("edit")+'</button> '
+                          + '<button class="btn btn-sm btn-warning" data-action="change-status" data-eid="'+emp.id+'" title="تغيير الحالة">'+Icons.render("refresh")+'</button> '
+                          + '<button class="btn btn-sm btn-danger" data-action="delete-employee" data-eid="'+emp.id+'" title="حذف">'+Icons.render("trash")+'</button>'
                         : '<span class="text-muted" style="font-size:11px">عرض</span>')
                   + '</td>'
                   + '</tr>';
@@ -3581,8 +3581,8 @@ window.Modules.users = function(container) {
                 <td><span class="badge badge-${u.active ? 'success' : 'danger'}">${u.active ? 'نشط' : 'موقوف'}</span></td>
                 <td>
                   <div style="display:flex;gap:6px;flex-wrap:wrap">
-                    <button class="btn btn-primary btn-sm" data-action="edit-user" data-uidx="${idx})" title="تعديل بيانات المستخدم">${Icons.render("edit")} تعديل</button>
-                    <button class="btn btn-warning btn-sm" data-action="toggle-user" data-uidx="${idx})" title="${u.active ? 'إيقاف الحساب مؤقتاً' : 'إعادة تفعيل الحساب'}">${u.active ? '⏸ إيقاف' : '▶ تفعيل'}</button>
+                    <button class="btn btn-primary btn-sm" data-action="edit-user" data-uidx="${idx}" title="تعديل بيانات المستخدم">${Icons.render("edit")} تعديل</button>
+                    <button class="btn btn-warning btn-sm" data-action="toggle-user" data-uidx="${idx}" title="${u.active ? 'إيقاف الحساب مؤقتاً' : 'إعادة تفعيل الحساب'}">${u.active ? '⏸ إيقاف' : '▶ تفعيل'}</button>
                   </div>
                 </td>
               </tr>
@@ -3826,7 +3826,7 @@ window.Modules.permissions = function(container) {
                 <td data-label="القسم">${u.department || '—'}</td>
                 <td data-label="صلاحيات مخصصة">${(u.customPermissions || []).length ? u.customPermissions.map(p => `<span class="badge badge-success" style="margin:2px">${allPages.find(ap => ap.id === p)?.label || p}</span>`).join('') : '<span class="text-muted">لا توجد</span>'}</td>
                 <td data-label="إجراءات">
-                  <button class="btn btn-sm btn-primary" data-action="edit-permissions" data-puid="${u.id})">${Icons.render("edit")} تعديل الصلاحيات</button>
+                  <button class="btn btn-sm btn-primary" data-action="edit-permissions" data-puid="${u.id}">${Icons.render("edit")} تعديل الصلاحيات</button>
                 </td>
               </tr>
             `).join('')}
@@ -3875,7 +3875,7 @@ window.Modules.permissions = function(container) {
         }).join('')}
       </div>
       <div class="btn-row" style="margin-top:20px">
-        <button class="btn btn-primary" data-action="save-permissions" data-spuid="${user.id})">${Icons.render("check")} حفظ الصلاحيات</button>
+        <button class="btn btn-primary" data-action="save-permissions" data-spuid="${user.id}">${Icons.render("check")} حفظ الصلاحيات</button>
         <button class="btn btn-secondary" data-action="modal-close-pm">إلغاء</button>
       </div>
     `;
@@ -4005,7 +4005,7 @@ window.Modules.profile = function(container) {
           ${canEdit && emp ? `
             <input type="file" id="photo-input" accept="image/*" style="display:none" data-change="file-upload" data-type="photo" data-eid="${emp.id}" />
             <button class="btn btn-sm btn-primary" style="margin-top:8px" data-action="file-trigger" data-target="photo-input">${Icons.render("upload")} تغيير الصورة</button>
-            ${emp.photo ? `<button class="btn btn-sm btn-danger" style="margin-top:4px" data-action="delete-doc" data-eid=" data-doctype="${emp.id}, 'photo')">${Icons.render("trash")} حذف</button>` : ''}
+            ${emp.photo ? `<button class="btn btn-sm btn-danger" style="margin-top:4px" data-action="delete-doc" data-eid="${emp.id}" data-doctype="photo">${Icons.render("trash")} حذف</button>` : ''}
           ` : ''}
         </div>
         <div class="form-grid" style="flex:1;min-width:280px">
@@ -4091,7 +4091,7 @@ window.Modules.profile = function(container) {
           ${canEdit ? `
             <input type="file" id="id-input" accept="image/*" style="display:none" data-change="file-upload" data-type="idCardPhoto" data-eid="${emp.id}" />
             <button class="btn btn-sm btn-primary" style="margin-top:8px" data-action="file-trigger" data-target="id-input">${Icons.render("upload")} رفع صورة الهوية</button>
-            ${emp.idCardPhoto ? `<button class="btn btn-sm btn-danger" style="margin-top:4px" data-action="delete-doc" data-eid=" data-doctype="${emp.id}, 'idCardPhoto')">${Icons.render("trash")} حذف</button>` : ''}
+            ${emp.idCardPhoto ? `<button class="btn btn-sm btn-danger" style="margin-top:4px" data-action="delete-doc" data-eid="${emp.id}" data-doctype="idCardPhoto">${Icons.render("trash")} حذف</button>` : ''}
           ` : ''}
         </div>
         <div class="form-grid" style="flex:1;min-width:280px">
@@ -4111,7 +4111,7 @@ window.Modules.profile = function(container) {
             <label>الجنسية</label>
             <input type="text" id="id_card_nationality" value="${(emp.idCardData && emp.idCardData.nationality) || ''}" ${canEdit ? '' : 'readonly'} placeholder="الجنسية" />
           </div>
-          ${canEdit ? `<div class="form-group" style="grid-column:1/-1"><button class="btn btn-primary" data-action="save-idcard" data-eid="${emp.id})">${Icons.render("check")} حفظ بيانات الهوية</button></div>` : ''}
+          ${canEdit ? `<div class="form-group" style="grid-column:1/-1"><button class="btn btn-primary" data-action="save-idcard" data-eid="${emp.id}">${Icons.render("check")} حفظ بيانات الهوية</button></div>` : ''}
         </div>
       </div>
     </div>
@@ -4122,7 +4122,7 @@ window.Modules.profile = function(container) {
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         ${emp.cv ? `
           <a href="${emp.cv}" download="cv_${emp.empId}.png" class="btn btn-success">${Icons.render("download")} تحميل السيرة الذاتية</a>
-          ${canEdit ? `<button class="btn btn-sm btn-danger" data-action="delete-doc" data-eid=" data-doctype="${emp.id}, 'cv')">${Icons.render("trash")} حذف</button>` : ''}
+          ${canEdit ? `<button class="btn btn-sm btn-danger" data-action="delete-doc" data-eid="${emp.id}" data-doctype="cv">${Icons.render("trash")} حذف</button>` : ''}
         ` : `<span class="text-muted">لم يتم رفع السيرة الذاتية بعد</span>`}
         ${canEdit ? `
           <input type="file" id="cv-input" accept="image/*,.pdf" style="display:none" data-change="file-upload" data-type="cv" data-eid="${emp.id}" />
@@ -4140,7 +4140,7 @@ window.Modules.profile = function(container) {
           <div style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border-radius:8px">
             <a href="${cert.data}" target="_blank" class="btn btn-sm btn-secondary">${Icons.render("download")} ${cert.name}</a>
             <span class="text-muted" style="font-size:11px">${cert.uploadDate ? new Date(cert.uploadDate).toLocaleDateString('ar-EG') : ''}</span>
-            ${canEdit ? `<button class="btn btn-sm btn-danger" data-action="delete-doc" data-eid=" data-doctype="${emp.id}, 'certificate', ${i})">${Icons.render("trash")}</button>` : ''}
+            ${canEdit ? `<button class="btn btn-sm btn-danger" data-action="delete-doc" data-eid="${emp.id}" data-doctype="certificate" data-certidx="${i}">${Icons.render("trash")}</button>` : ''}
           </div>
         `).join('')}
         ${canEdit ? `
@@ -4162,7 +4162,7 @@ window.Modules.profile = function(container) {
         </div>
       </div>
       <div class="btn-row">
-        <button class="btn btn-danger" data-action="terminate-employee" data-eid="${emp.id})">${Icons.render("x")} إنهاء التعاقد</button>
+        <button class="btn btn-danger" data-action="terminate-employee" data-eid="${emp.id}">${Icons.render("x")} إنهاء التعاقد</button>
       </div>
     </div>
     ` : ''}
@@ -4342,7 +4342,7 @@ window.Modules.terminated = function(container) {
               <td data-label="التاريخ">${(e.terminationStatus && e.terminationStatus.date) || '—'}</td>
               <td data-label="السبب">${(e.terminationStatus && e.terminationStatus.reason) || '—'}</td>
               <td data-label="سُجّل بواسطة" class="text-muted">${(e.terminationStatus && e.terminationStatus.recordedBy) || '—'}</td>
-              <td data-label="إجراء"><button class="btn btn-sm btn-success" data-action="reinstate-employee" data-eid2="${e.id})">${Icons.render("refresh")} إعادة توظيف</button></td>
+              <td data-label="إجراء"><button class="btn btn-sm btn-success" data-action="reinstate-employee" data-eid="${e.id}">${Icons.render("refresh")} إعادة توظيف</button></td>
             </tr>
           `).join('')}
         </tbody>
@@ -5455,7 +5455,7 @@ window.Modules.developer = window.Modules.settings = function(container) {
                 <td><span class="badge badge-info">${m.group}</span></td>
                 <td>${(m.roles || []).join(', ')}</td>
                 <td>
-                  <button class="btn btn-sm btn-danger" data-action="dev-delete-menu" data-dmi="${i})">${Icons.render("trash")}</button>
+                  <button class="btn btn-sm btn-danger" data-action="dev-delete-menu" data-dmi="${i}">${Icons.render("trash")}</button>
                 </td>
               </tr>
             `).join('')}
@@ -5502,7 +5502,7 @@ window.Modules.developer = window.Modules.settings = function(container) {
                 <td><span class="badge badge-info">${p.group}</span></td>
                 <td>
                   <button class="btn btn-sm" data-action="dev-preview-page" data-pid="'${p.id}')">${Icons.render("eye")}</button>
-                  <button class="btn btn-sm btn-danger" data-action="dev-delete-page" data-dpi="${i})">${Icons.render("trash")}</button>
+                  <button class="btn btn-sm btn-danger" data-action="dev-delete-page" data-dpi="${i}">${Icons.render("trash")}</button>
                 </td>
               </tr>
             `).join('')}
@@ -5563,7 +5563,7 @@ window.Modules.developer = window.Modules.settings = function(container) {
                 <td><code>${f.key}</code></td>
                 <td><span class="badge badge-info">${f.type}</span></td>
                 <td><span class="badge">${f.table}</span></td>
-                <td><button class="btn btn-sm btn-danger" data-action="dev-delete-field" data-dfi="${i})">${Icons.render("trash")}</button></td>
+                <td><button class="btn btn-sm btn-danger" data-action="dev-delete-field" data-dfi="${i}">${Icons.render("trash")}</button></td>
               </tr>
             `).join('')}
           </tbody>
@@ -5591,8 +5591,8 @@ window.Modules.developer = window.Modules.settings = function(container) {
                 <td><span class="badge badge-info">${l.type}</span></td>
                 <td><code style="font-size:11px">${(l.target || '').substring(0, 40)}</code></td>
                 <td>
-                  <button class="btn btn-sm" data-action="dev-test-link" data-tli="${i})">${Icons.render("eye")}</button>
-                  <button class="btn btn-sm btn-danger" data-action="dev-delete-link" data-dli="${i})">${Icons.render("trash")}</button>
+                  <button class="btn btn-sm" data-action="dev-test-link" data-tli="${i}">${Icons.render("eye")}</button>
+                  <button class="btn btn-sm btn-danger" data-action="dev-delete-link" data-dli="${i}">${Icons.render("trash")}</button>
                 </td>
               </tr>
             `).join('')}
@@ -5880,10 +5880,10 @@ Modules.importBackup = function(input) {
       const data = JSON.parse(e.target.result);
       if (!confirm('سيتم استبدال كل البيانات. متابعة؟')) return;
       APP.saveDB(data);
-      alert('{Icons.render("check")} تمت الاستعادة بنجاح');
+      alert(`{Icons.render("check")} تمت الاستعادة بنجاح`);
       location.reload();
     } catch (err) {
-      alert('{Icons.render("close")} ملف غير صالح: ' + err.message);
+      alert(Icons.render('close') + ' ملف غير صالح: ' + err.message);
     }
   };
   reader.readAsText(file);
@@ -6125,13 +6125,13 @@ window.Modules.purchaseRequest = function(container) {
 
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${r.status === 'pending' ? `
-            <button class="btn btn-primary btn-sm" data-action="pr-edit" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("edit")} تعديل</button>
-            <button class="btn btn-danger btn-sm" data-action="pr-cancel" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("close")} إلغاء الطلب</button>
+            <button class="btn btn-primary btn-sm" data-action="pr-edit" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)}">${Icons.render("edit")} تعديل</button>
+            <button class="btn btn-danger btn-sm" data-action="pr-cancel" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)}">${Icons.render("close")} إلغاء الطلب</button>
           ` : ''}
           ${r.status === 'pending' || r.status === 'seen' ? `
-            <button class="btn btn-warning btn-sm" data-action="pr-remind" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("bell")} تذكير (${r.reminders || 0})</button>
+            <button class="btn btn-warning btn-sm" data-action="pr-remind" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)}">${Icons.render("bell")} تذكير (${r.reminders || 0})</button>
           ` : ''}
-          <button class="btn btn-secondary btn-sm" data-action="pr-view" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)})">${Icons.render("eye")} عرض</button>
+          <button class="btn btn-secondary btn-sm" data-action="pr-view" data-pidx="${db.purchaseRequests.findIndex(x=>x.id===r.id)}">${Icons.render("eye")} عرض</button>
         </div>
 
         ${r.processedBy ? `<div class="text-muted" style="margin-top:10px;font-size:12px">تم المعالجة بواسطة: ${r.processedBy} في ${r.processedDate}</div>` : ''}
@@ -6514,7 +6514,7 @@ window.Modules.purchaseRequest = function(container) {
         </div>
 
         <div class="btn-row">
-          <button class="btn btn-success" data-action="pr-submit-spare" data-sid="${isEdit ? editReq.id : 'null'})">${Icons.render("upload")} ${isEdit ? 'تحديث وإرسال' : 'إرسال الطلب إلى المشتريات'}</button>
+          <button class="btn btn-success" data-action="pr-submit-spare" data-sid="${isEdit ? editReq.id : 'null'}">${Icons.render("upload")} ${isEdit ? 'تحديث وإرسال' : 'إرسال الطلب إلى المشتريات'}</button>
           <button class="btn btn-secondary" data-action="pr-tab" data-tab="'${isEdit ? 'sent' : 'new'}')">إلغاء</button>
         </div>
       </div>

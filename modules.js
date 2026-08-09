@@ -541,7 +541,7 @@ window.Modules.production = function(container) {
                 <td class="text-primary">${p.qty.toLocaleString('ar-EG')}</td>
                 <td class="text-warning">${p.waste}</td>
                 <td class="text-muted">${p.note || '-'}</td>
-                <td><button class="btn btn-danger btn-sm" data-action="delete-production" data-idx="${db.productionLog.length - 1 - idx})">${Icons.render('trash')} حذف</button></td>
+                <td><button class="btn btn-danger btn-sm" data-action="delete-production" data-idx="${db.productionLog.length - 1 - idx}">${Icons.render('trash')} حذف</button></td>
               </tr>`;
             }).join('')}
           </tbody>

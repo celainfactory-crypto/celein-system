@@ -146,7 +146,7 @@ window.APP = (function () {
           <button class="login-btn" id="loginBtnReal" data-action="do-login">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.78 - PWA Enabled</div>
+          <div class="login-version-tag">v18.79 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -719,6 +719,214 @@ window.APP = (function () {
     if (typeof window[action] === 'function') {
       window[action](el, event); return;
     }
+    // === Additional Module Action Handlers ===
+    // change-status (HR employee)
+    if (action === 'change-status') {
+      var eid = parseInt(el.dataset.eid || el.closest('[data-eid]')?.dataset.eid);
+      var db = APP.getDB();
+      var emp = (db.employeesLog || []).find(function(e) { return e.id === eid; });
+      if (!emp) return;
+      var newStatus = emp.status === 'active' ? 'on_leave' : 'active';
+      emp.status = newStatus;
+      if (newStatus === 'on_leave') emp.leaveDate = new Date().toISOString().split('T')[0];
+      APP.saveDB(db);
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      return;
+    }
+    
+    // reset-user-form
+    if (action === 'reset-user-form') {
+      var form = document.getElementById('user-form');
+      if (form) form.reset();
+      return;
+    }
+    
+    // edit-user (HR module - inline edit)
+    if (action === 'edit-user') {
+      var uidx = parseInt(el.dataset.uidx || el.closest('[data-uidx]')?.dataset.uidx);
+      if (window.Modules._editUser) window.Modules._editUser(uidx);
+      return;
+    }
+    
+    // view-alerts
+    if (action === 'view-alerts') {
+      var modal = document.getElementById('alertModal') || document.getElementById('cfAlertBanner');
+      if (modal) {
+        modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
+      }
+      return;
+    }
+    
+    // === Show modal helper ===
+    window.Modules._showRequestModalHtml = function(title, html) {
+      var existing = document.querySelector('.modal-overlay');
+      if (existing) existing.remove();
+      var overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+      overlay.innerHTML = '<div style="background:var(--card);border-radius:16px;padding:24px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:12px">' +
+          '<h3 style="margin:0;font-size:16px">' + title + '</h3>' +
+          '<button class="btn btn-secondary btn-sm" data-action="modal-close" style="padding:4px 10px">' + (Icons.render('x') || '×') + '</button>' +
+        '</div>' +
+        '<div>' + html + '</div>' +
+      '</div>';
+      document.body.appendChild(overlay);
+    };
+    
+
+    
+    // Inventory export
+    if (action === 'export-inventory') {
+      if (typeof Exports !== 'undefined' && Exports.doExport) {
+        Exports.doExport('inventory');
+      } else if (window.APP && window.APP.doExport) {
+        window.APP.doExport('pdf');
+      }
+      return;
+    }
+    
+    // Cashflow: manage accounts
+    if (action === 'manage-accounts') {
+      var db = APP.getDB();
+      var html = '<div class="form-group"><label>اسم الحساب الجديد</label><input type="text" id="cf_new_acc_name" placeholder="مثال: صندوق المصنع" /></div>' +
+        '<div class="form-group"><label>النوع</label><select id="cf_new_acc_type"><option value="safe">صندوق</option><option value="bank">بنك</option></select></div>' +
+        '<div class="form-group"><label>الرصيد الافتتاحي</label><input type="number" id="cf_new_acc_bal" value="0" min="0" /></div>' +
+        '<hr style="margin:12px 0;border-color:var(--border)">' +
+        '<p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">الحسابات الحالية:</p>' +
+        '<div style="max-height:200px;overflow-y:auto">' +
+        (db.cashAccounts || []).map(function(a) {
+          return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">' +
+            '<span style="flex:1">' + a.name + ' <span class="badge badge-info">' + (a.type === 'safe' ? 'صندوق' : 'بنك') + '</span></span>' +
+            '<span style="color:var(--primary);font-weight:700">' + (a.openingBalance || 0).toLocaleString('ar-EG') + ' ر.ي</span>' +
+            '<button class="btn btn-danger btn-sm" data-action="_doDeleteCashAccount" data-accid="' + a.id + '">' + (Icons.render('trash') || 'حذف') + '</button>' +
+          '</div>';
+        }).join('') + '</div>' +
+        '<div class="btn-row" style="margin-top:12px"><button class="btn btn-primary" data-action="_doAddCashAccount">' + (Icons.render('save') || 'حفظ') + ' إضافة</button><button class="btn btn-secondary" data-action="modal-close">إلغاء</button></div>';
+      window.Modules._showRequestModalHtml('إدارة حسابات النقدية', html);
+      return;
+    }
+    
+    // Production module handlers
+    if (action === 'delete-production') {
+      var idx = parseInt(el.dataset.idx || el.closest('[data-idx]')?.dataset.idx);
+      if (!confirm('حذف سجل الإنتاج هذا؟')) return;
+      var db = APP.getDB();
+      db.productionLog = (db.productionLog || []).filter(function(p, i) { return i !== parseInt(idx); });
+      APP.saveDB(db);
+      if (window.Modules[currentModule] && typeof window.Modules[currentModule] === 'function') window.Modules[currentModule](document.getElementById('content'));
+      return;
+    }
+    
+    // Voucher handlers
+    if (action === 'delete-voucher') {
+      var vidx = parseInt(el.dataset.vidx || el.closest('[data-vidx]')?.dataset.vidx);
+      if (!confirm('حذف هذا السند؟')) return;
+      var db = APP.getDB();
+      db.vouchers = (db.vouchers || []).filter(function(v, i) { return i !== parseInt(vidx); });
+      APP.saveDB(db);
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      return;
+    }
+    
+    // Agent handlers
+    if (action === 'delete-agent') {
+      var aidx = parseInt(el.dataset.aidx || el.closest('[data-aidx]')?.dataset.aidx);
+      if (!confirm('حذف هذا الوكيل؟')) return;
+      var db = APP.getDB();
+      db.agents = (db.agents || []).filter(function(a, i) { return i !== parseInt(aidx); });
+      APP.saveDB(db);
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      return;
+    }
+    
+    // Add cash account handler
+    window.Modules._doDeleteCashAccount = function(el) {
+      var id = parseInt(el.dataset.accid);
+      if (!confirm('حذف هذا الحساب؟')) return;
+      var db = APP.getDB();
+      db.cashAccounts = (db.cashAccounts || []).filter(function(a) { return a.id !== id; });
+      APP.saveDB(db);
+      var m = document.querySelector('.modal-overlay');
+      if (m) m.style.display = 'none';
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+    };
+        window.Modules._doAddCashAccount = function() {
+      var name = (document.getElementById('cf_new_acc_name') || {}).value.trim();
+      if (!name) { alert('يرجى إدخال اسم الحساب'); return; }
+      var db = APP.getDB();
+      db.cashAccounts = db.cashAccounts || [];
+      db.cashAccounts.push({ id: Date.now(), name: name, type: (document.getElementById('cf_new_acc_type') || {}).value || 'safe', openingBalance: parseInt((document.getElementById('cf_new_acc_bal') || {}).value) || 0 });
+      APP.saveDB(db);
+      var m = document.querySelector('.modal-overlay');
+      if (m) m.style.display = 'none';
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+    };
+    
+    window.Modules._deleteCashAccount = function(id) {
+      if (!confirm('حذف هذا الحساب؟')) return;
+      var db = APP.getDB();
+      db.cashAccounts = (db.cashAccounts || []).filter(function(a) { return a.id !== id; });
+      APP.saveDB(db);
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+    };
+    
+    // PR handlers (purchase request)
+    if (action === 'pr-edit') {
+      var pidx = parseInt(el.dataset.pidx || el.closest('[data-pidx]')?.dataset.pidx);
+      if (window.Modules._prEditRequest) window.Modules._prEditRequest(pidx);
+      return;
+    }
+    if (action === 'pr-cancel') {
+      var pidx = parseInt(el.dataset.pidx || el.closest('[data-pidx]')?.dataset.pidx);
+      if (window.Modules._prCancelRequest) window.Modules._prCancelRequest(pidx);
+      return;
+    }
+    if (action === 'pr-remind') {
+      var pidx = parseInt(el.dataset.pidx || el.closest('[data-pidx]')?.dataset.pidx);
+      if (window.Modules._prRemind) window.Modules._prRemind(pidx);
+      return;
+    }
+    if (action === 'pr-view') {
+      var pidx = parseInt(el.dataset.pidx || el.closest('[data-pidx]')?.dataset.pidx);
+      if (window.Modules._prView) window.Modules._prView(pidx);
+      return;
+    }
+    
+    // Dev module handlers
+    if (action === 'dev-delete-menu') {
+      var dmi = parseInt(el.dataset.dmi || el.closest('[data-dmi]')?.dataset.dmi);
+      if (window.Modules._devDeleteMenu) window.Modules._devDeleteMenu(dmi);
+      return;
+    }
+    if (action === 'dev-delete-page') {
+      var dpi = parseInt(el.dataset.dpi || el.closest('[data-dpi]')?.dataset.dpi);
+      if (window.Modules._devDeletePage) window.Modules._devDeletePage(dpi);
+      return;
+    }
+    if (action === 'dev-delete-field') {
+      var dfi = parseInt(el.dataset.dfi || el.closest('[data-dfi]')?.dataset.dfi);
+      if (window.Modules._devDeleteField) window.Modules._devDeleteField(dfi);
+      return;
+    }
+    if (action === 'dev-test-link') {
+      var tli = parseInt(el.dataset.tli || el.closest('[data-tli]')?.dataset.tli);
+      if (window.Modules._devTestLink) window.Modules._devTestLink(tli);
+      return;
+    }
+    if (action === 'dev-delete-link') {
+      var dli = parseInt(el.dataset.dli || el.closest('[data-dli]')?.dataset.dli);
+      if (window.Modules._devDeleteLink) window.Modules._devDeleteLink(dli);
+      return;
+    }
+    
+    // Spare part PR handler
+    if (action === 'pr-submit-spare') {
+      var sid = el.dataset.sid;
+      if (window.Modules._prSubmitSpare) window.Modules._prSubmitSpare(sid);
+      return;
+    }
+
     if (console.warn) console.warn('[Modules] No handler for:', action);
 
   // === Missing Module Action Handlers ===
