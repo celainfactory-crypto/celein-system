@@ -8179,3 +8179,653 @@ window.Modules.incomingRequests = function(container) {
     '</div>' + reqHTML + rejectModal;
 };
 
+/* ============================================================
+   سيلين - نظام الخدمة الذاتية - الواجهة الكاملة
+   ============================================================ */
+
+window.Modules.selfService = function(container) {
+  var user = APP.getCurrentUser();
+  var isManager = user && (user.role === 'admin' || user.role === 'hr_manager' || user.role === 'vice_executive');
+
+  // Module state
+  var _ssTab = 'my-requests';
+  var _ssStep = 1;
+  var _ssType = '';
+  var _ssSubType = '';
+  var _ssSubTypeConfig = null;
+  var _ssFormData = {};
+  var _ssSuccess = false;
+
+  // Register export buttons
+  try {
+    Exports.register("selfService", {
+      label: "الخدمة الذاتية",
+      pdf: function() {
+        var reqs = window.SelfService.getMyRequests();
+        if (!reqs.length) { alert('لا توجد طلبات للتصدير'); return; }
+        var headers = ['رقم الطلب','النوع','العنوان','الحالة','التاريخ','المبلغ'];
+        var rows = reqs.map(function(r) {
+          return [
+            r.id, window.SelfService.getSubTypeLabel(r.type, r.subType) || r.type,
+            r.title, window.SelfService.STATUS_LABELS[r.status] || r.status,
+            r.createdAt ? r.createdAt.split('T')[0] : '', r.amount ? r.amount.toLocaleString('ar-EG') + ' ر.ي' : ''
+          ];
+        });
+        Exports.exportPDF("الطلبات - نظام الخدمة الذاتية", Exports.rowsToHTMLTable(headers, rows, {title:'طلباتي'}), "selfService");
+      },
+      excel: function() {
+        var reqs = window.SelfService.getMyRequests();
+        if (!reqs.length) { alert('لا توجد طلبات للتصدير'); return; }
+        var headers = ['رقم الطلب','النوع','العنوان','الحالة','التاريخ','المبلغ'];
+        var rows = reqs.map(function(r) {
+          return [r.id, window.SelfService.getSubTypeLabel(r.type, r.subType) || r.type,
+            r.title, window.SelfService.STATUS_LABELS[r.status] || r.status,
+            r.createdAt ? r.createdAt.split('T')[0] : '', r.amount || 0];
+        });
+        Exports.exportExcel(Exports.rowsToHTMLTable(headers, rows, {title:'طلباتي'}), "selfService");
+      },
+      csv: function() {
+        var reqs = window.SelfService.getMyRequests();
+        if (!reqs.length) { alert('لا توجد طلبات للتصدير'); return; }
+        var headers = ['رقم الطلب','النوع','العنوان','الحالة','التاريخ','المبلغ'];
+        var rows = reqs.map(function(r) {
+          return [r.id, window.SelfService.getSubTypeLabel(r.type, r.subType) || r.type,
+            r.title, window.SelfService.STATUS_LABELS[r.status] || r.status,
+            r.createdAt ? r.createdAt.split('T')[0] : '', r.amount || 0];
+        });
+        Exports.exportCSV(Exports.rowsToCSV(headers, rows), "selfService");
+      },
+      print: function() { window.print(); }
+    });
+  } catch(e) {}
+
+  function fmtDate(isoStr) {
+    if (!isoStr) return '';
+    try {
+      var d = new Date(isoStr);
+      return d.toLocaleDateString('ar-EG', {year:'numeric', month:'short', day:'numeric'});
+    } catch(e) { return isoStr; }
+  }
+
+  function timeAgo(isoStr) {
+    if (!isoStr) return '';
+    try {
+      var diff = Date.now() - new Date(isoStr).getTime();
+      var mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'الآن';
+      if (mins < 60) return 'منذ ' + mins + ' دقيقة';
+      var hrs = Math.floor(mins / 60);
+      if (hrs < 24) return 'منذ ' + hrs + ' ساعة';
+      var days = Math.floor(hrs / 24);
+      if (days < 30) return 'منذ ' + days + ' يوم';
+      return fmtDate(isoStr);
+    } catch(e) { return isoStr; }
+  }
+
+  function getTypeIcon(typeId) {
+    var icons = {
+      leave: 'calendar', purchase: 'cart', maintenance: 'tool',
+      advance: 'money', certificate: 'fileText', data_update: 'user', other: 'messageCircle'
+    };
+    return icons[typeId] || 'fileText';
+  }
+
+  function getTypeLabel(typeId) {
+    var t = window.SelfService.REQUEST_TYPES.find(function(tp) { return tp.id === typeId; });
+    return t ? t.label : typeId;
+  }
+
+  function getStatusBadge(status) {
+    var colors = window.SelfService.STATUS_COLORS;
+    var labels = window.SelfService.STATUS_LABELS;
+    var cls = colors[status] || 'badge-info';
+    var lbl = labels[status] || status;
+    return '<span class="badge ' + cls + '">' + lbl + '</span>';
+  }
+
+  function renderStats() {
+    var reqs = window.SelfService.getMyRequests();
+    var pending = reqs.filter(function(r) { return r.status.indexOf('pending') === 0; }).length;
+    var approved = reqs.filter(function(r) { return r.status === 'approved' || r.status === 'completed'; }).length;
+    var rejected = reqs.filter(function(r) { return r.status === 'rejected'; }).length;
+    return '<div class="ss-stats">' +
+      '<div class="ss-stat-card"><div class="ss-stat-num">' + reqs.length + '</div><div class="ss-stat-label">إجمالي الطلبات</div></div>' +
+      '<div class="ss-stat-card"><div class="ss-stat-num yellow">' + pending + '</div><div class="ss-stat-label">بانتظار الاعتماد</div></div>' +
+      '<div class="ss-stat-card"><div class="ss-stat-num green">' + approved + '</div><div class="ss-stat-label">معتمدة</div></div>' +
+      '<div class="ss-stat-card"><div class="ss-stat-num red">' + rejected + '</div><div class="ss-stat-label">مرفوضة</div></div>' +
+      '</div>';
+  }
+
+  function renderTabs() {
+    var reqs = window.SelfService.getMyRequests();
+    var pendingCount = reqs.filter(function(r) { return r.status.indexOf('pending') === 0; }).length;
+    var incoming = isManager ? window.SelfService.getIncomingRequests().length : 0;
+    var db = APP.getDB();
+    var unreadCount = (db.notifications || []).filter(function(n) { return !n.read; }).length;
+
+    return '<div class="ss-tabs">' +
+      '<div class="ss-tab' + (_ssTab === 'my-requests' ? ' active' : '') + '" data-action="ss-goto-tab" data-tab="my-requests">' +
+        Icons.render('inbox') + ' طلباتي <span class="ss-tab-badge">' + reqs.length + '</span></div>' +
+      '<div class="ss-tab' + (_ssTab === 'submit' ? ' active' : '') + '" data-action="ss-goto-tab" data-tab="submit">' +
+        Icons.render('plus') + ' تقديم طلب</div>' +
+      (isManager ? '<div class="ss-tab' + (_ssTab === 'approvals' ? ' active' : '') + '" data-action="ss-goto-tab" data-tab="approvals">' +
+        Icons.render('checkCircle') + ' اعتماداتي <span class="ss-tab-badge">' + incoming + '</span></div>' : '') +
+      '<div class="ss-tab' + (_ssTab === 'notifications' ? ' active' : '') + '" data-action="ss-goto-tab" data-tab="notifications">' +
+        Icons.render('bell') + ' الإشعارات' + (unreadCount > 0 ? ' <span class="ss-tab-badge">' + unreadCount + '</span>' : '') + '</div>' +
+      '</div>';
+  }
+
+  // =====================================================
+  // TAB: MY REQUESTS
+  // =====================================================
+  function renderMyRequests() {
+    var reqs = window.SelfService.getMyRequests();
+    if (!reqs.length) {
+      return '<div class="ss-empty"><div class="ss-empty-icon">' + Icons.render('inbox') + '</div>' +
+        '<p>لا توجد طلبات مسجلة</p><p style="font-size:13px">استخدم "تقديم طلب" لبدء طلب جديد</p></div>';
+    }
+    var html = '';
+    reqs.forEach(function(r) {
+      var statusCls = r.status;
+      var extraInfo = '';
+      if (r.amount) extraInfo = '<span class="ss-request-amount">' + r.amount.toLocaleString('ar-EG') + ' ر.ي</span>';
+      if (r.startDate) extraInfo = '<span style="font-size:12px;color:var(--text-muted)">' + fmtDate(r.startDate) + (r.endDate ? ' - ' + fmtDate(r.endDate) : '') + '</span>';
+      if (r.extraValue) extraInfo = '<span style="font-size:12px;color:var(--text-muted)">' + r.extraValue + '</span>';
+
+      html += '<div class="ss-request-card" data-status="' + r.status + '" data-action="ss-view-request" data-id="' + r.id + '">' +
+        '<div class="ss-request-header">' +
+          '<div class="ss-request-icon">' + Icons.render(getTypeIcon(r.type)) + '</div>' +
+          '<div class="ss-request-info">' +
+            '<div class="ss-request-title">' + (r.subTypeLabel || r.title || getTypeLabel(r.type)) + '</div>' +
+            '<div class="ss-request-meta">' +
+              '<span>' + Icons.render('user') + ' ' + r.employeeName + '</span>' +
+              '<span>' + Icons.render('calendar') + ' ' + fmtDate(r.createdAt) + '</span>' +
+              '<span>' + getStatusBadge(r.status) + '</span>' +
+            '</div>' +
+          '</div>' +
+          extraInfo +
+        '</div>' +
+      '</div>';
+    });
+    return html;
+  }
+
+  // =====================================================
+  // TAB: SUBMIT REQUEST (Multi-step)
+  // =====================================================
+  function renderSubmitRequest() {
+    if (_ssSuccess) {
+      return '<div class="ss-form-card">' +
+        '<div class="ss-success">' +
+          '<div class="ss-success-icon">' + Icons.render('checkCircle') + '</div>' +
+          '<div class="ss-success-title">تم تقديم الطلب بنجاح!</div>' +
+          '<div class="ss-success-msg">يمكنك متابعة حالة طلبك من قائمة "طلباتي"</div>' +
+          '<div class="ss-submit-actions" style="margin-top:20px">' +
+            '<button class="btn btn-primary" data-action="ss-goto-tab" data-tab="my-requests">' + Icons.render('inbox') + ' طلباتي</button>' +
+            '<button class="btn" data-action="ss-reset-form">' + Icons.render('plus') + ' طلب جديد</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    var stepLabels = ['اختر النوع', 'الفئة الفرعية', 'تفاصيل الطلب', 'مراجعة وإرسال'];
+    var html = '<div class="ss-form-card">';
+
+    // Step indicator
+    html += '<div class="ss-steps">';
+    for (var s = 1; s <= 4; s++) {
+      var cls = '';
+      if (s < _ssStep) cls = 'done';
+      else if (s === _ssStep) cls = 'active';
+      if (s > 1) html += '<div class="ss-step-connector' + (s <= _ssStep ? ' done' : '') + '"></div>';
+      html += '<div class="ss-step-item"><div class="ss-step-num ' + cls + '">' + (s < _ssStep ? Icons.render('check') : s) + '</div><div class="ss-step-label">' + stepLabels[s-1] + '</div></div>';
+    }
+    html += '</div>';
+
+    // STEP 1: Select type
+    if (_ssStep === 1) {
+      html += '<div class="ss-type-grid">';
+      window.SelfService.REQUEST_TYPES.forEach(function(t) {
+        html += '<div class="ss-type-card" data-action="ss-select-type" data-type="' + t.id + '">' +
+          '<div class="ss-type-icon">' + Icons.render(t.icon) + '</div>' +
+          '<div class="ss-type-label">' + t.label + '</div>' +
+          '<div class="ss-type-dept">' + t.dept + '</div>' +
+        '</div>';
+      });
+      html += '</div>';
+    }
+
+    // STEP 2: Select sub-type
+    else if (_ssStep === 2) {
+      var typeConfig = window.SelfService.REQUEST_TYPES.find(function(tp) { return tp.id === _ssType; });
+      html += '<div style="margin-bottom:16px;display:flex;align-items:center;gap:10px">' +
+        '<button class="btn ss-btn-back" data-action="ss-prev-step">' + Icons.render('arrowRight') + ' رجوع</button>' +
+        '<span style="font-weight:600;color:var(--primary)">' + (typeConfig ? typeConfig.label : '') + '</span>' +
+      '</div>';
+      html += '<div class="ss-subtype-grid">';
+      if (typeConfig && typeConfig.subTypes) {
+        typeConfig.subTypes.forEach(function(st) {
+          var sel = _ssSubType === st.id ? ' ss-selected' : '';
+          html += '<div class="ss-subtype-card' + sel + '" data-action="ss-select-subtype" data-type="' + _ssType + '" data-stype="' + st.id + '">' + st.label + '</div>';
+        });
+      }
+      html += '</div>';
+    }
+
+    // STEP 3: Dynamic form
+    else if (_ssStep === 3) {
+      var stConfig = _ssSubTypeConfig;
+      html += '<div style="margin-bottom:16px;display:flex;align-items:center;gap:10px">' +
+        '<button class="btn ss-btn-back" data-action="ss-prev-step">' + Icons.render('arrowRight') + ' رجوع</button>' +
+        '<span style="font-weight:600;color:var(--primary)">' + (stConfig ? stConfig.label : '') + '</span>' +
+      '</div>';
+
+      html += '<form id="ssRequestForm" onsubmit="return false;">';
+      html += '<div class="form-grid">';
+
+      // Title
+      html += '<div class="form-group" style="grid-column:1/-1"><label>عنوان الطلب *</label>' +
+        '<input type="text" id="ss_title" value="' + (stConfig ? stConfig.label : '') + '" required /></div>';
+
+      // Description
+      html += '<div class="form-group" style="grid-column:1/-1"><label>الوصف / ملاحظات</label>' +
+        '<textarea id="ss_description" rows="3" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);font-size:13px;background:var(--bg-darker);color:var(--text);resize:vertical"></textarea></div>';
+
+      // Dates for leave types
+      if (stConfig && stConfig.requireDates) {
+        html += '<div class="form-group"><label>من تاريخ *</label><input type="date" id="ss_startDate" required /></div>';
+        html += '<div class="form-group"><label>إلى تاريخ *</label><input type="date" id="ss_endDate" required /></div>';
+      }
+
+      // Amount for purchase/advance
+      if (stConfig && stConfig.requireAmount) {
+        html += '<div class="form-group"><label>المبلغ المطلوب (ر.ي) *</label><input type="number" id="ss_amount" min="0" step="1" required /></div>';
+      }
+
+      // Extra field
+      if (stConfig && stConfig.extraField) {
+        html += '<div class="form-group" style="grid-column:1/-1"><label>' + stConfig.extraField + ' *</label>' +
+          '<input type="text" id="ss_extraValue" required /></div>';
+      }
+
+      // Reason
+      if (stConfig && stConfig.requireReason) {
+        html += '<div class="form-group" style="grid-column:1/-1"><label>السبب *</label>' +
+          '<textarea id="ss_reason" rows="2" required style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);font-size:13px;background:var(--bg-darker);color:var(--text);resize:vertical"></textarea></div>';
+      }
+
+      // Attachment note
+      if (stConfig && stConfig.requireAttachment) {
+        html += '<div class="alert alert-info" style="grid-column:1/-1"><span>' + Icons.render('info') + '</span>' +
+          '<span>يرجى إرفاق ' + (stConfig.attachmentLabel || 'المستندات') + ' عند التسليم أو عند مراجعة الطلب</span></div>';
+      }
+
+      html += '</div></form>';
+      html += '<div class="ss-submit-actions">' +
+        '<button class="btn btn-primary" data-action="ss-preview-submit">' + Icons.render('eye') + ' مراجعة الطلب</button>' +
+      '</div>';
+    }
+
+    // STEP 4: Preview
+    else if (_ssStep === 4) {
+      html += '<div style="margin-bottom:16px;display:flex;align-items:center;gap:10px">' +
+        '<button class="btn ss-btn-back" data-action="ss-prev-step">' + Icons.render('arrowRight') + ' رجوع للتعديل</button>' +
+      '</div>';
+
+      html += '<div class="ss-preview-box">' +
+        '<div style="font-weight:700;font-size:16px;margin-bottom:12px;color:var(--primary)">' + Icons.render(getTypeIcon(_ssType)) + ' ' + (_ssSubTypeConfig ? _ssSubTypeConfig.label : getTypeLabel(_ssType)) + '</div>' +
+        '<div class="ss-preview-row"><span class="ss-preview-label">نوع الطلب</span><span class="ss-preview-value">' + getTypeLabel(_ssType) + '</span></div>' +
+        '<div class="ss-preview-row"><span class="ss-preview-label">الفئة</span><span class="ss-preview-value">' + (_ssSubTypeConfig ? _ssSubTypeConfig.label : '-') + '</span></div>' +
+        '<div class="ss-preview-row"><span class="ss-preview-label">عنوان الطلب</span><span class="ss-preview-value">' + (_ssFormData.title || '-') + '</span></div>';
+      if (_ssFormData.description)
+        html += '<div class="ss-preview-row"><span class="ss-preview-label">الوصف</span><span class="ss-preview-value">' + _ssFormData.description + '</span></div>';
+      if (_ssFormData.startDate)
+        html += '<div class="ss-preview-row"><span class="ss-preview-label">من تاريخ</span><span class="ss-preview-value">' + fmtDate(_ssFormData.startDate) + '</span></div>';
+      if (_ssFormData.endDate)
+        html += '<div class="ss-preview-row"><span class="ss-preview-label">إلى تاريخ</span><span class="ss-preview-value">' + fmtDate(_ssFormData.endDate) + '</span></div>';
+      if (_ssFormData.amount)
+        html += '<div class="ss-preview-row"><span class="ss-preview-label">المبلغ</span><span class="ss-preview-value" style="color:var(--primary);font-weight:700">' + _ssFormData.amount.toLocaleString('ar-EG') + ' ر.ي</span></div>';
+      if (_ssFormData.extraValue)
+        html += '<div class="ss-preview-row"><span class="ss-preview-label">التفاصيل</span><span class="ss-preview-value">' + _ssFormData.extraValue + '</span></div>';
+      html += '</div>';
+
+      html += '<div class="alert alert-info" style="margin-bottom:16px"><span>' + Icons.render('info') + '</span>' +
+        '<span>بعد الإرسال، سيراجع مديرك المباشر الطلب ويعتمده وفق الصلاحيات</span></div>';
+      html += '<div class="ss-submit-actions">' +
+        '<button class="btn btn-primary" data-action="ss-submit-final">' + Icons.render('send') + ' إرسال الطلب</button>' +
+      '</div>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  // =====================================================
+  // TAB: APPROVALS (Managers)
+  // =====================================================
+  function renderApprovals() {
+    if (!isManager) return '';
+    var reqs = window.SelfService.getIncomingRequests();
+    if (!reqs.length) {
+      return '<div class="ss-pending-msg">' + Icons.render('checkCircle') + ' لا توجد طلبات بانتظار اعتماداتك</div>';
+    }
+    var html = '';
+    reqs.forEach(function(r) {
+      html += '<div class="ss-approval-card" data-action="ss-view-request" data-id="' + r.id + '">' +
+        '<div class="ss-approval-header">' +
+          '<div style="font-size:28px;flex-shrink:0">' + Icons.render(getTypeIcon(r.type)) + '</div>' +
+          '<div>' +
+            '<div class="ss-approval-emp">' + r.employeeName + '</div>' +
+            '<div class="ss-approval-dept">' + Icons.render('box') + ' ' + r.department + '</div>' +
+          '</div>' +
+          getStatusBadge(r.status) +
+        '</div>' +
+        '<div class="ss-approval-body">' +
+          '<div class="ss-approval-row"><span>نوع الطلب:</span><span>' + getTypeLabel(r.type) + ' - ' + (r.subTypeLabel || '-') + '</span></div>' +
+          '<div class="ss-approval-row"><span>العنوان:</span><span>' + (r.title || '-') + '</span></div>';
+      if (r.amount) html += '<div class="ss-approval-row"><span>المبلغ:</span><span style="color:var(--primary);font-weight:700">' + r.amount.toLocaleString('ar-EG') + ' ر.ي</span></div>';
+      if (r.startDate) html += '<div class="ss-approval-row"><span>التاريخ:</span><span>' + fmtDate(r.startDate) + (r.endDate ? ' - ' + fmtDate(r.endDate) : '') + '</span></div>';
+      if (r.extraValue) html += '<div class="ss-approval-row"><span>التفاصيل:</span><span>' + r.extraValue + '</span></div>';
+      html += '<div class="ss-approval-row"><span>تاريخ التقديم:</span><span>' + fmtDate(r.createdAt) + '</span></div>' +
+        '</div>' +
+        '<div class="ss-request-actions">' +
+          '<button class="btn btn-sm btn-success" data-action="ss-approve-req" data-id="' + r.id + '">' + Icons.render('check') + ' اعتماد</button>' +
+          '<button class="btn btn-sm btn-danger" data-action="ss-reject-req" data-id="' + r.id + '">' + Icons.render('x') + ' رفض</button>' +
+          '<button class="btn btn-sm" data-action="ss-view-request" data-id="' + r.id + '">' + Icons.render('eye') + ' التفاصيل</button>' +
+        '</div>' +
+      '</div>';
+    });
+    return html;
+  }
+
+  // =====================================================
+  // TAB: NOTIFICATIONS
+  // =====================================================
+  function renderNotifications() {
+    var db = APP.getDB();
+    var notifs = (db.notifications || []).slice().reverse();
+    if (!notifs.length) {
+      return '<div class="ss-empty"><div class="ss-empty-icon">' + Icons.render('bell') + '</div>' +
+        '<p>لا توجد إشعارات</p></div>';
+    }
+    var html = '';
+    notifs.forEach(function(n) {
+      var notifIcon = 'bell';
+      if (n.type === 'request_approved') notifIcon = 'checkCircle';
+      else if (n.type === 'request_rejected') notifIcon = 'x';
+      else if (n.type === 'new_request') notifIcon = 'plus';
+      html += '<div class="ss-notif-card' + (n.read ? '' : ' unread') + '">' +
+        '<div class="ss-notif-icon">' + Icons.render(notifIcon) + '</div>' +
+        '<div class="ss-notif-body">' +
+          '<div class="ss-notif-title">' + (n.read ? '' : '<span style="width:8px;height:8px;background:var(--primary);border-radius:50%;display:inline-block;margin-left:6px"></span>') + n.title + '</div>' +
+          '<div class="ss-notif-msg">' + (n.message || '') + '</div>' +
+          '<div class="ss-notif-time">' + Icons.render('clock') + ' ' + timeAgo(n.createdAt) + '</div>' +
+        '</div>' +
+        (n.read ? '' : '<div class="ss-notif-dismiss">' +
+          '<button class="btn btn-sm" data-action="ss-dismiss-notif" data-nid="' + n.id + '">' + Icons.render('check') + ' تم القراءة</button>' +
+        '</div>') +
+      '</div>';
+    });
+    return html;
+  }
+
+  // =====================================================
+  // REQUEST DETAIL MODAL
+  // =====================================================
+  function showRequestModal(reqId) {
+    var db = APP.getDB();
+    var req = db.requests.find(function(r) { return r.id === reqId; });
+    if (!req) return;
+
+    var isOwner = req.employeeId === user.empId;
+    var canApprove = isManager && window.SelfService.getIncomingRequests().some(function(r) { return r.id === reqId; });
+
+    var html = '<div id="ssReqModal" class="modal-overlay ss-modal" style="display:flex">' +
+      '<div class="modal-card">' +
+        '<div class="modal-header">' +
+          '<h3>' + Icons.render(getTypeIcon(req.type)) + ' ' + (req.subTypeLabel || req.title || getTypeLabel(req.type)) + '</h3>' +
+          '<button class="btn btn-sm" data-action="modal-close">' + Icons.render('x') + '</button>' +
+        '</div>' +
+        '<div class="modal-body ss-modal-body">' +
+
+          // Status + Meta
+          '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px">' +
+            getStatusBadge(req.status) +
+            '<span style="font-size:13px;color:var(--text-muted)">' + Icons.render('hash') + ' ' + req.id + '</span>' +
+          '</div>' +
+
+          // Info grid
+          '<div class="ss-preview-box">' +
+            '<div class="ss-preview-row"><span class="ss-preview-label">مقدم الطلب</span><span class="ss-preview-value">' + req.employeeName + '</span></div>' +
+            '<div class="ss-preview-row"><span class="ss-preview-label">القسم</span><span class="ss-preview-value">' + req.department + '</span></div>' +
+            '<div class="ss-preview-row"><span class="ss-preview-label">نوع الطلب</span><span class="ss-preview-value">' + getTypeLabel(req.type) + ' — ' + (req.subTypeLabel || '-') + '</span></div>' +
+            '<div class="ss-preview-row"><span class="ss-preview-label">تاريخ التقديم</span><span class="ss-preview-value">' + fmtDate(req.createdAt) + '</span></div>';
+    if (req.startDate)
+      html += '<div class="ss-preview-row"><span class="ss-preview-label">من تاريخ</span><span class="ss-preview-value">' + fmtDate(req.startDate) + '</span></div>';
+    if (req.endDate)
+      html += '<div class="ss-preview-row"><span class="ss-preview-label">إلى تاريخ</span><span class="ss-preview-value">' + fmtDate(req.endDate) + '</span></div>';
+    if (req.amount)
+      html += '<div class="ss-preview-row"><span class="ss-preview-label">المبلغ المطلوب</span><span class="ss-preview-value" style="color:var(--primary);font-weight:700;font-size:16px">' + req.amount.toLocaleString('ar-EG') + ' ر.ي</span></div>';
+    if (req.title)
+      html += '<div class="ss-preview-row"><span class="ss-preview-label">العنوان</span><span class="ss-preview-value">' + req.title + '</span></div>';
+    if (req.description)
+      html += '<div class="ss-preview-row"><span class="ss-preview-label">الوصف</span><span class="ss-preview-value">' + req.description + '</span></div>';
+    if (req.extraValue)
+      html += '<div class="ss-preview-row"><span class="ss-preview-label">التفاصيل</span><span class="ss-preview-value">' + req.extraValue + '</span></div>';
+    if (req.rejectionReason)
+      html += '<div class="ss-preview-row" style="color:var(--danger)"><span class="ss-preview-label">سبب الرفض</span><span class="ss-preview-value">' + req.rejectionReason + '</span></div>';
+    html += '</div>';
+
+    // History timeline
+    html += '<h4 style="margin:16px 0 12px;font-size:15px;color:var(--primary)">' + Icons.render('gitBranch') + ' سجل الطلب</h4>';
+    html += '<div class="ss-timeline">';
+    if (req.history && req.history.length) {
+      req.history.forEach(function(h) {
+        var cls = h.action === 'created' ? 'created' : h.action === 'approved' ? 'approved' : h.action === 'rejected' ? 'rejected' : '';
+        var actionLabel = h.action === 'created' ? 'تم تقديم الطلب' : h.action === 'approved' ? 'تم الاعتماد' : h.action === 'rejected' ? 'تم الرفض' : h.action;
+        html += '<div class="ss-timeline-item ' + cls + '">' +
+          '<div class="ss-timeline-action">' + actionLabel + '</div>' +
+          '<div class="ss-timeline-meta">بواسطة: ' + h.by + ' | ' + fmtDate(h.at) + '</div>' +
+          (h.note ? '<div class="ss-timeline-note">' + h.note + '</div>' : '') +
+        '</div>';
+      });
+    }
+    html += '</div>';
+
+    // Actions
+    html += '<div class="ss-modal-actions" style="margin-top:20px">';
+    if (canApprove) {
+      html += '<button class="btn btn-sm btn-success" data-action="ss-approve-req" data-id="' + req.id + '">' + Icons.render('check') + ' اعتماد</button>' +
+        '<button class="btn btn-sm btn-danger" data-action="ss-reject-req" data-id="' + req.id + '">' + Icons.render('x') + ' رفض</button>';
+    }
+    if (isOwner && req.status.indexOf('pending') === 0) {
+      html += '<button class="btn btn-sm btn-warning" data-action="ss-cancel-req" data-id="' + req.id + '">' + Icons.render('x') + ' إلغاء الطلب</button>';
+    }
+    html += '<button class="btn btn-sm" data-action="modal-close">' + Icons.render('x') + ' إغلاق</button>';
+    html += '</div></div></div></div>';
+
+    // Render modal
+    var existing = document.getElementById('ssReqModal');
+    if (existing) existing.parentElement.remove();
+    var div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div);
+  }
+
+  // =====================================================
+  // RENDER
+  // =====================================================
+  function render() {
+    var tabContent = '';
+    if (_ssTab === 'my-requests') tabContent = renderMyRequests();
+    else if (_ssTab === 'submit') tabContent = renderSubmitRequest();
+    else if (_ssTab === 'approvals') tabContent = renderApprovals();
+    else if (_ssTab === 'notifications') tabContent = renderNotifications();
+
+    container.innerHTML = '<div class="ss-module">' +
+      '<div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,var(--bg-card),var(--bg-darker));border:2px solid var(--primary)">' +
+        '<h3 style="margin-bottom:4px">' + Icons.render('users') + ' نظام الخدمة الذاتية</h3>' +
+        '<p style="font-size:13px;color:var(--text-muted);margin:0">مرحباً ' + user.name + ' — قدم طلباتك واعتمد طلبات فريقك من هنا</p>' +
+      '</div>' +
+      renderStats() +
+      renderTabs() +
+      '<div id="ssTabContent">' + tabContent + '</div>' +
+    '</div>';
+  }
+
+  render();
+
+  // =====================================================
+  // RE-RENDER helpers (called by action handlers)
+  // =====================================================
+  window._ssReRender = function() {
+    render();
+  };
+
+  window._ssGoToTab = function(tab) {
+    _ssTab = tab;
+    if (tab !== 'submit') { _ssStep = 1; _ssType = ''; _ssSubType = ''; _ssSubTypeConfig = null; _ssFormData = {}; }
+    render();
+  };
+
+  window._ssSelectType = function(typeId) {
+    _ssType = typeId;
+    _ssStep = 2;
+    _ssSubType = '';
+    _ssSubTypeConfig = null;
+    render();
+  };
+
+  window._ssSelectSubType = function(typeId, subTypeId) {
+    _ssSubType = subTypeId;
+    var typeConfig = window.SelfService.REQUEST_TYPES.find(function(tp) { return tp.id === typeId; });
+    if (typeConfig && typeConfig.subTypes) {
+      _ssSubTypeConfig = typeConfig.subTypes.find(function(st) { return st.id === subTypeId; });
+    }
+    _ssStep = 3;
+    _ssFormData = {};
+    render();
+  };
+
+  window._ssPrevStep = function() {
+    if (_ssStep > 1) {
+      _ssStep--;
+      if (_ssStep < 3) { _ssFormData = {}; }
+      render();
+    }
+  };
+
+  window._ssPreviewSubmit = function() {
+    _ssFormData = {
+      title: (document.getElementById('ss_title') || {}).value || '',
+      description: (document.getElementById('ss_description') || {}).value || '',
+      startDate: (document.getElementById('ss_startDate') || {}).value || '',
+      endDate: (document.getElementById('ss_endDate') || {}).value || '',
+      amount: parseFloat((document.getElementById('ss_amount') || {}).value) || 0,
+      extraValue: (document.getElementById('ss_extraValue') || {}).value || '',
+      reason: (document.getElementById('ss_reason') || {}).value || ''
+    };
+    if (_ssSubTypeConfig && _ssSubTypeConfig.requireReason) {
+      _ssFormData.extraValue = _ssFormData.reason;
+    }
+    if (!_ssFormData.title) {
+      alert('يرجى إدخال عنوان الطلب');
+      return;
+    }
+    if (_ssSubTypeConfig && _ssSubTypeConfig.requireDates) {
+      if (!_ssFormData.startDate || !_ssFormData.endDate) {
+        alert('يرجى إدخال تاريخي البداية والنهاية');
+        return;
+      }
+    }
+    if (_ssSubTypeConfig && _ssSubTypeConfig.requireAmount) {
+      if (!_ssFormData.amount) {
+        alert('يرجى إدخال المبلغ المطلوب');
+        return;
+      }
+    }
+    _ssStep = 4;
+    render();
+  };
+
+  window._ssSubmitFinal = function() {
+    var result = window.SelfService.createRequest(_ssType, {
+      subType: _ssSubType,
+      title: _ssFormData.title,
+      description: _ssFormData.description,
+      startDate: _ssFormData.startDate,
+      endDate: _ssFormData.endDate,
+      amount: _ssFormData.amount,
+      extraValue: _ssFormData.extraValue
+    });
+    if (result) {
+      _ssSuccess = true;
+      render();
+    } else {
+      alert('حدث خطأ أثناء إرسال الطلب');
+    }
+  };
+
+  window._ssResetForm = function() {
+    _ssTab = 'submit';
+    _ssStep = 1;
+    _ssType = '';
+    _ssSubType = '';
+    _ssSubTypeConfig = null;
+    _ssFormData = {};
+    _ssSuccess = false;
+    render();
+  };
+
+  window._ssViewRequest = function(reqId) {
+    showRequestModal(reqId);
+  };
+
+  window._ssApproveReq = function(reqId) {
+    var note = prompt('ملاحظة (اختياري):');
+    var ok = window.SelfService.approveRequest(reqId, note || '');
+    if (ok) {
+      var modal = document.getElementById('ssReqModal');
+      if (modal) modal.parentElement.remove();
+      render();
+      alert('تم اعتماد الطلب بنجاح');
+    }
+  };
+
+  window._ssRejectReq = function(reqId) {
+    var reason = prompt('سبب الرفض (مطلوب):');
+    if (!reason) return;
+    var ok = window.SelfService.rejectRequest(reqId, reason);
+    if (ok) {
+      var modal = document.getElementById('ssReqModal');
+      if (modal) modal.parentElement.remove();
+      render();
+      alert('تم رفض الطلب');
+    }
+  };
+
+  window._ssCancelReq = function(reqId) {
+    if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) return;
+    var db = APP.getDB();
+    var req = db.requests.find(function(r) { return r.id === reqId; });
+    if (!req) return;
+    req.status = 'cancelled';
+    req.updatedAt = new Date().toISOString();
+    req.history.push({
+      action: 'cancelled', by: user.name, byRole: user.role,
+      at: new Date().toISOString(), note: 'تم إلغاء الطلب من قبل مقدم الطلب'
+    });
+    APP.saveDB(db);
+    var modal = document.getElementById('ssReqModal');
+    if (modal) modal.parentElement.remove();
+    render();
+    alert('تم إلغاء الطلب');
+  };
+
+  window._ssDismissNotif = function(notifId) {
+    var db = APP.getDB();
+    var notif = db.notifications.find(function(n) { return n.id === notifId; });
+    if (notif) { notif.read = true; APP.saveDB(db); }
+    render();
+  };
+};

@@ -551,7 +551,11 @@ window.APP = (function () {
       { id: "permissions",   group: "الموارد البشرية",    icon: "key",       label: "إدارة الصلاحيات",        roles: ["admin","vice_executive","hr_manager"] },
       { id: "terminated",    group: "الموارد البشرية",    icon: "x",         label: "المنتهية عقودهم",        roles: ["admin","vice_executive"] },
       // ===============================================
-      // 8. التقارير
+      // 8. الخدمة الذاتية
+      // ===============================================
+      { id: "selfService",   group: "الخدمة الذاتية",      icon: "users",     label: "الخدمة الذاتية",         roles: ["admin","vice_executive","hr_manager","sales","production","accountant","lab","procurement"] },
+      // ===============================================
+      // 9. التقارير
       // ===============================================
       { id: "reports",       group: "التقارير",            icon: "report",    label: "اللوحة الشاملة",          roles: ["admin","vice_executive","executive","chairman","accountant","production","lab","procurement"] },
       { id: "orgchart",     group: "التقارير",            icon: "sitemap",   label: "الهيكل التنظيمي",        roles: ["admin","vice_executive","chairman","accountant"] },
@@ -1167,6 +1171,66 @@ window.APP = (function () {
     if (action === 'dev-reset-all') { if (confirm('سيتم حذف كل البيانات! متأكد؟')) { DB.clear(); localStorage.clear(); window.location.reload(); } return; }
     if (action === 'dev-export-db') { var db = APP.getDB(); var blob = new Blob([JSON.stringify(db, null, 2)], {type:'application/json'}); var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'celain-db.json'; a.click(); return; }
 
+
+    
+    // ===== Self-Service Module Actions =====
+    if (action === 'ss-goto-tab') {
+      var tab = el.dataset.tab;
+      if (window._ssGoToTab) window._ssGoToTab(tab);
+      return;
+    }
+    if (action === 'ss-select-type') {
+      var typeId = el.dataset.type;
+      if (window._ssSelectType) window._ssSelectType(typeId);
+      return;
+    }
+    if (action === 'ss-select-subtype') {
+      var typeId = el.dataset.type;
+      var stypeId = el.dataset.stype;
+      if (window._ssSelectSubType) window._ssSelectSubType(typeId, stypeId);
+      return;
+    }
+    if (action === 'ss-prev-step') {
+      if (window._ssPrevStep) window._ssPrevStep();
+      return;
+    }
+    if (action === 'ss-preview-submit') {
+      if (window._ssPreviewSubmit) window._ssPreviewSubmit();
+      return;
+    }
+    if (action === 'ss-submit-final') {
+      if (window._ssSubmitFinal) window._ssSubmitFinal();
+      return;
+    }
+    if (action === 'ss-reset-form') {
+      if (window._ssResetForm) window._ssResetForm();
+      return;
+    }
+    if (action === 'ss-view-request') {
+      var reqId = el.dataset.id;
+      if (window._ssViewRequest) window._ssViewRequest(reqId);
+      return;
+    }
+    if (action === 'ss-approve-req') {
+      var reqId = el.dataset.id;
+      if (window._ssApproveReq) window._ssApproveReq(reqId);
+      return;
+    }
+    if (action === 'ss-reject-req') {
+      var reqId = el.dataset.id;
+      if (window._ssRejectReq) window._ssRejectReq(reqId);
+      return;
+    }
+    if (action === 'ss-cancel-req') {
+      var reqId = el.dataset.id;
+      if (window._ssCancelReq) window._ssCancelReq(reqId);
+      return;
+    }
+    if (action === 'ss-dismiss-notif') {
+      var nid = el.dataset.nid;
+      if (window._ssDismissNotif) window._ssDismissNotif(nid);
+      return;
+    }
 
         if (console.warn) console.warn('[Modules] No handler for:', action);
   };
