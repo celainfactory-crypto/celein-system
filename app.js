@@ -146,7 +146,7 @@ window.APP = (function () {
           <button class="login-btn" id="loginBtnReal" data-action="do-login">
             <span id="loginBtnText">تسجيل الدخول</span>
           </button>
-          <div class="login-version-tag">v18.76 - PWA Enabled</div>
+          <div class="login-version-tag">v18.78 - PWA Enabled</div>
         </div>
       </div>
     `;
@@ -1014,7 +1014,19 @@ document.addEventListener('change', function(e) {
   if (typeof fn === 'function') { fn(el, e); return; }
   if (typeof window[chg] === 'function') window[chg](el, e);
 });
-window.addEventListener("DOMContentLoaded", () => APP.init());
+window.addEventListener("DOMContentLoaded", () => {
+  try {
+    APP.init();
+  } catch(e) {
+    document.body.innerHTML = '<div style="padding:40px;font-family:sans-serif;text-align:center;direction:rtl">' +
+      '<h2 style="color:#c62828">⚠️ خطأ في تحميل التطبيق</h2>' +
+      '<p style="color:#666;font-size:14px">' + e.message + '</p>' +
+      '<pre style="text-align:left;background:#f5f5f5;padding:12px;border-radius:8px;overflow:auto;font-size:12px">' + (e.stack || '').substring(0, 500) + '</pre>' +
+      '<p style="color:#999;font-size:12px;margin-top:20px">امسح الكاش وحاول مرة أخرى</p>' +
+    '</div>';
+    console.error('APP init error:', e);
+  }
+});
 
 // إغلاق قائمة التصدير عند النقر خارجها
 // Modal close delegation — one listener for all modal close buttons
