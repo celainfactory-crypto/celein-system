@@ -51,7 +51,7 @@ window.APP = (function () {
 
   // --- تهيئة الواجهة ---
   function init() {
-    document.body.classList.add('ready');
+    document.body.style.visibility = 'visible'; document.body.style.opacity = '1';
     DB.init();
     db = DB.load();
 
@@ -120,7 +120,7 @@ window.APP = (function () {
   }
 
   function showLogin() {
-    document.body.classList.add('ready');
+    document.body.style.visibility = 'visible'; document.body.style.opacity = '1';
     document.body.innerHTML = `
       <div class="login-screen">
         <div class="login-card">
@@ -665,7 +665,7 @@ window.APP = (function () {
       if (sb) sb.classList.remove('open');
     }
     const content = document.getElementById("content");
-    document.body.classList.add('ready');
+    document.body.style.visibility = 'visible'; document.body.style.opacity = '1';
     content.innerHTML = `<div class="card"><div class="spinner"></div> جاري التحميل...</div>`;
 
     // استدعاء وحدة العرض
