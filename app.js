@@ -278,17 +278,17 @@ window.APP = (function () {
     let html = '';
     if (isIOS) {
       html = `
-        <h3>${Icons.render('phone')} تحميل التطبيق على iPhone/iPad</h3>
+        <h3>$$$$$$$$$$$${Icons.render('phone')} تحميل التطبيق على iPhone/iPad</h3>
         <ol style="text-align:right;line-height:2">
-          <li>اضغط على أيقونة <b>المشاركة</b> ${Icons.render('share')} في الأسفل</li>
-          <li>اختر <b>"إضافة إلى الشاشة الرئيسية"</b> ${Icons.render('plus')}</li>
+          <li>اضغط على أيقونة <b>المشاركة</b> $$$$$$$$$$$${Icons.render('share')} في الأسفل</li>
+          <li>اختر <b>"إضافة إلى الشاشة الرئيسية"</b> $$$$$$$$$$$${Icons.render('plus')}</li>
           <li>اضغط <b>"إضافة"</b> في الأعلى</li>
           <li>التطبيق سيظهر على شاشتك الرئيسية كتطبيق أصلي</li>
         </ol>
       `;
     } else if (isAndroid) {
       html = `
-        <h3>${Icons.render('phone')} تحميل التطبيق على Android</h3>
+        <h3>$$$$$$$$$$$${Icons.render('phone')} تحميل التطبيق على Android</h3>
         <ol style="text-align:right;line-height:2">
           <li>اضغط على <b>القائمة ⋮</b> في الأعلى</li>
           <li>اختر <b>"تثبيت التطبيق"</b> أو <b>"إضافة إلى الشاشة الرئيسية"</b></li>
@@ -297,7 +297,7 @@ window.APP = (function () {
       `;
     } else if (isWin || isMac) {
       html = `
-        <h3>${Icons.render('monitor')} تحميل التطبيق على ${isWin ? 'Windows' : 'Mac'}</h3>
+        <h3>$$$$$$$$$$$${Icons.render('monitor')} تحميل التطبيق على ${isWin ? 'Windows' : 'Mac'}</h3>
         <ol style="text-align:right;line-height:2">
           <li>اضغط على أيقونة <b>التثبيت ⬇</b> في شريط العنوان (يمين)</li>
           <li>أو من القائمة: <b>⋮</b> ← <b>"تثبيت مصنع سيلين"</b></li>
@@ -306,7 +306,7 @@ window.APP = (function () {
       `;
     } else {
       html = `
-        <h3>${Icons.render('download')} تحميل التطبيق</h3>
+        <h3>$$$$$$$$$$$${Icons.render('download')} تحميل التطبيق</h3>
         <p>استخدم خيار "إضافة إلى الشاشة الرئيسية" من قائمة المتصفح</p>
       `;
     }
@@ -315,7 +315,7 @@ window.APP = (function () {
     const isInStandaloneMode = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
     if (isInStandaloneMode) {
       html = `
-        <h3>${Icons.render('check')} التطبيق مُثبّت بالفعل!</h3>
+        <h3>$$$$$$$$$$$${Icons.render('check')} التطبيق مُثبّت بالفعل!</h3>
         <p>أنت تستخدم التطبيق المثبّت. كل الميزات تعمل بدون إنترنت.</p>
       `;
     }
@@ -324,14 +324,14 @@ window.APP = (function () {
     modal.className = 'modal-overlay';
     modal.innerHTML = `
       <div class="modal-box" style="max-width:500px">
-        <button class="modal-close" data-action="modal-close">${Icons.render('x')}</button>
+        <button class="modal-close" data-action="modal-close">$$$$$$$$$$$${Icons.render('x')}</button>
         ${html}
         <div class="alert alert-info" style="margin-top:16px">
-          <span>${Icons.render('info')}</span>
+          <span>$$$$$$$$$$$${Icons.render('info')}</span>
           <span><b>مميزات التطبيق المُثبّت:</b> يعمل بدون إنترنت، أيقونة على الشاشة، شاشة كاملة، إشعارات</span>
         </div>
         <div style="text-align:center;margin-top:16px">
-          <button class="btn btn-primary" data-action="modal-close">${Icons.render('check')} فهمت</button>
+          <button class="btn btn-primary" data-action="modal-close">$$$$$$$$$$$${Icons.render('check')} فهمت</button>
         </div>
       </div>
     `;
@@ -414,18 +414,18 @@ window.APP = (function () {
             <div class="page-title" id="pageTitle">لوحة التحكم</div>
             <div class="user-info">
               <button class="install-pwa-btn" id="installPwaBtn" style="display:none" data-action="install-pwa" title="تحميل التطبيق على الجهاز">
-                ${Icons.render('download')} <span class="install-text">تحميل التطبيق</span>
+                $$$$$$$$$$$${Icons.render('download')} <span class="install-text">تحميل التطبيق</span>
               </button>
               <div class="export-bar" id="exportBar">
                 <button class="btn-export" data-action="show-export-menu" title="تصدير التقرير الحالي">
-                  ${Icons.render('download')} تصدير <span style="margin-right:4px">▾</span>
+                  $$$$$$$$$$$${Icons.render('download')} تصدير <span style="margin-right:4px">▾</span>
                 </button>
                 <div class="export-menu" id="exportMenu" style="display:none">
-                  <button data-action="do-export" data-type="pdf">${Icons.render('pdf')} PDF</button>
-                  <button data-action="do-export" data-type="excel">${Icons.render('excel')} Excel</button>
-                  <button data-action="do-export" data-type="csv">${Icons.render('csv')} CSV</button>
-                  <button data-action="do-export" data-type="json">${Icons.render('json')} JSON</button>
-                  <button data-action="do-export" data-type="print">${Icons.render('print')} طباعة</button>
+                  <button data-action="do-export" data-type="pdf">$$$$$$$$$$$${Icons.render('pdf')} PDF</button>
+                  <button data-action="do-export" data-type="excel">$$$$$$$$$$$${Icons.render('excel')} Excel</button>
+                  <button data-action="do-export" data-type="csv">$$$$$$$$$$$${Icons.render('csv')} CSV</button>
+                  <button data-action="do-export" data-type="json">$$$$$$$$$$$${Icons.render('json')} JSON</button>
+                  <button data-action="do-export" data-type="print">$$$$$$$$$$$${Icons.render('print')} طباعة</button>
                 </div>
               </div>
               <div class="details">
@@ -433,17 +433,17 @@ window.APP = (function () {
                 <span>${roleLabel(currentUser.role)} | ${currentUser.empId}</span>
               </div>
               <div class="avatar" data-action="nav-profile" style="cursor:pointer" title="ملفي الشخصي">${currentUser.name.charAt(0)}</div>
-              <button class="logout-btn" data-action="logout">${Icons.render('logout')} خروج</button>
+              <button class="logout-btn" data-action="logout">$$$$$$$$$$$${Icons.render('logout')} خروج</button>
             </div>
           </header>
           <div class="self-service-bar" id="selfServiceBar" style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--bg-darker);border-bottom:1px solid var(--border);flex-wrap:wrap;font-size:13px;overflow-x:auto">
             <span style="font-weight:700;color:var(--primary);white-space:nowrap;margin-left:6px">خدمتي:</span>
-            <a href="#" data-action="nav" data-page="myDashboard" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('layout')} لوحة التحكم</a>
-            <a href="#" data-action="nav" data-page="salarySlip" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('fileText')} كشف الراتب</a>
-            <a href="#" data-action="nav" data-page="myRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('inbox')} طلباتي</a>
-            <a href="#" data-action="nav" data-page="newRequest" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--primary);color:#fff;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('plus')} طلب جديد</a>
-            ${['admin','executive','chairman','hr_manager','vice_executive','production','accountant'].includes(currentUser.role) ? `<a href="#" data-action="nav" data-page="incomingRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--warning);color:#000;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('incoming')} الطلبات الواردة <span id="ss_incoming_badge" style="background:#fff;color:#000;border-radius:50%;width:18px;height:18px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700">0</span></a>` : ''}
-            <a href="#" data-action="nav" data-page="profile" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('user')} ملفي</a>
+            <a href="#" data-action="nav" data-page="myDashboard" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">$$$$$$$$$$$${Icons.render('layout')} لوحة التحكم</a>
+            <a href="#" data-action="nav" data-page="salarySlip" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">$$$$$$$$$$$${Icons.render('fileText')} كشف الراتب</a>
+            <a href="#" data-action="nav" data-page="myRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">$$$$$$$$$$$${Icons.render('inbox')} طلباتي</a>
+            <a href="#" data-action="nav" data-page="newRequest" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--primary);color:#fff;border-radius:16px;text-decoration:none;font-weight:600">$$$$$$$$$$$${Icons.render('plus')} طلب جديد</a>
+            ${['admin','executive','chairman','hr_manager','vice_executive','production','accountant'].includes(currentUser.role) ? `<a href="#" data-action="nav" data-page="incomingRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--warning);color:#000;border-radius:16px;text-decoration:none;font-weight:600">$$$$$$$$$$$${Icons.render('incoming')} الطلبات الواردة <span id="ss_incoming_badge" style="background:#fff;color:#000;border-radius:50%;width:18px;height:18px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700">0</span></a>` : ''}
+            <a href="#" data-action="nav" data-page="profile" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">$$$$$$$$$$$${Icons.render('user')} ملفي</a>
           </div>
           <main class="content" id="content"></main>
           <footer class="app-footer">
@@ -588,7 +588,7 @@ window.APP = (function () {
           <div class="nav-section-items" style="overflow:hidden;max-height:${isOpen ? (items.length * 70) : 0}px;transition:max-height 0.3s ease">
             ${items.map(m => `
               <div class="nav-item ${currentModule === m.id ? 'active' : ''}" data-id="${m.id}" data-group="${g}">
-                <span class="icon">${Icons.render(m.icon)}</span>
+                <span class="icon">$$$$$$$$$$${Icons.render(m.icon)}</span>
                 <span>${m.label}</span>
               </div>
             `).join('')}
@@ -606,7 +606,7 @@ window.APP = (function () {
         const isActive = firstMod && firstMod.roles.includes(role);
         return `
           <a href="#" class="mobile-nav-group ${isActive ? 'active' : ''}" data-group="${g}" title="${g}">
-            ${Icons.render(groupIcons[g] || 'box')}
+            $$$$$$$$$$${Icons.render(groupIcons[g] || 'box')}
             <span style="font-size:10px">${g}</span>
           </a>
         `;
@@ -685,7 +685,7 @@ window.APP = (function () {
             }
           });
         } else {
-          content.innerHTML = `<div class="card"><div class="empty-state"><div class="icon">{Icons.render("settings")}</div><h3>الوحدة قيد التطوير</h3></div></div>`;
+          content.innerHTML = `<div class="card"><div class="empty-state"><div class="icon">$$$$$$$$$$$${Icons.render("settings")}</div><h3>الوحدة قيد التطوير</h3></div></div>`;
         }
       } catch (e) {
         content.innerHTML = `<div class="card"><div class="alert alert-danger">خطأ في تحميل الوحدة: ${e.message}</div></div>`;
@@ -931,10 +931,327 @@ window.APP = (function () {
       return;
     }
 
-    if (console.warn) console.warn('[Modules] No handler for:', action);
+
+    // ===== HR Module Actions =====
+    if (action === 'toggle-dept') {
+      var didx = parseInt(el.dataset.didx || '0');
+      var body = document.getElementById('dept-body-' + didx);
+      var arrow = document.getElementById('dept-arrow-' + didx);
+      if (body) {
+        var isOpen = body.style.display !== 'none';
+        body.style.display = isOpen ? 'none' : 'block';
+        if (arrow) arrow.style.transform = isOpen ? 'rotate(-90deg)' : 'rotate(0deg)';
+      }
+      return;
+    }
+    if (action === 'add-employee') {
+      if (window.Modules._addEmployee) { window.Modules._addEmployee(); return; }
+      var form = document.getElementById('empForm');
+      if (form) form.dispatchEvent(new Event('submit'));
+      return;
+    }
+    if (action === 'edit-employee') {
+      var eid = el.dataset.eid;
+      if (window.Modules._editEmployee) { window.Modules._editEmployee(eid); return; }
+      var emp = APP.getDB().employeesLog.find(e => e.id == eid);
+      if (!emp) return;
+      document.getElementById('edit_id').value = emp.id;
+      document.getElementById('edit_empId').value = emp.empId;
+      document.getElementById('edit_name').value = emp.name;
+      document.getElementById('edit_position').value = emp.position;
+      document.getElementById('edit_department').value = emp.department;
+      document.getElementById('edit_salary').value = emp.salary;
+      document.getElementById('edit_allowances').value = emp.allowances || 0;
+      document.getElementById('edit_hireDate').value = emp.hireDate;
+      var modal = document.getElementById('editEmpModal');
+      if (modal) modal.style.display = 'flex';
+      return;
+    }
+    if (action === 'delete-employee') {
+      var eid = el.dataset.eid;
+      if (!confirm('هل أنت متأكد من حذف هذا الموظف؟')) return;
+      var db = APP.getDB();
+      db.employeesLog = db.employeesLog.filter(e => e.id != eid);
+      APP.saveDB(db);
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      return;
+    }
+    if (action === 'change-status') {
+      var eid = el.dataset.eid;
+      var db = APP.getDB();
+      var emp = db.employeesLog.find(e => e.id == eid);
+      if (!emp) return;
+      var statuses = [{v:'active',l:'تفعيل'},{v:'suspended',l:'إيقاف'},{v:'terminated',l:'إنهاء'}];
+      var opts = statuses.map(s => s.v === emp.status ? s.l + ' ✓' : s.l).join('\n');
+      var chosen = prompt('اختر الحالة:\n' + opts);
+      if (!chosen) return;
+      var newStatus = statuses.find(s => s.l.replace(' ✓','') === chosen.trim());
+      if (newStatus) { emp.status = newStatus.v; APP.saveDB(db); if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content')); }
+      return;
+    }
+    if (action === 'save-employee') {
+      var form = document.getElementById('editEmpForm');
+      if (!form) return;
+      var id = document.getElementById('edit_id').value;
+      var db = APP.getDB();
+      var emp = db.employeesLog.find(e => e.id == id);
+      if (!emp) return;
+      emp.name = document.getElementById('edit_name').value;
+      emp.position = document.getElementById('edit_position').value;
+      emp.department = document.getElementById('edit_department').value;
+      emp.salary = Number(document.getElementById('edit_salary').value);
+      emp.allowances = Number(document.getElementById('edit_allowances').value) || 0;
+      emp.hireDate = document.getElementById('edit_hireDate').value;
+      APP.saveDB(db);
+      var modal = document.getElementById('editEmpModal');
+      if (modal) modal.style.display = 'none';
+      var status = document.getElementById('editSaveStatus');
+      if (status) { status.style.display = 'block'; setTimeout(() => status.style.display = 'none', 2000); }
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      return;
+    }
+
+    // ===== Navigation sub-menu actions =====
+    if (action === 'nav-permissions') { navigate('permissions'); return; }
+    if (action === 'nav-terminated') { navigate('terminated'); return; }
+    if (action === 'nav-orgchart') { navigate('orgchart'); return; }
+    if (action === 'nav-orgtree') { navigate('orgtree'); return; }
+
+    // ===== Terminated module =====
+    if (action === 'restore-employee') {
+      var eid = el.dataset.eid;
+      var db = APP.getDB();
+      var emp = db.employeesLog.find(e => e.id == eid);
+      if (emp) { emp.status = 'active'; APP.saveDB(db); }
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      return;
+    }
+
+    // ===== Pricing =====
+    if (action === 'add-price') {
+      if (window.Modules._addPrice) { window.Modules._addPrice(); return; }
+      var db = APP.getDB();
+      var item = document.getElementById('pr_item') ? document.getElementById('pr_item').value : '';
+      var retail = parseFloat(document.getElementById('pr_retail') ? document.getElementById('pr_retail').value : 0);
+      var wholesale = parseFloat(document.getElementById('pr_wholesale') ? document.getElementById('pr_wholesale').value : 0);
+      var comm = parseFloat(document.getElementById('pr_commission') ? document.getElementById('pr_commission').value : 0);
+      var factory = parseFloat(document.getElementById('pr_factory') ? document.getElementById('pr_factory').value : 0);
+      var transport = parseFloat(document.getElementById('pr_transport') ? document.getElementById('pr_transport').value : 0);
+      if (!item) return;
+      db.pricing.push({item, retail, wholesale, commission: comm, factoryPrice: factory, transportCost: transport});
+      APP.saveDB(db);
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      return;
+    }
+    if (action === 'delete-price') {
+      var idx = parseInt(el.dataset.idx);
+      var db = APP.getDB();
+      db.pricing.splice(idx, 1);
+      APP.saveDB(db);
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      return;
+    }
+
+    // ===== Inventory =====
+    if (action === 'add-inventory-item') {
+      if (window.Modules._addInventory) { window.Modules._addInventory(); return; }
+      var name = document.getElementById('inv_name') ? document.getElementById('inv_name').value : '';
+      var qty = parseFloat(document.getElementById('inv_qty') ? document.getElementById('inv_qty').value : 0);
+      var unit = document.getElementById('inv_unit') ? document.getElementById('inv_unit').value : '';
+      if (!name) return;
+      var db = APP.getDB();
+      db.inventory.push({id: Date.now(), name, quantity: qty, unit, lastUpdate: new Date().toISOString().split('T')[0]});
+      APP.saveDB(db);
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      return;
+    }
+    if (action === 'export-inventory') {
+      var db = APP.getDB();
+      var csv = 'الصنف,الكمية,الوحدة,آخر تحديث\n' +
+        db.inventory.map(i => i.name+','+i.quantity+','+i.unit+','+i.lastUpdate).join('\n');
+      var blob = new Blob([csv], {type:'text/csv'});
+      var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'المخزون.csv'; a.click();
+      return;
+    }
+    if (action === 'inventory-adjust') {
+      var idx = parseInt(el.dataset.idx);
+      var newQty = prompt('أدخل الكمية الجديدة:');
+      if (newQty === null) return;
+      var db = APP.getDB();
+      if (db.inventory[idx]) {
+        db.inventory[idx].quantity = parseFloat(newQty);
+        db.inventory[idx].lastUpdate = new Date().toISOString().split('T')[0];
+        APP.saveDB(db);
+        if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      }
+      return;
+    }
+
+    // ===== Sales / Reps =====
+    if (action === 'save-rep') {
+      if (window.Modules._saveRep) { window.Modules._saveRep(); return; }
+      var name = document.getElementById('rep_name') ? document.getElementById('rep_name').value : '';
+      var phone = document.getElementById('rep_phone') ? document.getElementById('rep_phone').value : '';
+      var area = document.getElementById('rep_area') ? document.getElementById('rep_area').value : '';
+      if (!name) return;
+      var db = APP.getDB();
+      db.reps.push({id: Date.now(), name, phone, area, active: true, sales: 0, collections: 0});
+      APP.saveDB(db);
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      return;
+    }
+    if (action === 'delete-rep') {
+      var id = parseInt(el.dataset.id);
+      var db = APP.getDB();
+      db.reps = db.reps.filter(r => r.id !== id);
+      APP.saveDB(db);
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      return;
+    }
+
+    // ===== Cash flow / Vouchers =====
+    if (action === 'add-voucher') {
+      if (window.Modules._addVoucher) { window.Modules._addVoucher(); return; }
+      var desc = document.getElementById('vc_desc') ? document.getElementById('vc_desc').value : '';
+      var amount = parseFloat(document.getElementById('vc_amount') ? document.getElementById('vc_amount').value : 0);
+      if (!desc || !amount) return;
+      var db = APP.getDB();
+      db.vouchers.push({id: Date.now(), description: desc, amount, type: 'expense', date: new Date().toISOString().split('T')[0]});
+      APP.saveDB(db);
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      return;
+    }
+
+    // ===== Account actions =====
+    if (action === 'manage-accounts') { navigate('accounts'); return; }
+
+    // ===== PR (Purchase Request) =====
+    if (action === 'pr-submit') {
+      var item = document.getElementById('pr_item_name') ? document.getElementById('pr_item_name').value : '';
+      var qty = parseFloat(document.getElementById('pr_qty') ? document.getElementById('pr_qty').value : 0);
+      var reason = document.getElementById('pr_reason') ? document.getElementById('pr_reason').value : '';
+      if (!item || !qty) { alert('املأ جميع الحقول'); return; }
+      var db = APP.getDB();
+      db.purchaseRequests = db.purchaseRequests || [];
+      db.purchaseRequests.push({id: Date.now(), item, quantity: qty, reason, status: 'pending', requestedBy: APP.getCurrentUser().name, date: new Date().toISOString().split('T')[0]});
+      APP.saveDB(db);
+      alert('تم إرسال طلب الشراء بنجاح');
+      if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      return;
+    }
+    if (action === 'pr-cancel') {
+      var idx = parseInt(el.dataset.idx);
+      var db = APP.getDB();
+      if (db.purchaseRequests && db.purchaseRequests[idx]) {
+        db.purchaseRequests[idx].status = 'cancelled';
+        APP.saveDB(db);
+        if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      }
+      return;
+    }
+    if (action === 'pr-approve') {
+      var idx = parseInt(el.dataset.idx);
+      var db = APP.getDB();
+      if (db.purchaseRequests && db.purchaseRequests[idx]) {
+        db.purchaseRequests[idx].status = 'approved';
+        APP.saveDB(db);
+        if (window.Modules[currentModule]) window.Modules[currentModule](document.getElementById('content'));
+      }
+      return;
+    }
+
+    // ===== Dev/Admin actions =====
+    if (action === 'dev-reload-data') { DB.clear(); APP.saveDB(DB.load()); window.location.reload(); return; }
+    if (action === 'dev-reset-sales') { var db = APP.getDB(); db.salesLog = []; db.creditLedger = {}; APP.saveDB(db); window.location.reload(); return; }
+    if (action === 'dev-reset-all') { if (confirm('سيتم حذف كل البيانات! متأكد؟')) { DB.clear(); localStorage.clear(); window.location.reload(); } return; }
+    if (action === 'dev-export-db') { var db = APP.getDB(); var blob = new Blob([JSON.stringify(db, null, 2)], {type:'application/json'}); var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'celain-db.json'; a.click(); return; }
+
+
+        if (console.warn) console.warn('[Modules] No handler for:', action);
   };
 
-  // === Missing Module Action Handlers ===
+  
+// ===== Employee Management Functions =====
+Modules._addEmployee = function() {
+  var name = document.getElementById('e_name') ? document.getElementById('e_name').value : '';
+  var position = document.getElementById('e_position') ? document.getElementById('e_position').value : '';
+  var department = document.getElementById('e_department') ? document.getElementById('e_department').value : '';
+  var salary = parseFloat(document.getElementById('e_salary') ? document.getElementById('e_salary').value : 0);
+  var allowances = parseFloat(document.getElementById('e_allowances') ? document.getElementById('e_allowances').value : 0);
+  var hireDate = document.getElementById('e_hireDate') ? document.getElementById('e_hireDate').value : '';
+
+  if (!name || !position || !department || !salary || !hireDate) {
+    alert('يرجى ملء جميع الحقول المطلوبة');
+    return;
+  }
+
+  var db = APP.getDB();
+  var maxId = db.employeesLog.reduce(function(m, e) { return Math.max(m, parseInt(e.id) || 0); }, 0);
+  var empNum = (db.employeesLog.length + 1).toString().padStart(3, '0');
+  
+  db.employeesLog.push({
+    id: maxId + 1,
+    empId: 'E' + empNum,
+    name: name,
+    position: position,
+    department: department,
+    salary: salary,
+    allowances: allowances,
+    hireDate: hireDate,
+    managerName: 'الإدارة العليا',
+    status: 'active'
+  });
+
+  APP.saveDB(db);
+  document.getElementById('empForm').reset();
+  
+  // Refresh current module
+  if (window.Modules[currentModule]) {
+    window.Modules[currentModule](document.getElementById('content'));
+  }
+  
+  alert('تم إضافة الموظف ' + name + ' بنجاح');
+};
+
+Modules._saveEmployee = function() {
+  var id = document.getElementById('edit_id') ? document.getElementById('edit_id').value : '';
+  var name = document.getElementById('edit_name') ? document.getElementById('edit_name').value : '';
+  var position = document.getElementById('edit_position') ? document.getElementById('edit_position').value : '';
+  var department = document.getElementById('edit_department') ? document.getElementById('edit_department').value : '';
+  var salary = parseFloat(document.getElementById('edit_salary') ? document.getElementById('edit_salary').value : 0);
+  var allowances = parseFloat(document.getElementById('edit_allowances') ? document.getElementById('edit_allowances').value : 0);
+  var hireDate = document.getElementById('edit_hireDate') ? document.getElementById('edit_hireDate').value : '';
+
+  if (!name || !position || !department || !salary) {
+    alert('يرجى ملء جميع الحقول المطلوبة');
+    return;
+  }
+
+  var db = APP.getDB();
+  var emp = db.employeesLog.find(function(e) { return e.id == id; });
+  if (!emp) { alert('الموظف غير موجود'); return; }
+
+  emp.name = name;
+  emp.position = position;
+  emp.department = department;
+  emp.salary = salary;
+  emp.allowances = allowances;
+  emp.hireDate = hireDate;
+
+  APP.saveDB(db);
+
+  var modal = document.getElementById('editEmpModal');
+  if (modal) modal.style.display = 'none';
+
+  // Refresh current module
+  if (window.Modules[currentModule]) {
+    window.Modules[currentModule](document.getElementById('content'));
+  }
+};
+
+
+// === Missing Module Action Handlers ===
 
   // HR module
   window.Modules._addEmployee = function(el) {

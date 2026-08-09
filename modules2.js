@@ -3170,7 +3170,7 @@ window.Modules.hr = function(container) {
         ${isAdmin ? `
         <div class="card">
           <h3>${Icons.render("plus")} إضافة موظف جديد</h3>
-          <form class="form-grid" id="empForm" onsubmit="event.preventDefault(); Modules._addEmployee();">
+          <form class="form-grid" id="empForm" onsubmit="event.preventDefault();">
             <div class="form-group"><label>الاسم الكامل *</label><input type="text" id="e_name" required /></div>
             <div class="form-group"><label>الوظيفة *</label><input type="text" id="e_position" required /></div>
             <div class="form-group"><label>القسم *</label><input type="text" id="e_department" list="deptList" required /><datalist id="deptList">${departments.map(d => '<option value="'+d+'">').join('')}</datalist></div>
@@ -3284,7 +3284,7 @@ window.Modules.hr = function(container) {
             <button class="btn btn-sm" data-action="modal-close">${Icons.render("x")}</button>
           </div>
           <div class="modal-body">
-            <form id="editEmpForm" onsubmit="event.preventDefault(); Modules._saveEmployee();">
+            <form id="editEmpForm" onsubmit="event.preventDefault();">
               <input type="hidden" id="edit_id" />
               <div class="form-grid">
                 <div class="form-group"><label>الرقم الوظيفي</label><input type="text" id="edit_empId" readonly style="background:var(--bg-darker);cursor:not-allowed" /></div>
@@ -5518,7 +5518,7 @@ window.Modules.developer = window.Modules.settings = function(container) {
     return `
       <div class="card">
         <h3>${Icons.render("palette")} تخصيص الثيم</h3>
-        <form class="form-grid" id="themeForm" onsubmit="event.preventDefault(); Modules._dev_saveTheme();">
+        <form class="form-grid" id="themeForm" onsubmit="event.preventDefault();">
           <div class="form-group">
             <label>اللون الأساسي (Primary)</label>
             <input type="color" id="theme_primary" value="${dev.theme_primary || '#1e2d4f'}" />
