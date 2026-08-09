@@ -928,6 +928,7 @@ window.APP = (function () {
     }
 
     if (console.warn) console.warn('[Modules] No handler for:', action);
+  };
 
   // === Missing Module Action Handlers ===
 
@@ -1194,8 +1195,6 @@ window.APP = (function () {
   // which is handled separately in modules
 
   // === End Missing Module Action Handlers ===
-
-  };
 
 
   return { init, navigate, logout, doLogin, getDB, saveDB, getUser, getCurrentUser, showExportMenu, doExport, toggleSidebar, togglePasswordGlobal, installPWA, showManualInstallGuide, syncExportBar };
