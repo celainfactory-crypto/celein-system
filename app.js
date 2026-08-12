@@ -278,17 +278,17 @@ window.APP = (function () {
     let html = '';
     if (isIOS) {
       html = `
-        <h3>$$$$$$$$$$$${Icons.render('phone')} تحميل التطبيق على iPhone/iPad</h3>
+        <h3>${Icons.render('phone')} تحميل التطبيق على iPhone/iPad</h3>
         <ol style="text-align:right;line-height:2">
-          <li>اضغط على أيقونة <b>المشاركة</b> $$$$$$$$$$$${Icons.render('share')} في الأسفل</li>
-          <li>اختر <b>"إضافة إلى الشاشة الرئيسية"</b> $$$$$$$$$$$${Icons.render('plus')}</li>
+          <li>اضغط على أيقونة <b>المشاركة</b> ${Icons.render('share')} في الأسفل</li>
+          <li>اختر <b>"إضافة إلى الشاشة الرئيسية"</b> ${Icons.render('plus')}</li>
           <li>اضغط <b>"إضافة"</b> في الأعلى</li>
           <li>التطبيق سيظهر على شاشتك الرئيسية كتطبيق أصلي</li>
         </ol>
       `;
     } else if (isAndroid) {
       html = `
-        <h3>$$$$$$$$$$$${Icons.render('phone')} تحميل التطبيق على Android</h3>
+        <h3>${Icons.render('phone')} تحميل التطبيق على Android</h3>
         <ol style="text-align:right;line-height:2">
           <li>اضغط على <b>القائمة ⋮</b> في الأعلى</li>
           <li>اختر <b>"تثبيت التطبيق"</b> أو <b>"إضافة إلى الشاشة الرئيسية"</b></li>
@@ -297,7 +297,7 @@ window.APP = (function () {
       `;
     } else if (isWin || isMac) {
       html = `
-        <h3>$$$$$$$$$$$${Icons.render('monitor')} تحميل التطبيق على ${isWin ? 'Windows' : 'Mac'}</h3>
+        <h3>${Icons.render('monitor')} تحميل التطبيق على ${isWin ? 'Windows' : 'Mac'}</h3>
         <ol style="text-align:right;line-height:2">
           <li>اضغط على أيقونة <b>التثبيت ⬇</b> في شريط العنوان (يمين)</li>
           <li>أو من القائمة: <b>⋮</b> ← <b>"تثبيت مصنع سيلين"</b></li>
@@ -306,7 +306,7 @@ window.APP = (function () {
       `;
     } else {
       html = `
-        <h3>$$$$$$$$$$$${Icons.render('download')} تحميل التطبيق</h3>
+        <h3>${Icons.render('download')} تحميل التطبيق</h3>
         <p>استخدم خيار "إضافة إلى الشاشة الرئيسية" من قائمة المتصفح</p>
       `;
     }
@@ -315,7 +315,7 @@ window.APP = (function () {
     const isInStandaloneMode = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
     if (isInStandaloneMode) {
       html = `
-        <h3>$$$$$$$$$$$${Icons.render('check')} التطبيق مُثبّت بالفعل!</h3>
+        <h3>${Icons.render('check')} التطبيق مُثبّت بالفعل!</h3>
         <p>أنت تستخدم التطبيق المثبّت. كل الميزات تعمل بدون إنترنت.</p>
       `;
     }
@@ -324,14 +324,14 @@ window.APP = (function () {
     modal.className = 'modal-overlay';
     modal.innerHTML = `
       <div class="modal-box" style="max-width:500px">
-        <button class="modal-close" data-action="modal-close">$$$$$$$$$$$${Icons.render('x')}</button>
+        <button class="modal-close" data-action="modal-close">${Icons.render('x')}</button>
         ${html}
         <div class="alert alert-info" style="margin-top:16px">
-          <span>$$$$$$$$$$$${Icons.render('info')}</span>
+          <span>${Icons.render('info')}</span>
           <span><b>مميزات التطبيق المُثبّت:</b> يعمل بدون إنترنت، أيقونة على الشاشة، شاشة كاملة، إشعارات</span>
         </div>
         <div style="text-align:center;margin-top:16px">
-          <button class="btn btn-primary" data-action="modal-close">$$$$$$$$$$$${Icons.render('check')} فهمت</button>
+          <button class="btn btn-primary" data-action="modal-close">${Icons.render('check')} فهمت</button>
         </div>
       </div>
     `;
@@ -414,18 +414,18 @@ window.APP = (function () {
             <div class="page-title" id="pageTitle">لوحة التحكم</div>
             <div class="user-info">
               <button class="install-pwa-btn" id="installPwaBtn" style="display:none" data-action="install-pwa" title="تحميل التطبيق على الجهاز">
-                $$$$$$$$$$$${Icons.render('download')} <span class="install-text">تحميل التطبيق</span>
+                ${Icons.render('download')} <span class="install-text">تحميل التطبيق</span>
               </button>
               <div class="export-bar" id="exportBar">
                 <button class="btn-export" data-action="show-export-menu" title="تصدير التقرير الحالي">
-                  $$$$$$$$$$$${Icons.render('download')} تصدير <span style="margin-right:4px">▾</span>
+                  ${Icons.render('download')} تصدير <span style="margin-right:4px">▾</span>
                 </button>
                 <div class="export-menu" id="exportMenu" style="display:none">
-                  <button data-action="do-export" data-type="pdf">$$$$$$$$$$$${Icons.render('pdf')} PDF</button>
-                  <button data-action="do-export" data-type="excel">$$$$$$$$$$$${Icons.render('excel')} Excel</button>
-                  <button data-action="do-export" data-type="csv">$$$$$$$$$$$${Icons.render('csv')} CSV</button>
-                  <button data-action="do-export" data-type="json">$$$$$$$$$$$${Icons.render('json')} JSON</button>
-                  <button data-action="do-export" data-type="print">$$$$$$$$$$$${Icons.render('print')} طباعة</button>
+                  <button data-action="do-export" data-type="pdf">${Icons.render('pdf')} PDF</button>
+                  <button data-action="do-export" data-type="excel">${Icons.render('excel')} Excel</button>
+                  <button data-action="do-export" data-type="csv">${Icons.render('csv')} CSV</button>
+                  <button data-action="do-export" data-type="json">${Icons.render('json')} JSON</button>
+                  <button data-action="do-export" data-type="print">${Icons.render('print')} طباعة</button>
                 </div>
               </div>
               <div class="details">
@@ -433,17 +433,17 @@ window.APP = (function () {
                 <span>${roleLabel(currentUser.role)} | ${currentUser.empId}</span>
               </div>
               <div class="avatar" data-action="nav-profile" style="cursor:pointer" title="ملفي الشخصي">${currentUser.name.charAt(0)}</div>
-              <button class="logout-btn" data-action="logout">$$$$$$$$$$$${Icons.render('logout')} خروج</button>
+              <button class="logout-btn" data-action="logout">${Icons.render('logout')} خروج</button>
             </div>
           </header>
           <div class="self-service-bar" id="selfServiceBar" style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--bg-darker);border-bottom:1px solid var(--border);flex-wrap:wrap;font-size:13px;overflow-x:auto">
             <span style="font-weight:700;color:var(--primary);white-space:nowrap;margin-left:6px">خدمتي:</span>
-            <a href="#" data-action="nav" data-page="myDashboard" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">$$$$$$$$$$$${Icons.render('layout')} لوحة التحكم</a>
-            <a href="#" data-action="nav" data-page="salarySlip" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">$$$$$$$$$$$${Icons.render('fileText')} كشف الراتب</a>
-            <a href="#" data-action="nav" data-page="myRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">$$$$$$$$$$$${Icons.render('inbox')} طلباتي</a>
-            <a href="#" data-action="nav" data-page="newRequest" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--primary);color:#fff;border-radius:16px;text-decoration:none;font-weight:600">$$$$$$$$$$$${Icons.render('plus')} طلب جديد</a>
-            ${['admin','executive','chairman','hr_manager','vice_executive','production','accountant'].includes(currentUser.role) ? `<a href="#" data-action="nav" data-page="incomingRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--warning);color:#000;border-radius:16px;text-decoration:none;font-weight:600">$$$$$$$$$$$${Icons.render('incoming')} الطلبات الواردة <span id="ss_incoming_badge" style="background:#fff;color:#000;border-radius:50%;width:18px;height:18px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700">0</span></a>` : ''}
-            <a href="#" data-action="nav" data-page="profile" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">$$$$$$$$$$$${Icons.render('user')} ملفي</a>
+            <a href="#" data-action="nav" data-page="myDashboard" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('layout')} لوحة التحكم</a>
+            <a href="#" data-action="nav" data-page="salarySlip" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('fileText')} كشف الراتب</a>
+            <a href="#" data-action="nav" data-page="myRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('inbox')} طلباتي</a>
+            <a href="#" data-action="nav" data-page="newRequest" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--primary);color:#fff;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('plus')} طلب جديد</a>
+            ${['admin','executive','chairman','hr_manager','vice_executive','production','accountant'].includes(currentUser.role) ? `<a href="#" data-action="nav" data-page="incomingRequests" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--warning);color:#000;border-radius:16px;text-decoration:none;font-weight:600">${Icons.render('incoming')} الطلبات الواردة <span id="ss_incoming_badge" style="background:#fff;color:#000;border-radius:50%;width:18px;height:18px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700">0</span></a>` : ''}
+            <a href="#" data-action="nav" data-page="profile" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-card);border-radius:16px;text-decoration:none;color:var(--text);border:1px solid var(--border)">${Icons.render('user')} ملفي</a>
           </div>
           <main class="content" id="content"></main>
           <footer class="app-footer">
@@ -592,7 +592,7 @@ window.APP = (function () {
           <div class="nav-section-items" style="overflow:hidden;max-height:${isOpen ? (items.length * 70) : 0}px;transition:max-height 0.3s ease">
             ${items.map(m => `
               <div class="nav-item ${currentModule === m.id ? 'active' : ''}" data-id="${m.id}" data-group="${g}">
-                <span class="icon">$$$$$$$$$$${Icons.render(m.icon)}</span>
+                <span class="icon">${Icons.render(m.icon)}</span>
                 <span>${m.label}</span>
               </div>
             `).join('')}
@@ -610,7 +610,7 @@ window.APP = (function () {
         const isActive = firstMod && firstMod.roles.includes(role);
         return `
           <a href="#" class="mobile-nav-group ${isActive ? 'active' : ''}" data-group="${g}" title="${g}">
-            $$$$$$$$$$${Icons.render(groupIcons[g] || 'box')}
+            ${Icons.render(groupIcons[g] || 'box')}
             <span style="font-size:10px">${g}</span>
           </a>
         `;
@@ -689,7 +689,7 @@ window.APP = (function () {
             }
           });
         } else {
-          content.innerHTML = `<div class="card"><div class="empty-state"><div class="icon">$$$$$$$$$$$${Icons.render("settings")}</div><h3>الوحدة قيد التطوير</h3></div></div>`;
+          content.innerHTML = `<div class="card"><div class="empty-state"><div class="icon">${Icons.render("settings")}</div><h3>الوحدة قيد التطوير</h3></div></div>`;
         }
       } catch (e) {
         content.innerHTML = `<div class="card"><div class="alert alert-danger">خطأ في تحميل الوحدة: ${e.message}</div></div>`;
